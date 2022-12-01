@@ -1,0 +1,1 @@
+* [solar](./browser/index.html)
