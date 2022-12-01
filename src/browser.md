@@ -1,7 +1,7 @@
 ## 浏览器页面
-[百度](t-yuhao.githhub.io/src/browser/baidu.html)
+>[百度](./browser/baidu.html)
 
 ## html页面
-[太阳系](t-yuhao.githhub.io/src/browser/solar.html)
+>[太阳系](./browser/solar.html)
 
-[魔方](t-yuhao.githhub.io/src/browser/cube/index.html)
+>[魔方](./browser/cube/index.html)
