@@ -1,5 +1,6 @@
 <img class="avatar" src="line.svg" alt="" width="32px" height="32px">
-<a href="https://t-yuhao.github.io"><h1 class="site-title">TYH</h1>
+
+# [TYH](../)
 
 <img src="line.svg" width = "25" height = "25" div align=left />
 
