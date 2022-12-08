@@ -1,6 +1,10 @@
 ## 浏览器页面
 >[Firefox](./firefox.html)
 
+>[Simpe](./simple.html)
+
+>[via](./via.html)
+
 >[pears:多搜索引擎切换](./pears/index.html)
 
 >[x](./x.html)

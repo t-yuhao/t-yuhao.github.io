@@ -165,163 +165,162 @@
                 </a>
             </div>
         </li>
-</div>
+    </div>
 
 
 
-<!-- ------------------------------------------------------------------------- -->
+    <!-- ------------------------------------------------------------------------- -->
 
-<style>
-    .scposition {
-        position: absolute;
-        top: 33%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 84%;
-        max-width:760px;
-    }
+    <style>
+        .scposition {
+            position: absolute;
+            top: 33%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 84%;
+            max-width:760px;
+        }
 
-    img{
-        position: absolute;
-        top: 5px;
-        right: 5px;
-        left: 0vw;
-        transform: translateX( 0px);
-        margin-top: 10px;
-        margin-left: 10px;
-        height: 20px;   
-    }
+        img{
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            left: 0vw;
+            transform: translateX( 0px);
+            margin-top: 10px;
+            margin-left: 10px;
+            height: 20px;   
+        }
 
-    input{
-        text-align:center;
-    }
-    
-    .search_bg {
-        border-radius: 100px;
-        overflow: hidden;
-        background-color: #fff;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-        transition: .3s;
-    }
-    .search_bg:hover {
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-    }
+        input{
+            text-align:center;
+        }
 
-    #search {
-        float: left;
-        width: 100%;
-        height: 50px;
-        padding: 0 50px;
-        font-size: 18px;
-        border: none;
-        outline: none;
-        color: #343434;
-        background: transparent;
-    }
-    .subb {
-        position:absolute;
-        top: 5px;
-        right: 5px;
-        width: 40px;
-        height: 40px;
-        border: none;
-        outline: none;
-        border-radius: 100px;
-        background: url("img/forward.svg") no-repeat center;
-        box-shadow: 0 0 15px 5px 0;
-    }
-    .subb:hover {
+        .search_bg {
+            border-radius: 100px;
+            overflow: hidden;
+            background-color: #fff;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+            transition: .3s;
+        }
+        .search_bg:hover {
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        #search {
+            float: left;
+            width: 100%;
+            height: 50px;
+            padding: 0 50px;
+            font-size: 18px;
+            border: none;
+            outline: none;
+            color: #343434;
+            background: transparent;
+        }
+        .subb {
+            position:absolute;
+            top: 5px;
+            right: 5px;
+            width: 40px;
+            height: 40px;
+            border: none;
+            outline: none;
+            border-radius: 100px;
+            background: url("img/forward.svg") no-repeat center;
+            box-shadow: 0 0 15px 5px 0;
+        }
+        .subb:hover {
+            background-color: #ededed;
+        }
+        /*//---------------------------------------------------------*/
+
+        .top-sites-list {
+          min-width: 20%;
+          max-width: 80%;
+          min-height: 20%;
+          max-height: 80%;
+          resize: both;
+          overflow: auto;
+          margin: auto;
+          position: absolute;
+          top: 40%; left: 0; bottom: 0; right: 0; 
+      }
+
+      .top-site-outer {
+
+          width: 120px;
+          padding: 20px 16px 4px;
+          border-radius: 8px;
+          display: inline-block;
+      }
+      .top-site-outer:hover {
         background-color: #ededed;
-    }
-    /*//---------------------------------------------------------*/
-
-.top-sites-list {
-    min-width: 20%;
-  max-width: 80%;
-  min-height: 20%;
-  max-height: 80%;
-  resize: both;
-  overflow: auto;
-  margin: auto;
-  position: absolute;
-   top: 40%; left: 0; bottom: 0; right: 0;
-
-}
-
-.top-site-outer {
-
-  width: 120px;
-  padding: 20px 16px 4px;
-  border-radius: 8px;
-  display: inline-block;
-}
-.top-site-outer:hover {
-        background-color: #ededed;
 
     }
-.top-site-outer .top-site-inner {
-  position: relative;
+    .top-site-outer .top-site-inner {
+      position: relative;
 
-}
-.top-site-outer .top-site-inner > a {
-  color: inherit;
-  display: block;
-  outline: none;
-}
-.top-site-outer:is(:hover) .context-menu-button {
-  opacity: 1;
+  }
+  .top-site-outer .top-site-inner > a {
+      color: inherit;
+      display: block;
+      outline: none;
+  }
+  .top-site-outer:is(:hover) .context-menu-button {
+      opacity: 1;
 
-}
- 
-.top-site-outer .tile {
-  border-radius: 38px;/*圆角*/
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  background-color: var(--newtab-background-color-secondary);
-  justify-content: center;
-  margin: 0 auto;
-  height: 80px;
-  width: 80px;
-  cursor: pointer;
-  position: relative;
-  align-items: center;
-  color: var(--newtab-text-secondary-color);
-  display: flex;
-  font-size: 32px;
-  font-weight: 200;
-  text-transform: uppercase;
-}
-.top-site-outer .tile .icon-wrapper {
+  }
 
-  border-radius: 114px;
-  width: 48px;
-  height: 48px;
-  overflow: hidden;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+  .top-site-outer .tile {
+      border-radius: 38px;/*圆角*/
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      background-color: var(--newtab-background-color-secondary);
+      justify-content: center;
+      margin: 0 auto;
+      height: 80px;
+      width: 80px;
+      cursor: pointer;
+      position: relative;
+      align-items: center;
+      color: var(--newtab-text-secondary-color);
+      display: flex;
+      font-size: 32px;
+      font-weight: 200;
+      text-transform: uppercase;
+  }
+  .top-site-outer .tile .icon-wrapper {
 
-.top-site-outer .rich-icon {
-  background-size: cover;
-  height: 100%;
-  inset-inline-start: 0;
-  top: 0;
-  width: 100%;
-}
+      border-radius: 114px;
+      width: 48px;
+      height: 48px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+  }
+
+  .top-site-outer .rich-icon {
+      background-size: cover;
+      height: 100%;
+      inset-inline-start: 0;
+      top: 0;
+      width: 100%;
+  }
 
 
-.top-site-outer.placeholder .tile {
-  box-shadow: 0 0 0 1px var(--newtab-inner-box-shadow-color);
-}
-.top-site-outer .title {
-  color: var(--newtab-text-primary-color);
-  padding-top: 8px;
-  font: caption;
-  text-align: center;
-  position: relative;
-}
-a {
-  text-decoration: none;
-}
+  .top-site-outer.placeholder .tile {
+      box-shadow: 0 0 0 1px var(--newtab-inner-box-shadow-color);
+  }
+  .top-site-outer .title {
+      color: var(--newtab-text-primary-color);
+      padding-top: 8px;
+      font: caption;
+      text-align: center;
+      position: relative;
+  }
+  a {
+      text-decoration: none;
+  }
 /*//---------------------------------------------------------*/
