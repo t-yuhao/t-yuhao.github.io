@@ -1,7 +1,11 @@
 ## 浏览器页面
 >[Firefox](./firefox.html)
 
+>[pears:多搜索引擎切换](./pears/index.html)
+
 >[x](./x.html)
+
+>[Style](./style.html)
 
 >[百度](./baidu.html)
 
