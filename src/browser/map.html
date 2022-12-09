@@ -1,7 +1,23 @@
 <!DOCTYPE html>
 <head>
+    <meta charset="UTF-8">
 	<title>SimpleTab</title>
 <body style="padding-top: 100px;">
+    <span style="color:#b9dec9"><div align="right"><div style="text-indent:0em"><html>
+    <script type="text/javascript">
+        function disptime(){
+            var today=new Date();
+            var hh=today.getHours();
+            var mm=today.getMinutes();
+            hh=hh<10?'0'+hh:hh;mm=mm<10?'0'+mm:mm;
+    /*document.getElementById("myclock").style.fontFamily="Digital-7 Mono";*/
+            document.getElementById("myclock").innerHTML="<h2>︱"+hh+":"+mm+"</h2>"
+        }
+//setInterval（）方法可以按照指定的周期调用函数或计算表达式
+        var mytime = setInterval("disptime()",900);
+    </script><body onload="disptime()"><div id="myclock"></div></body>
+</div></div>
+</span>
 	<div style="font-size:40px;font-weight:bold;text-align: center;">
 		<p style="display:inline;margin:0;">Hello</p>
 		<p style="display:inline;color:#268762;margin:0;">World</p>
@@ -54,7 +70,7 @@
 <style>
 	.search { width: 50%; margin: 5% auto 5%;border: none; position: relative; }
 	.search:hover { box-shadow: 0 2px 2px rgba(0, 0, 0, 0.15); border: none; border-radius:50px; }
-	.text { text-align: center; width: 100%; font-size: 18px; border-radius:35px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); outline: none; }
+	.text { text-align: center; width: 100%; font-size: 18px; border-radius:35px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); outline: none;border: none; }
 .nav {
     width: 50%;
     margin: 0 auto;
@@ -78,7 +94,7 @@
     text-align: center;
     display: block;
     margin: 15% 0;
-    color: #605d5d;
+    color: #767676;
 }
 
 .nav .box a {

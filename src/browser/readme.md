@@ -13,6 +13,8 @@
 
 >[百度](./baidu.html)
 
+>[Index](./map.html)
+
 ## html页面
 >[太阳系](./solar.html)
 
