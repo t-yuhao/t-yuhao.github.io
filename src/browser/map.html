@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<head>
+	<title>SimpleTab</title>
+<body style="padding-top: 100px;">
+	<div style="font-size:40px;font-weight:bold;text-align: center;">
+		<p style="display:inline;margin:0;">Hello</p>
+		<p style="display:inline;color:#268762;margin:0;">World</p>
+	</div>
+	<div class="search">
+		<form action="https://www.baidu.com/s?" method="get" name="q">
+			<input class="text" autocomplete="off" type="text" name="wd" placeholder="网上搜索"style=" height: 50px;">
+		</form>
+	</div>
+	    <div class="nav">
+        <div class="box">
+            <img src="img/firefox_preview.png" alt="">
+            <p>firefox</p>
+            <a href="./firefox.html"></a>
+        </div>
+        
+        <div class="box">
+            <img src="img/via.png" alt="">
+            <p>via</p>
+            <a href="./via.html"></a>
+        </div>
+        <div class="box">
+            <img src="img/quark.png" alt="">
+            <p>Quark</p>
+            <a href="./pears/index.html"></a>
+        </div>
+        <div class="box">
+            <img src="img/x.png" alt="">
+            <p>Simple</p>
+            <a href="./x.html"></a>
+        </div>
+        <div class="box">
+            <img src="img/simple.png" alt="">
+            <p>Simple</p>
+            <a href="./Simple.html"></a>
+        </div>
+        <div class="box">
+            <img src="img/baidu.svg" alt="">
+            <p>Baidu</p>
+            <a href="./baidu.html"></a>
+        </div>
+        <div class="box">
+            <img src="img/map.png" alt="">
+            <p>Index</p>
+            <a href="./map.html"></a>
+        </div>
+        
+    </div>
+</body>
+<style>
+	.search { width: 50%; margin: 5% auto 5%;border: none; position: relative; }
+	.search:hover { box-shadow: 0 2px 2px rgba(0, 0, 0, 0.15); border: none; border-radius:50px; }
+	.text { text-align: center; width: 100%; font-size: 18px; border-radius:35px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); outline: none; }
+.nav {
+    width: 50%;
+    margin: 0 auto;
+    display: flex;
+    flex: 1;
+}
+
+.nav .box {
+    position: relative;
+    align-items: center;
+    z-index: 1;
+}
+
+.nav .box img {
+    width: 75px;
+    display: block;
+    margin: 0 auto;
+}
+
+.nav .box p {
+    text-align: center;
+    display: block;
+    margin: 15% 0;
+    color: #605d5d;
+}
+
+.nav .box a {
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+</style>
+</head>
+</html>

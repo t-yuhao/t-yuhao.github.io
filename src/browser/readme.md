@@ -1,7 +1,7 @@
 ## 浏览器页面
 >[Firefox](./firefox.html)
 
->[Simpe](./simple.html)
+>[Simpe](./Simple.html)
 
 >[via](./via.html)
 
