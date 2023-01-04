@@ -1,4 +1,7 @@
 ## 浏览器页面
+
+>[Firefox](./seaarch/search.html)
+
 >[Firefox](./firefox.html)
 
 >[Simpe](./Simple.html)

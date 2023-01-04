@@ -2,325 +2,342 @@
 <!-- 时钟------------------------------------------------------------------- -->
 
 <span style="color:#b9dec9"><div align="right"><div style="text-indent:0em"><html>
-    <head>
-        <meta charset="UTF-8">
-        <title>Hello World</title>
-    </head>
-    <script type="text/javascript">
-        function disptime(){
-            var today=new Date();
-            var hh=today.getHours();
-            var mm=today.getMinutes();
-            hh=hh<10?'0'+hh:hh;mm=mm<10?'0'+mm:mm;
-    /*document.getElementById("myclock").style.fontFamily="Digital-7 Mono";*/
-            document.getElementById("myclock").innerHTML="<h2>︱"+hh+":"+mm+"</h2>"
-        }
+	<head>
+		<meta charset="UTF-8">
+		<title>Hello World</title>
+	</head>
+	<script type="text/javascript">
+		function disptime(){
+			var today=new Date();
+			var hh=today.getHours();
+			var mm=today.getMinutes();
+			hh=hh<10?'0'+hh:hh;mm=mm<10?'0'+mm:mm;
+	/*document.getElementById("myclock").style.fontFamily="Digital-7 Mono";*/
+			document.getElementById("myclock").innerHTML="<h2>︱"+hh+":"+mm+"</h2>"
+		}
 //setInterval（）方法可以按照指定的周期调用函数或计算表达式
-        var mytime = setInterval("disptime()",900);
-    </script><body onload="disptime()"><div id="myclock"></div></body>
+		var mytime = setInterval("disptime()",900);
+	</script><body onload="disptime()"><div id="myclock"></div></body>
 </div></div>
 </span>
 
 <!-- Hello World------------------------------------------------------------------- -->
 <div style="font-size:40px;font-weight:bold;text-align: center;">
-    <p style="display:inline;margin:0;">Hello</p>
-    <p style="display:inline;color:#268762;margin:0;">World</p>
+	<p style="display:inline;margin:0;">Hello</p>
+	<p style="display:inline;color:#268762;margin:0;">World</p>
 </div>
 
 
 <!-- 搜索框-------------------------------------------------------------------------- -->
 
 <div class="scposition">
-    <div class="search_bg">
-        <form action="https://cn.bing.com/search?" method="GET">
-            <img src="./img/search-glass.svg" alt="">
-            <input class="text" type="text" placeholder="网上搜索" name="q" id='search'
-            autocomplete="off">
-            <button type="submit" class="subb">
-            </button>
-            <a style="position: absolute;right: 0px">
-            </a>
-        </form>
-    </div>
+	<div class="search_bg">
+		<form action="https://cn.bing.com/search?" method="GET">
+			<img src="./img/search-glass.svg" alt="">
+			<input class="text" type="text" placeholder="网上搜索" name="q" id='search'
+			autocomplete="off">
+			<button type="submit" class="subb">
+			</button>
+			<a style="position: absolute;right: 0px">
+			</a>
+		</form>
+	</div>
 </div>
 
 <div>
-    <ul class="top-sites-list">
-        <li class="top-site-outer">
-            <div class="top-site-inner">
-                <a class="top-site-button" href="https://cn.bing.com/">
-                    <div class="tile" aria-hidden="true">
-                        <div class="icon-wrapper" data-fallback="百">
-                            <div class="top-site-icon rich-icon" style="background-image: url(img/bing.svg);">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="title has-icon pinned">
-                        <span dir="auto">
-                            bing
-                        </span>
-                    </div>
-                </a>
-            </div>
-        </li>
-        <li class="top-site-outer">
-            <div class="top-site-inner">
-                <a class="top-site-button" href="https://www.baidu.com/">
-                    <div class="tile" aria-hidden="true">
-                        <div class="icon-wrapper" data-fallback="百">
-                            <div class="top-site-icon rich-icon" style="background-image: url(img/baidu.svg);">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="title has-icon pinned">
-                        <span dir="auto">
-                            百度
-                        </span>
-                    </div>
-                </a>
-            </div>
-        </li>
-        <li class="top-site-outer">
-            <div class="top-site-inner">
-                <a class="top-site-button" href="https://www.zhihu.com">
-                    <div class="tile" aria-hidden="true">
-                        <div class="icon-wrapper" data-fallback="百">
-                            <div class="top-site-icon rich-icon" style="background-image: url(img/zhihu.png);">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="title has-icon pinned">
-                        <span dir="auto">
-                            知乎
-                        </span>
-                    </div>
-                </a>
-            </div>
-        </li>
-        <li class="top-site-outer">
-            <div class="top-site-inner">
-                <a class="top-site-button" href="https://www.bilibili.com/">
-                    <div class="tile" aria-hidden="true">
-                        <div class="icon-wrapper" data-fallback="百">
-                            <div class="top-site-icon rich-icon" style="background-image: url(img/bilibili.png);">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="title has-icon pinned">
-                        <span dir="auto">
-                            bilibili
-                        </span>
-                    </div>
-                </a>
-            </div>
-        </li>
-        <li class="top-site-outer">
-            <div class="top-site-inner">
-                <a class="top-site-button" href="https://v.qq.com">
-                    <div class="tile" aria-hidden="true">
-                        <div class="icon-wrapper" data-fallback="百">
-                            <div class="top-site-icon rich-icon" style="background-image: url(img/qq_video.png);">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="title has-icon pinned">
-                        <span dir="auto">
-                            腾讯视频
-                        </span>
-                    </div>
-                </a>
-            </div>
-        </li>
-        <li class="top-site-outer">
-            <div class="top-site-inner">
-                <a class="top-site-button" href="https://opencritic.com">
-                    <div class="tile" aria-hidden="true">
-                        <div class="icon-wrapper" data-fallback="百">
-                            <div class="top-site-icon rich-icon" style="background-image: url(img/opencritic.png);">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="title has-icon pinned">
-                        <span dir="auto">
-                            Opencritic
-                        </span>
-                    </div>
-                </a>
-            </div>
-        </li>
-        <li class="top-site-outer">
-            <div class="top-site-inner">
-                <a class="top-site-button" href="https://github.com/">
-                    <div class="tile" aria-hidden="true">
-                        <div class="icon-wrapper" data-fallback="百">
-                            <div class="top-site-icon rich-icon" style="background-image: url(img/github.png);">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="title has-icon pinned">
-                        <span dir="auto">
-                            github
-                        </span>
-                    </div>
-                </a>
-            </div>
-        </li>
-    </div>
+	<ul class="top-sites-list">
+		<li class="top-site-outer">
+			<div class="top-site-inner">
+				<a class="top-site-button" href="https://cn.bing.com/">
+					<div class="tile" aria-hidden="true">
+						<div class="icon-wrapper" data-fallback="百">
+							<div class="top-site-icon rich-icon" style="background-image: url(img/bing.svg);">
+							</div>
+						</div>
+					</div>
+					<div class="title has-icon pinned">
+						<span dir="auto">
+							bing
+						</span>
+					</div>
+				</a>
+			</div>
+		</li>
+		<li class="top-site-outer">
+			<div class="top-site-inner">
+				<a class="top-site-button" href="https://www.baidu.com/">
+					<div class="tile" aria-hidden="true">
+						<div class="icon-wrapper" data-fallback="百">
+							<div class="top-site-icon rich-icon" style="background-image: url(img/baidu.svg);">
+							</div>
+						</div>
+					</div>
+					<div class="title has-icon pinned">
+						<span dir="auto">
+							百度
+						</span>
+					</div>
+				</a>
+			</div>
+		</li>
+		<li class="top-site-outer">
+			<div class="top-site-inner">
+				<a class="top-site-button" href="https://www.zhihu.com">
+					<div class="tile" aria-hidden="true">
+						<div class="icon-wrapper" data-fallback="百">
+							<div class="top-site-icon rich-icon" style="background-image: url(img/zhihu.png);">
+							</div>
+						</div>
+					</div>
+					<div class="title has-icon pinned">
+						<span dir="auto">
+							知乎
+						</span>
+					</div>
+				</a>
+			</div>
+		</li>
+		<li class="top-site-outer">
+			<div class="top-site-inner">
+				<a class="top-site-button" href="https://www.bilibili.com/">
+					<div class="tile" aria-hidden="true">
+						<div class="icon-wrapper" data-fallback="百">
+							<div class="top-site-icon rich-icon" style="background-image: url(img/bilibili.png);">
+							</div>
+						</div>
+					</div>
+					<div class="title has-icon pinned">
+						<span dir="auto">
+							bilibili
+						</span>
+					</div>
+				</a>
+			</div>
+		</li>
+		<li class="top-site-outer">
+			<div class="top-site-inner">
+				<a class="top-site-button" href="https://v.qq.com">
+					<div class="tile" aria-hidden="true">
+						<div class="icon-wrapper" data-fallback="百">
+							<div class="top-site-icon rich-icon" style="background-image: url(img/qq_video.png);">
+							</div>
+						</div>
+					</div>
+					<div class="title has-icon pinned">
+						<span dir="auto">
+							腾讯视频
+						</span>
+					</div>
+				</a>
+			</div>
+		</li>
+		<li class="top-site-outer">
+			<div class="top-site-inner">
+				<a class="top-site-button" href="https://opencritic.com">
+					<div class="tile" aria-hidden="true">
+						<div class="icon-wrapper" data-fallback="百">
+							<div class="top-site-icon rich-icon" style="background-image: url(img/opencritic.png);">
+							</div>
+						</div>
+					</div>
+					<div class="title has-icon pinned">
+						<span dir="auto">
+							Opencritic
+						</span>
+					</div>
+				</a>
+			</div>
+		</li>
+		<li class="top-site-outer">
+			<div class="top-site-inner">
+				<a class="top-site-button" href="https://github.com/">
+					<div class="tile" aria-hidden="true">
+						<div class="icon-wrapper" data-fallback="百">
+							<div class="top-site-icon rich-icon" style="background-image: url(img/github.png);">
+							</div>
+						</div>
+					</div>
+					<div class="title has-icon pinned">
+						<span dir="auto">
+							github
+						</span>
+					</div>
+				</a>
+			</div>
+		</li>
+		<li class="top-site-outer">
+			<div class="top-site-inner">
+				<a class="top-site-button" href="https://www.epicgames.com/">
+					<div class="tile" aria-hidden="true">
+						<div class="icon-wrapper" data-fallback="百">
+							<div class="top-site-icon rich-icon" style="background-image: url(img/epic.png);">
+							</div>
+						</div>
+					</div>
+					<div class="title has-icon pinned">
+						<span dir="auto">
+							Epic
+						</span>
+					</div>
+				</a>
+			</div>
+		</li>
+	</div>
 
 
 
-    <!-- ------------------------------------------------------------------------- -->
+	<!-- ------------------------------------------------------------------------- -->
 
-    <style>
-        .scposition {
-            position: absolute;
-            top: 33%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 84%;
-            max-width:760px;
-        }
+	<style>
+		.scposition {
+			position: absolute;
+			top: 33%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			width: 84%;
+			max-width:760px;
+		}
 
-        img{
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            left: 0vw;
-            transform: translateX( 0px);
-            margin-top: 10px;
-            margin-left: 10px;
-            height: 20px;   
-        }
+		img{
+			position: absolute;
+			top: 5px;
+			right: 5px;
+			left: 0vw;
+			transform: translateX( 0px);
+			margin-top: 10px;
+			margin-left: 10px;
+			height: 20px;
+		}
 
-        input{
-            text-align:center;
-        }
+		input{
+			text-align:center;
+		}
 
-        .search_bg {
-            border-radius: 100px;
-            overflow: hidden;
-            background-color: #fff;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-            transition: .3s;
-        }
-        .search_bg:hover {
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-        }
+		.search_bg {
+			border-radius: 100px;
+			overflow: hidden;
+			background-color: #fff;
+			box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+			transition: .3s;
+		}
+		.search_bg:hover {
+			box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+		}
 
-        #search {
-            float: left;
-            width: 100%;
-            height: 50px;
-            padding: 0 50px;
-            font-size: 18px;
-            border: none;
-            outline: none;
-            color: #343434;
-            background: transparent;
-        }
-        .subb {
-            position:absolute;
-            top: 5px;
-            right: 5px;
-            width: 40px;
-            height: 40px;
-            border: none;
-            outline: none;
-            border-radius: 100px;
-            background: url("img/forward.svg") no-repeat center;
-            box-shadow: 0 0 15px 5px 0;
-        }
-        .subb:hover {
-            background-color: #ededed;
-        }
-        /*//---------------------------------------------------------*/
+		#search {
+			float: left;
+			width: 100%;
+			height: 50px;
+			padding: 0 50px;
+			font-size: 18px;
+			border: none;
+			outline: none;
+			color: #343434;
+			background: transparent;
+		}
+		.subb {
+			position:absolute;
+			top: 5px;
+			right: 5px;
+			width: 40px;
+			height: 40px;
+			border: none;
+			outline: none;
+			border-radius: 100px;
+			background: url("img/forward.svg") no-repeat center;
+			box-shadow: 0 0 15px 5px 0;
+		}
+		.subb:hover {
+			background-color: #ededed;
+		}
+		/*//---------------------------------------------------------*/
 
-        .top-sites-list {
-          min-width: 20%;
-          max-width: 80%;
-          min-height: 20%;
-          max-height: 80%;
-          resize: both;
-          overflow: auto;
-          margin: auto;
-          position: absolute;
-          top: 40%; left: 0; bottom: 0; right: 0; 
-      }
+		.top-sites-list {
+		  min-width: 20%;
+		  max-width: 67%;
+		  min-height: 20%;
+		  max-height: 67%;
+		  resize: both;
+		  overflow: auto;
+		  margin: auto;
+		  position: absolute;
+		  top: 40%; left: 0; bottom: 0; right: 0; 
+	  }
 
-      .top-site-outer {
+	  .top-site-outer {
 
-          width: 120px;
-          padding: 20px 16px 4px;
-          border-radius: 8px;
-          display: inline-block;
-      }
-      .top-site-outer:hover {
-        background-color: #ededed;
+		  width: 120px;
+		  padding: 10px 0px 10px 0px;
+		  border-radius: 8px;
+		  display: inline-block;
+	  }
+	  .top-site-outer:hover {
+		background-color: #ededed;
 
-    }
-    .top-site-outer .top-site-inner {
-      position: relative;
+	}
+	.top-site-outer .top-site-inner {
+	  position: relative;
 
   }
   .top-site-outer .top-site-inner > a {
-      color: inherit;
-      display: block;
-      outline: none;
+	  color: inherit;
+	  display: block;
+	  outline: none;
   }
   .top-site-outer:is(:hover) .context-menu-button {
-      opacity: 1;
+	  opacity: 1;
 
   }
 
   .top-site-outer .tile {
-      border-radius: 38px;/*圆角*/
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-      background-color: var(--newtab-background-color-secondary);
-      justify-content: center;
-      margin: 0 auto;
-      height: 80px;
-      width: 80px;
-      cursor: pointer;
-      position: relative;
-      align-items: center;
-      color: var(--newtab-text-secondary-color);
-      display: flex;
-      font-size: 32px;
-      font-weight: 200;
-      text-transform: uppercase;
+	  border-radius: 38px;/*圆角*/
+	  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+	  background-color: var(--newtab-background-color-secondary);
+	  justify-content: center;
+	  margin: 0 auto;
+	  height: 80px;
+	  width: 80px;
+	  cursor: pointer;
+	  position: relative;
+	  align-items: center;
+	  color: var(--newtab-text-secondary-color);
+	  display: flex;
+	  font-size: 32px;
+	  font-weight: 200;
+	  text-transform: uppercase;
   }
   .top-site-outer .tile .icon-wrapper {
 
-      border-radius: 114px;
-      width: 48px;
-      height: 48px;
-      overflow: hidden;
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+	  border-radius: 114px;
+	  width: 48px;
+	  height: 48px;
+	  overflow: hidden;
+	  position: relative;
+	  display: flex;
+	  align-items: center;
+	  justify-content: center;
   }
 
   .top-site-outer .rich-icon {
-      background-size: cover;
-      height: 100%;
-      inset-inline-start: 0;
-      top: 0;
-      width: 100%;
+	  background-size: cover;
+	  height: 100%;
+	  inset-inline-start: 0;
+	  top: 0;
+	  width: 100%;
   }
 
 
   .top-site-outer.placeholder .tile {
-      box-shadow: 0 0 0 1px var(--newtab-inner-box-shadow-color);
+	  box-shadow: 0 0 0 1px var(--newtab-inner-box-shadow-color);
   }
   .top-site-outer .title {
-      color: var(--newtab-text-primary-color);
-      padding-top: 8px;
-      font: caption;
-      text-align: center;
-      position: relative;
+	  color: var(--newtab-text-primary-color);
+	  padding-top: 8px;
+	  font: caption;
+	  text-align: center;
+	  position: relative;
   }
   a {
-      text-decoration: none;
+	  text-decoration: none;
   }
 /*//---------------------------------------------------------*/

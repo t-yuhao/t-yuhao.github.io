@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <head>
+
 	<meta charset="UTF-8">
     <title>NewTab</title>
 <body style>
@@ -17,14 +18,17 @@
 <style>
 	.search:hover { box-shadow: 0 2px 2px rgba(0, 0, 0, 0.15); border: none; border-radius:50px; }
     .text { text-align: center; width: 100%; font-size: 1.5rem; border: none;border-radius:35px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); outline: none; }
-@media screen and (orientation:landscape) {/*横屏*/
+ @media screen and (min-width: 400px) {/*横屏*/
 	.tlogo{margin: 10% auto 5%;font-size:3rem;}
 	.search { width: 50%; margin: 5% auto 5%;border: none; position: relative; }
     }
-@media screen and (orientation:portrait) {/*竖屏*/
+ @media screen and (max-width: 400px) {/*竖屏*/
 	.tlogo{margin: 45% auto 5%;font-size:5rem;}
-	.search { width: 70%; margin: 5% auto 5%;border: none; position: relative; }
+	.search { width: 80%; margin: 5% auto 5%;border: none; position: relative; }
     }
+
+
+
 </style>
 </head>
 </html>
