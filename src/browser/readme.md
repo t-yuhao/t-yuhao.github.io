@@ -1,6 +1,6 @@
 ## 浏览器页面
 
->[Firefox](./seaarch/search.html)
+>[Firefox](./search/search.html)
 
 >[Firefox](./firefox.html)
 
