@@ -1,0 +1,546 @@
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>NewTab</title>
+	<link rel="stylesheet" href="search.css">
+	<link href="sites.css" rel="stylesheet">
+</head><body><div class="search-wrapper">
+	<div class="logo"></div>
+
+	<div class="search_bg">
+		<div class="search-engine" title="切换搜索引擎"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="context-fill" fill-opacity="context-fill-opacity"><path d="m10.089 10.973 3.845 3.844a.62.62 0 0 0 .883-.001.625.625 0 0 0-.001-.884L10.983 10.1l.006-.427A5.5 5.5 0 1 0 1 6.5 5.5 5.5 0 0 0 6.5 12c1.189 0 2.288-.38 3.187-1.022l.402-.005zM6.5 10.75c-2.343 0-4.25-1.907-4.25-4.25S4.157 2.25 6.5 2.25s4.25 1.907 4.25 4.25-1.907 4.25-4.25 4.25z"></path></svg></div>
+		<div class="seBigBox" id="bbox">
+			<span class="seBox">百度</span>
+			<span class="seBox">必应</span>
+			<span class="seBox">神马</span>
+			<span class="seBox">搜狗</span>
+			<span class="seBox">谷歌</span>
+		</div>
+		<form action="http://www.bing.com/search?q" method="GET" id="searchCheck" target="_blank">
+
+					<input class="inputtext" type="text" value="" x-webkit-speech="" lang="zh-CN" placeholder="" name="q" id="search" autocomplete="off">
+
+					<div class="search-button">
+
+						<button type="submit" class="subb">
+						</button>
+
+						<div class="clear" style="display: none;">
+							
+						</div>
+
+
+					</div>
+		</form>
+
+		<div class="suggest">
+			<ul id="search-result"></ul>
+		</div>
+		<div class="bboxend">
+		</div>
+		<script src="search-engine.js">
+		</script>
+	</div>
+	
+</div>
+
+<div class="sitestab">
+		<div class="tab">
+				<ul>
+					<li id="L1" onclick="Tab(1)" class="current">
+						<a href="#">
+							常用
+						</a>
+					</li>
+
+					<li id="L3" onclick="Tab(3)" class="">
+						<a href="#">
+							学术
+						</a>
+					</li>
+					<li id="L4" onclick="Tab(4)" class="">
+						<a href="#">
+							AI
+						</a>
+					</li>
+					<li id="L2" onclick="Tab(2)" class="">
+						<a href="#">
+							娱乐
+						</a>
+					</li>
+					<li id="L5" onclick="Tab(5)" class="">
+						<a href="#">
+							其他
+						</a>
+					</li>
+				</ul>
+			</div>
+
+			<script src="sites-tab.js"></script>
+			
+
+		<div class="sites">
+			<!--常用-->
+				<div id="d1" style="display: block;">
+					<div>
+						<ul class="sites-list">
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://cn.bing.com/">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/bing.svg);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												Bing
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://baidu.com/">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/baidu.svg);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												Baidu
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://zhihu.com/">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/zhihu.svg);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												知乎
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://bilibili.com/">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/bilibili.png);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												bilibili
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://v.qq.com">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/qq_video.png);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												腾讯视频
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://opencritic.com">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/opencritic.png);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												opencritic
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://github.com/">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/github.svg);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												github
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+
+							
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://store.epicgames.com/zh-CN/free-games">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/epicgames.svg);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												epic
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://store.steampowered.com/">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(https://infinityicon.infinitynewtab.com/user-share-icon/680d08ab9ba29a57886c4420c8dda211.png);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												steam
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+
+							 
+
+							
+						</ul>
+					</div>
+				</div>
+				<!--影音-->
+				<div id="d2" style="display: none;">
+					<ul class="sites-list">
+					<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://v.qq.com">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/qq_video.png);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												腾讯视频
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+ 
+					</ul>
+				</div>
+				<!--学术-->
+				<div id="d3" style="display: none;">
+				</div>
+				<!--AI-->
+				<div id="d4" style="display: none;">
+					<ul class="sites-list">
+					<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://chatgpt.com/">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/chatgpt.svg);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												ChatGPT
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+							
+					<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://gemini.google.com">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/gemini.svg);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												Gemini
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+							
+					<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://copilot.microsoft.com/">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/copilot.svg);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												copilot
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+							
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://chat.mistral.ai/chat">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/lechat.svg);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												LeChat
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+
+
+
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://huggingface.co/chat/">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/huggingchat.svg);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												HuggingChat
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://chat.deepseek.com/">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/deepseek.svg);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												Deepseek
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://tongyi.aliyun.com/qianwen/">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/tongyi.svg);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												通义千问
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://yiyan.baidu.com/">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/Yiyan.png);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												文心一言
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://www.doubao.com/chat/">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/Doubao.png);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												豆包
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://yuanbao.tencent.com/chat/">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/Yuanbao.png);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												元宝
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://xinghuo.xfyun.cn/desk">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/xfxinghuo.svg);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												讯飞星火
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+
+							<li class="site-outer">
+								<div class="site-inner">
+									<a class="site-button" href="https://chatglm.cn/main/alltoolsdetail?lang=zh">
+										<div class="tile" aria-hidden="true">
+											<div class="icon-outer">
+												<div class="site-icon" style="background-image: url(img/chatglm.svg);">
+												</div>
+											</div>
+										</div>
+										<div class="site-title">
+											<span dir="auto">
+												ChatGLM
+											</span>
+										</div>
+									</a>
+								</div>
+							</li>
+
+
+
+							
+							
+ 
+					</ul>
+				</div>
+				<!--其他-->
+				<div id="d5" style="display: none;">
+				</div>
+		</div>
+	</div>
+
+
+
+
+<style type="text/css">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*-=========================================================*/
+
+
+
+</style></body></html>

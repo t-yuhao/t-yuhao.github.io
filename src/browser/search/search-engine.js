@@ -124,6 +124,7 @@ var clear = document.getElementsByClassName("clear")[0];
 var searchInput = document.getElementsByClassName("inputtext")[0];
 var bboxend = document.getElementsByClassName("bboxend")[0];
 
+
 scbtn.onclick = function(){
 	bbox.style.display='inline';
 	bbox.style.animation='popin .3s ease';
@@ -131,8 +132,8 @@ scbtn.onclick = function(){
 }
 
 bboxend.onclick =function(){
-	bbox.style.display='none';
-	bboxend.style.display='none';
+	bbox.style.display='inline';
+	bboxend.style.display='inline';
 }
 
 sc.onclick = function(){
@@ -203,11 +204,9 @@ seBox[2].onclick = function(){
 }
 
 seBox[4].onclick = function(){
-	scc.action="https://www.wuzhuiso.com/s";
-	sc.name='q';
-	bboxend.style.display='none';
-	bbox.style.display='none';
-	scbtn.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 61.04 54"><defs><style>.cls-1{fill:#0fb264;}.cls-2{fill:#ff9932;}</style></defs><title>so</title><g><g><path class="cls-1" d="M27,0A27,27,0,1,0,54,27,27,27,0,0,0,27,0Zm0,43.34A16.34,16.34,0,1,1,43.34,27h0A16.34,16.34,0,0,1,27,43.33Z"/><circle class="cls-2" cx="55.69" cy="48.5" r="5.35"/><path class="cls-2" d="M27,54A27,27,0,0,0,52.43,36.07,5.76,5.76,0,0,0,42.55,32,16.35,16.35,0,0,1,27,43.33h0A16.32,16.32,0,0,1,11.48,32.1a5.64,5.64,0,0,0-9.75,4.41A27,27,0,0,0,27,54Z"/></g></g></svg>';
-	// btn.style.background="#0fb264";
+    scc.action = "https://www.google.com/search"; // 修改为 Google 搜索的 URL
+    sc.name = 'q'; // Google 搜索的关键字参数名称
+    bboxend.style.display = 'none';
+    bbox.style.display = 'none';
+    scbtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><defs><style>.cls-1 {fill: #FBBC05;}.cls-2 {fill: #EA4335;}.cls-3 {fill: #34A853;}.cls-4 {fill: #4285F4;}</style><path id="a" d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z"/></defs><clipPath id="b"><use href="#a" overflow="visible"/></clipPath><title>Google Logo</title><g clip-path="url(#b)"><path class="cls-1" d="M0 37V11l17 13z"/><path class="cls-2" d="M0 11l17 13 7-6.1L48 14V0H0z"/><path class="cls-3" d="M0 37l30-23 7.9 1L48 0v48H0z"/><path class="cls-4" d="M48 48L17 24l-4-3 35-10z"/></g></svg>'; // 替换为 Google Logo
 }
-
