@@ -7,11 +7,11 @@
 
 ##  [03-目标检测](../ObjectDetection/)
 
-##  [03-游戏](../game/)
+##  [03-游戏](./game/)
 ### 
 
->[合成大西瓜](../game/games/suika-game.html)
+>[合成大西瓜](./game/games/suika-game.html)
 
->[合成大西瓜emoji](../game/games/suika-emoji.html)
+>[合成大西瓜emoji](./game/games/suika-emoji.html)
 
->[GTA](../game/games/GTA_Demo.html)
+>[GTA](./game/games/GTA_Demo.html)
