@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Emoji合成大西瓜 - 豪华版</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #ffeaa7;
+            font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            user-select: none;
+        }
+
+        /* 容器与画布 */
+        #game-wrapper {
+            position: relative;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            border-radius: 0 0 15px 15px;
+            background-color: #fff8e1;
+            border: 6px solid #fab1a0;
+            border-top: none;
+            width: 400px;
+            max-width: 100%;
+            height: 650px;
+        }
+
+        canvas {
+            display: block;
+            border-radius: 0 0 8px 8px;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI 层通用 */
+        .ui-layer {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        /* 顶部信息栏 */
+        #score-panel {
+            top: 15px; left: 15px;
+            background: rgba(255,255,255,0.9);
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: 800;
+            color: #d35400;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        #level-target-panel {
+            top: 55px; left: 15px;
+            background: rgba(255,255,255,0.9);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            color: #2d3436;
+            font-weight: bold;
+            display: none; /* 默认隐藏，闯关模式显示 */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-left: 5px solid #0984e3;
+        }
+
+        #next-fruit-panel {
+            top: 15px; right: 15px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px;
+            border-radius: 15px;
+            text-align: center;
+            width: 60px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        #next-fruit-emoji {
+            font-size: 40px;
+            line-height: 1;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #next-label { font-size: 12px; color: #888; margin-bottom: 2px; }
+
+        /* 声音控制 */
+        #mute-btn {
+            position: absolute;
+            bottom: 15px; right: 15px;
+            background: rgba(255,255,255,0.8);
+            border: none;
+            border-radius: 50%;
+            width: 40px; height: 40px;
+            cursor: pointer;
+            pointer-events: auto;
+            font-size: 20px;
+            z-index: 20;
+        }
+
+        /* 屏幕遮罩 (主菜单/结束/胜利) */
+        .screen-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            border-radius: 0 0 15px 15px;
+            pointer-events: auto; /* 允许点击 */
+        }
+
+        .hidden { display: none !important; }
+
+        h1 { color: #e17055; margin-bottom: 10px; font-size: 36px; text-shadow: 2px 2px #ffeaa7; }
+        h2 { color: #2d3436; margin: 0 0 10px 0; font-size: 28px; }
+        p { font-size: 16px; color: #636e72; margin: 5px 0; }
+
+        .btn {
+            background: linear-gradient(to bottom, #ff7675, #d63031);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 18px;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+            font-weight: bold;
+            width: 200px;
+        }
+        .btn:active { transform: scale(0.95); }
+        .btn-secondary {
+            background: linear-gradient(to bottom, #74b9ff, #0984e3);
+        }
+
+        /* 辅助线 */
+        #deadline-line {
+            position: absolute;
+            top: 120px; left: 0; width: 100%; height: 0;
+            border-top: 2px dashed rgba(255, 0, 0, 0.6);
+            pointer-events: none;
+            z-index: 5;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-wrapper">
+        <div id="score-panel" class="ui-layer">得分: <span id="score">0</span></div>
+        <div id="level-target-panel" class="ui-layer">目标: <span id="level-desc">---</span></div>
+        
+        <div id="next-fruit-panel" class="ui-layer">
+            <div id="next-label">下一个</div>
+            <div id="next-fruit-emoji"></div>
+        </div>
+
+        <button id="mute-btn">🔊</button>
+        <div id="deadline-line"></div>
+
+        <div id="start-screen" class="screen-overlay">
+            <h1>🍉 合成大西瓜</h1>
+            <p>Emoji 物理豪华版</p>
+            <button class="btn" onclick="startGame('ENDLESS')">无尽模式</button>
+            <button class="btn btn-secondary" onclick="startGame('LEVELS')">闯关模式</button>
+        </div>
+
+        <div id="game-over-screen" class="screen-overlay hidden">
+            <h2>游戏结束!</h2>
+            <p>最终得分: <strong id="final-score">0</strong></p>
+            <button class="btn" onclick="returnToMenu()">返回主菜单</button>
+        </div>
+
+        <div id="level-win-screen" class="screen-overlay hidden">
+            <h2 style="color: #00b894">🎉 关卡完成!</h2>
+            <p id="win-msg">恭喜达成目标</p>
+            <button class="btn btn-secondary" onclick="nextLevel()">下一关</button>
+        </div>
+
+        <div id="all-clear-screen" class="screen-overlay hidden">
+            <h1>🏆 全通关!</h1>
+            <p>你真是太强了！</p>
+            <button class="btn" onclick="returnToMenu()">返回主菜单</button>
+        </div>
+    </div>
+
+<script>
+    // --- 1. 配置与常量 ---
+    const GAME_WIDTH = 400;
+    const GAME_HEIGHT = 650;
+    const DEADLINE_Y = 120;
+
+    const FRUITS = [
+        { index: 0,  radius: 16,  score: 1,   emoji: '🍒', scale: 0.85, color: '#FFCDD2' },
+        { index: 1,  radius: 24,  score: 3,   emoji: '🍓', scale: 0.85, color: '#EF9A9A' },
+        { index: 2,  radius: 32,  score: 6,   emoji: '🍇', scale: 0.85, color: '#CE93D8' },
+        { index: 3,  radius: 39,  score: 10,  emoji: '🍊', scale: 0.85, color: '#FFCC80' },
+        { index: 4,  radius: 47,  score: 15,  emoji: '🥝', scale: 0.85, color: '#C5E1A5' },
+        { index: 5,  radius: 59,  score: 21,  emoji: '🍎', scale: 0.85, color: '#FFAB91' },
+        { index: 6,  radius: 71,  score: 28,  emoji: '🍐', scale: 0.85, color: '#E6EE9C' },
+        { index: 7,  radius: 84,  score: 36,  emoji: '🍑', scale: 0.85, color: '#FFCCBC' },
+        { index: 8,  radius: 100, score: 45,  emoji: '🍍', scale: 0.85, color: '#FFF59D' },
+        { index: 9,  radius: 118, score: 55,  emoji: '🍈', scale: 0.85, color: '#A5D6A7' },
+        { index: 10, radius: 138, score: 66,  emoji: '🍉', scale: 0.85, color: '#81C784' }
+    ];
+
+    // 关卡配置
+    const LEVELS = [
+        { type: 'score', target: 500, desc: "达到 500 分" },
+        { type: 'fruit', target: 5, targetName: '苹果', desc: "合成一个 🍎 (苹果)" },
+        { type: 'score', target: 1500, desc: "达到 1500 分" },
+        { type: 'fruit', target: 8, targetName: '菠萝', desc: "合成一个 🍍 (菠萝)" },
+        { type: 'fruit', target: 10, targetName: '西瓜', desc: "最终挑战：合成 🍉 (西瓜)" }
+    ];
+
+    // --- 2. 音频管理器 (Web Audio API + BGM) ---
+    const AudioSys = {
+        ctx: null,
+        bgmAudio: null,
+        isMuted: false,
+
+        init: function() {
+            if (!this.ctx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+            }
+            // 初始化 BGM
+            if (!this.bgmAudio) {
+                // 使用一个免版税的轻快循环音乐
+                this.bgmAudio = new Audio('https://cdn.pixabay.com/audio/2022/03/25/audio_c8c8a73467.mp3'); 
+                this.bgmAudio.loop = true;
+                this.bgmAudio.volume = 0.4;
+            }
+        },
+
+        playBGM: function() {
+            if (this.bgmAudio && !this.isMuted) {
+                this.ctx.resume().then(() => {
+                    this.bgmAudio.play().catch(e => console.log("BGM autoplay blocked"));
+                });
+            }
+        },
+
+        stopBGM: function() {
+            if (this.bgmAudio) this.bgmAudio.pause();
+        },
+
+        toggleMute: function() {
+            this.isMuted = !this.isMuted;
+            const btn = document.getElementById('mute-btn');
+            if (this.isMuted) {
+                btn.innerText = '🔇';
+                this.bgmAudio.pause();
+            } else {
+                btn.innerText = '🔊';
+                this.bgmAudio.play();
+            }
+            return this.isMuted;
+        },
+
+        // 合成音效：掉落 (短促低音)
+        playDrop: function() {
+            if (this.isMuted || !this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.1);
+            
+            gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.1);
+        },
+
+        // 合成音效：合并 (清脆高音)
+        playMerge: function(levelIndex) {
+            if (this.isMuted || !this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+
+            osc.type = 'sine';
+            // 越高级的水果音调越高
+            const baseFreq = 400 + (levelIndex * 50);
+            osc.frequency.setValueAtTime(baseFreq, this.ctx.currentTime);
+            osc.frequency.linearRampToValueAtTime(baseFreq + 200, this.ctx.currentTime + 0.1);
+
+            gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.15);
+        },
+
+        playWin: function() {
+            if (this.isMuted || !this.ctx) return;
+            // 简单的琶音
+            [440, 554, 659, 880].forEach((freq, i) => {
+                setTimeout(() => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.3);
+                }, i * 100);
+            });
+        }
+    };
+
+    // --- 3. Matter.js 初始化 ---
+    const Engine = Matter.Engine,
+          Render = Matter.Render,
+          Runner = Matter.Runner,
+          Bodies = Matter.Bodies,
+          Composite = Matter.Composite,
+          Events = Matter.Events,
+          World = Matter.World;
+
+    let engine, render, runner;
+    let gameMode = 'ENDLESS'; // 'ENDLESS' or 'LEVELS'
+    let currentLevelIndex = 0;
+    let isPaused = false;
+
+    let currentFruitIndex = 0;
+    let nextFruitIndex = 0;
+    let isDropping = false;
+    let gameOver = false;
+    let score = 0;
+    let mouseX = GAME_WIDTH / 2;
+
+    // UI 元素引用
+    const els = {
+        score: document.getElementById('score'),
+        nextEmoji: document.getElementById('next-fruit-emoji'),
+        levelPanel: document.getElementById('level-target-panel'),
+        levelDesc: document.getElementById('level-desc'),
+        screens: {
+            start: document.getElementById('start-screen'),
+            over: document.getElementById('game-over-screen'),
+            win: document.getElementById('level-win-screen'),
+            allClear: document.getElementById('all-clear-screen')
+        },
+        finalScore: document.getElementById('final-score'),
+        winMsg: document.getElementById('win-msg'),
+        deadline: document.getElementById('deadline-line')
+    };
+
+    function initPhysics() {
+        engine = Engine.create();
+        engine.world.gravity.y = 1.3;
+
+        render = Render.create({
+            element: document.getElementById('game-wrapper'),
+            engine: engine,
+            options: {
+                width: GAME_WIDTH,
+                height: GAME_HEIGHT,
+                wireframes: false,
+                background: 'transparent'
+            }
+        });
+
+        const ground = Bodies.rectangle(GAME_WIDTH/2, GAME_HEIGHT + 30, GAME_WIDTH, 60, { isStatic: true, render: { fillStyle: '#fab1a0' } });
+        const leftWall = Bodies.rectangle(-30, GAME_HEIGHT/2, 60, GAME_HEIGHT*2, { isStatic: true });
+        const rightWall = Bodies.rectangle(GAME_WIDTH + 30, GAME_HEIGHT/2, 60, GAME_HEIGHT*2, { isStatic: true });
+        World.add(engine.world, [ground, leftWall, rightWall]);
+
+        Render.run(render);
+        runner = Runner.create();
+        Runner.run(runner, engine);
+
+        Events.on(engine, 'collisionStart', handleCollision);
+        Events.on(render, 'afterRender', renderEmojis);
+        Events.on(engine, 'afterUpdate', checkGameState);
+
+        const canvas = render.canvas;
+        canvas.addEventListener('mousemove', handleMove);
+        canvas.addEventListener('touchmove', handleMove, {passive: false});
+        canvas.addEventListener('mousedown', handleClick);
+        canvas.addEventListener('touchend', (e) => { e.preventDefault(); handleClick(); });
+    }
+
+    // --- 4. 游戏流程控制 ---
+
+    function startGame(mode) {
+        AudioSys.init();
+        AudioSys.playBGM();
+
+        gameMode = mode;
+        currentLevelIndex = 0;
+        resetGameVars();
+
+        // UI 切换
+        els.screens.start.classList.add('hidden');
+        els.screens.over.classList.add('hidden');
+        els.screens.win.classList.add('hidden');
+        els.screens.allClear.classList.add('hidden');
+
+        if (mode === 'LEVELS') {
+            els.levelPanel.style.display = 'block';
+            setupLevel(0);
+        } else {
+            els.levelPanel.style.display = 'none';
+        }
+
+        if (!engine) initPhysics();
+        else {
+            // 清理旧的物理世界
+            World.clear(engine.world);
+            Engine.clear(engine);
+            // 重建墙壁
+            const ground = Bodies.rectangle(GAME_WIDTH/2, GAME_HEIGHT + 30, GAME_WIDTH, 60, { isStatic: true, render: { fillStyle: '#fab1a0' } });
+            const leftWall = Bodies.rectangle(-30, GAME_HEIGHT/2, 60, GAME_HEIGHT*2, { isStatic: true });
+            const rightWall = Bodies.rectangle(GAME_WIDTH + 30, GAME_HEIGHT/2, 60, GAME_HEIGHT*2, { isStatic: true });
+            World.add(engine.world, [ground, leftWall, rightWall]);
+            runner.enabled = true;
+        }
+        
+        prepareNextTurn();
+        isPaused = false;
+    }
+
+    function setupLevel(idx) {
+        const lvl = LEVELS[idx];
+        els.levelDesc.innerText = lvl.desc;
+    }
+
+    function resetGameVars() {
+        score = 0;
+        els.score.innerText = '0';
+        gameOver = false;
+        isDropping = false;
+        mouseX = GAME_WIDTH / 2;
+        nextFruitIndex = Math.floor(Math.random() * 5);
+    }
+
+    function returnToMenu() {
+        els.screens.start.classList.remove('hidden');
+        els.screens.over.classList.add('hidden');
+        els.screens.allClear.classList.add('hidden');
+        AudioSys.stopBGM();
+        isPaused = true;
+        if(runner) runner.enabled = false;
+    }
+
+    function nextLevel() {
+        currentLevelIndex++;
+        if (currentLevelIndex >= LEVELS.length) {
+            els.screens.win.classList.add('hidden');
+            els.screens.allClear.classList.remove('hidden');
+            isPaused = true;
+            return;
+        }
+        
+        // 继续游戏，不重置盘面，只重置目标
+        els.screens.win.classList.add('hidden');
+        setupLevel(currentLevelIndex);
+        isPaused = false;
+        runner.enabled = true;
+        prepareNextTurn();
+    }
+
+    function checkLevelWin(mergedFruitIndex) {
+        if (gameMode !== 'LEVELS') return;
+        const lvl = LEVELS[currentLevelIndex];
+        let won = false;
+
+        if (lvl.type === 'score' && score >= lvl.target) won = true;
+        if (lvl.type === 'fruit' && mergedFruitIndex === lvl.target) won = true;
+
+        if (won) {
+            isPaused = true;
+            runner.enabled = false; // 暂停物理
+            AudioSys.playWin();
+            els.winMsg.innerText = lvl.desc + " 已达成！";
+            els.screens.win.classList.remove('hidden');
+        }
+    }
+
+    // --- 5. 游戏交互 ---
+
+    function prepareNextTurn() {
+        if (gameOver || isPaused) return;
+        currentFruitIndex = nextFruitIndex;
+        nextFruitIndex = Math.floor(Math.random() * 5);
+        
+        els.nextEmoji.innerText = FRUITS[nextFruitIndex].emoji;
+        // 动画
+        els.nextEmoji.style.animation = 'none';
+        els.nextEmoji.offsetHeight; 
+        els.nextEmoji.style.animation = 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+        
+        isDropping = false;
+    }
+
+    function handleMove(e) {
+        if (gameOver || isPaused) return;
+        e.preventDefault();
+        const rect = render.canvas.getBoundingClientRect();
+        let clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        const scaleX = GAME_WIDTH / rect.width;
+        mouseX = (clientX - rect.left) * scaleX;
+
+        const r = FRUITS[currentFruitIndex].radius;
+        if (mouseX < r) mouseX = r;
+        if (mouseX > GAME_WIDTH - r) mouseX = GAME_WIDTH - r;
+    }
+
+    function handleClick() {
+        if (gameOver || isDropping || isPaused) return;
+        isDropping = true;
+        AudioSys.playDrop();
+
+        const fruit = FRUITS[currentFruitIndex];
+        const body = Bodies.circle(mouseX, 50, fruit.radius, {
+            restitution: 0.2,
+            friction: 0.005,
+            label: `fruit-${fruit.index}`,
+            render: { fillStyle: 'transparent' }
+        });
+
+        World.add(engine.world, body);
+        setTimeout(prepareNextTurn, 600);
+    }
+
+    function handleCollision(event) {
+        if (gameOver || isPaused) return;
+        const pairs = event.pairs;
+
+        for (let pair of pairs) {
+            const bodyA = pair.bodyA;
+            const bodyB = pair.bodyB;
+
+            if (bodyA.label.startsWith('fruit-') && bodyB.label.startsWith('fruit-')) {
+                const idA = parseInt(bodyA.label.split('-')[1]);
+                const idB = parseInt(bodyB.label.split('-')[1]);
+
+                if (idA === idB && idA < FRUITS.length - 1) {
+                    const allBodies = Composite.allBodies(engine.world);
+                    if (!allBodies.includes(bodyA) || !allBodies.includes(bodyB)) continue;
+
+                    World.remove(engine.world, [bodyA, bodyB]);
+                    
+                    // 生成新水果
+                    const newX = (bodyA.position.x + bodyB.position.x) / 2;
+                    const newY = (bodyA.position.y + bodyB.position.y) / 2;
+                    const newIndex = idA + 1;
+                    const newFruit = FRUITS[newIndex];
+
+                    const newBody = Bodies.circle(newX, newY, newFruit.radius, {
+                        label: `fruit-${newIndex}`,
+                        render: { fillStyle: 'transparent' }
+                    });
+
+                    World.add(engine.world, newBody);
+                    
+                    // 音效与分数
+                    AudioSys.playMerge(newIndex);
+                    score += FRUITS[idA].score * 2;
+                    els.score.innerText = score;
+
+                    // 检查闯关条件
+                    checkLevelWin(newIndex);
+                }
+            }
+        }
+    }
+
+    // --- 6. 渲染与状态检测 ---
+
+    function renderEmojis() {
+        const ctx = render.context;
+        const bodies = Composite.allBodies(engine.world);
+
+        for (let body of bodies) {
+            if (body.label && body.label.startsWith('fruit-')) {
+                const index = parseInt(body.label.split('-')[1]);
+                const fruit = FRUITS[index];
+                if (!fruit) continue;
+
+                ctx.save();
+                ctx.translate(body.position.x, body.position.y);
+                ctx.rotate(body.angle);
+
+                // 背景圆
+                ctx.beginPath();
+                ctx.arc(0, 0, fruit.radius, 0, Math.PI * 2);
+                ctx.fillStyle = fruit.color;
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Emoji
+                ctx.font = `${fruit.radius * 2 * fruit.scale}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#000';
+                ctx.fillText(fruit.emoji, 0, fruit.radius * 0.1);
+                
+                ctx.restore();
+            }
+        }
+
+        // 悬停水果
+        if (!isDropping && !gameOver && !isPaused) {
+            const fruit = FRUITS[currentFruitIndex];
+            ctx.save();
+            
+            ctx.beginPath();
+            ctx.moveTo(mouseX, 50);
+            ctx.lineTo(mouseX, GAME_HEIGHT);
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+            ctx.setLineDash([5, 5]);
+            ctx.stroke();
+            
+            ctx.translate(mouseX, 50);
+            ctx.beginPath();
+            ctx.arc(0, 0, fruit.radius, 0, Math.PI * 2);
+            ctx.fillStyle = fruit.color;
+            ctx.fill();
+            ctx.font = `${fruit.radius * 2 * fruit.scale}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(fruit.emoji, 0, fruit.radius * 0.1);
+            ctx.restore();
+        }
+    }
+
+    let overflowTimer = 0;
+    function checkGameState() {
+        if (gameOver || isPaused) return;
+        
+        const bodies = Composite.allBodies(engine.world);
+        let isOverflowing = false;
+
+        for (let body of bodies) {
+            if (body.label.startsWith('fruit-')) {
+                if (body.position.y - body.circleRadius < DEADLINE_Y && Math.abs(body.velocity.y) < 0.2) {
+                    isOverflowing = true;
+                    break;
+                }
+            }
+        }
+
+        if (isOverflowing) {
+            overflowTimer++;
+            els.deadline.style.borderTop = "4px solid red";
+            if (overflowTimer > 120) {
+                endGame();
+            }
+        } else {
+            overflowTimer = 0;
+            els.deadline.style.borderTop = "2px dashed rgba(255, 0, 0, 0.6)";
+        }
+    }
+
+    function endGame() {
+        gameOver = true;
+        runner.enabled = false;
+        AudioSys.stopBGM();
+        els.finalScore.innerText = score;
+        els.screens.over.classList.remove('hidden');
+    }
+
+    // 声音按钮事件
+    document.getElementById('mute-btn').addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        AudioSys.toggleMute();
+    });
+    // 移动端防穿透
+    document.getElementById('mute-btn').addEventListener('touchstart', (e) => {
+        e.stopPropagation(); 
+    });
+
+    // 阻止IOS回弹
+    document.body.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
+
+    // 预加载
+    window.onload = () => {
+        // 此时不开始游戏，等待用户点击菜单
+    };
+
+</script>
+<style>
+@keyframes popIn { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+</style>
+</body>
+</html>

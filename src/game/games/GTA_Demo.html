@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web GTA V - Remastered</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Arial, sans-serif; user-select: none; }
+        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        
+        /* 游戏界面 UI */
+        #guide {
+            position: absolute; top: 20px; left: 20px; color: white;
+            text-shadow: 1px 1px 2px black; background: rgba(0,0,0,0.8);
+            padding: 20px; border-radius: 4px; font-size: 14px; width: 300px;
+            border-left: 5px solid #FFA500;
+        }
+        h1 { margin: 0 0 15px 0; color: #FFA500; font-size: 22px; font-style: italic; text-transform: uppercase; letter-spacing: 1px; }
+        .key { display: inline-block; background: #eee; color: #111; padding: 2px 6px; border-radius: 3px; font-weight: bold; margin: 0 2px; font-size: 11px; border-bottom: 2px solid #999; }
+        
+        #health-bar-wrap { width: 100%; height: 10px; background: #333; margin-top: 15px; border: 1px solid #555; }
+        #health-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A); transition: width 0.1s; }
+        
+        #weapon-info { margin-top: 10px; font-size: 12px; color: #aaa; display: flex; justify-content: space-between; }
+        #ammo { color: #fff; font-weight: bold; }
+
+        #stars { font-size: 24px; color: #444; letter-spacing: 3px; margin-top: 10px; text-align: right; }
+        .star-active { color: #fff !important; text-shadow: 0 0 10px #f00; }
+
+        /* 交互提示 */
+        #interaction-prompt {
+            position: absolute; bottom: 100px; right: 50px; 
+            font-size: 20px; color: #fff; background: rgba(0,0,0,0.8);
+            padding: 10px 20px; border-radius: 4px; border-right: 5px solid #FFA500; display: none;
+            text-align: right;
+        }
+
+        /* 准星 */
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; width: 6px; height: 6px;
+            background: rgba(255, 255, 255, 0.9); border-radius: 50%;
+            transform: translate(-50%, -50%); pointer-events: none; display: none;
+            box-shadow: 0 0 4px #000;
+        }
+        /* 瞄准时的扩散圈 */
+        #crosshair-circle {
+            position: absolute; top: 50%; left: 50%; width: 40px; height: 40px;
+            border: 2px solid rgba(255, 255, 255, 0.5); border-radius: 50%;
+            transform: translate(-50%, -50%); pointer-events: none; display: none;
+        }
+
+        /* 小地图 */
+        #minimap-wrapper {
+            position: absolute; bottom: 30px; left: 30px; width: 180px; height: 180px;
+            border: 4px solid #000; background: #1a1a1a;
+            border-radius: 4px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        /* Wasted */
+        #wasted-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); display: none; z-index: 999;
+            flex-direction: column; justify-content: center; align-items: center;
+        }
+        #wasted-text {
+            font-size: 100px; font-weight: 900; color: #cc0000; font-family: sans-serif;
+            text-shadow: 0 0 30px #000; letter-spacing: 5px; text-transform: uppercase;
+        }
+        #wasted-sub { color: #fff; font-size: 20px; margin-top: 20px; text-transform: uppercase; }
+        
+        /* 启动遮罩 */
+        #start-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 1000; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; color: white;
+        }
+        .btn {
+            padding: 15px 40px; background: #FFA500; color: #000; font-weight: bold; border: none;
+            font-size: 20px; cursor: pointer; margin-top: 20px; border-radius: 4px;
+        }
+        .btn:hover { background: #fff; }
+
+    </style>
+</head>
+<body>
+
+<div id="start-screen">
+    <h1 style="font-size: 40px;">GRAND WEB AUTO</h1>
+    <p>点击开始以启用音频系统</p>
+    <button class="btn" onclick="startGame()">进入游戏</button>
+</div>
+
+<div id="hud">
+    <div id="guide">
+        <h1>Los Santos Web</h1>
+        <div style="display:flex; justify-content:space-between; gap:10px;">
+            <div>
+                <p><b>键鼠控制</b></p>
+                <p><span class="key">WASD</span> 移动 <span class="key">Shift</span> 奔跑</p>
+                <p><span class="key">右键</span> 瞄准 <span class="key">左键</span> 射击</p>
+                <p><span class="key">滚轮</span> 缩放 <span class="key">V</span> 视角</p>
+                <p><span class="key">1</span> 棒球棍 <span class="key">2</span> 手枪</p>
+            </div>
+            <div style="border-left:1px solid #555; padding-left:10px;">
+                <p><b>手柄控制</b></p>
+                <p><span class="key">L</span> 移动 <span class="key">R</span> 视角</p>
+                <p><span class="key">Y</span> 上车 <span class="key">A</span> 奔跑</p>
+                <p><span class="key">LT</span> 瞄准 <span class="key">RT</span> 射击</p>
+                <p><span class="key">R3</span> / <span class="key">▼</span> 缩放</p>
+            </div>
+        </div>
+        <div id="health-bar-wrap"><div id="health-bar"></div></div>
+        <div id="stars">★★★★★</div>
+        <div id="weapon-info">
+            <span>WEAPON: <span id="weapon-name" style="color:#ff0;">NONE</span></span>
+            <span id="ammo">∞ / ∞</span>
+        </div>
+    </div>
+    
+    <div id="interaction-prompt">
+        <span style="font-size:14px; color:#ccc">驾驶车辆</span><br>
+        按 <span class="key">F</span> 或 <span class="key">Y</span>
+    </div>
+    
+    <div id="crosshair"></div>
+    <div id="crosshair-circle"></div>
+    <div id="minimap-wrapper"><canvas id="minimap" width="300" height="300"></canvas></div>
+</div>
+
+<div id="wasted-screen">
+    <div id="wasted-text">Wasted</div>
+    <div id="wasted-sub">按 R 或手柄 Start 重生</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+    // ================= 音频系统 (Web Audio API) =================
+    const AudioSys = {
+        ctx: null,
+        masterGain: null,
+        init: function() {
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+            this.masterGain = this.ctx.createGain();
+            this.masterGain.gain.value = 0.3; // 总体音量
+            this.masterGain.connect(this.ctx.destination);
+            this.startBGM();
+        },
+        playTone: function(freq, type, duration, vol=1) {
+            if(!this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration);
+        },
+        playNoise: function(duration, vol=1) {
+            if(!this.ctx) return;
+            const bufferSize = this.ctx.sampleRate * duration;
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = buffer;
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+            
+            noise.connect(gain);
+            gain.connect(this.masterGain);
+            noise.start();
+        },
+        shoot: function() {
+            this.playNoise(0.15, 0.8); // 爆炸感
+            this.playTone(150, 'sawtooth', 0.1, 0.5); // 机械感
+        },
+        hit: function() {
+            this.playTone(800, 'square', 0.05, 0.3);
+        },
+        step: function() {
+            this.playNoise(0.05, 0.1);
+        },
+        engine: function(speed) {
+            // 简易引擎模拟 (持续声音需要另外逻辑，这里简化为点火声)
+        },
+        startBGM: function() {
+            // 简单的低频氛围音 (Drone)
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 50;
+            gain.gain.value = 0.05;
+            
+            // LFO 来制造波动
+            const lfo = this.ctx.createOscillator();
+            lfo.frequency.value = 0.2;
+            const lfoGain = this.ctx.createGain();
+            lfoGain.gain.value = 20;
+            lfo.connect(lfoGain);
+            lfoGain.connect(osc.frequency);
+            lfo.start();
+
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+            osc.start();
+        }
+    };
+
+    function startGame() {
+        document.getElementById('start-screen').style.display = 'none';
+        AudioSys.init();
+        animate();
+    }
+
+    // ================= 游戏配置 =================
+    const CONFIG = {
+        worldSize: 2000, blockSize: 160, roadWidth: 28,
+        trafficCount: 60, parkedCount: 50, npcCount: 40,
+        policeCount: 4,
+        colors: [0xD92B2B, 0x1E3CD9, 0xE6E620, 0x111111, 0xEEEEEE, 0x388E3C, 0x4A148C] 
+    };
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x88CCFF);
+    scene.fog = new THREE.FogExp2(0x88CCFF, 0.0015);
+    
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
+    
+    const clock = new THREE.Clock();
+
+    // 灯光
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+    scene.add(hemiLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    dirLight.position.set(100, 200, 50);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(2048, 2048);
+    dirLight.shadow.camera.top = 500; dirLight.shadow.camera.bottom = -500;
+    dirLight.shadow.camera.left = -500; dirLight.shadow.camera.right = 500;
+    scene.add(dirLight);
+
+    // ================= 游戏状态 =================
+    const game = {
+        state: 'walking', // 'walking', 'driving', 'wasted'
+        player: null, vehicle: null,
+        entities: { cars: [], npcs: [], props: [], particles: [] },
+        colliders: [],
+        targetCar: null,
+        
+        // 玩家属性
+        health: 100, wanted: 0, weapon: 'none',
+        lastShot: 0, recoil: 0,
+        
+        // 相机控制
+        cam: {
+            yaw: 0, pitch: 0.2, dist: 4,
+            targetDist: 4,
+            pivot: new THREE.Vector3(),
+            shake: 0
+        },
+        viewMode: 1 // 0:近, 1:中, 2:远
+    };
+
+    const input = {
+        keys: { w:0,a:0,s:0,d:0, sp:0, sh:0, f:0, r:0, m1:0, m2:0 },
+        mouse: { x:0, y:0 },
+        pad: null
+    };
+
+    // ================= 模型生成 =================
+    function createHuman(color, isPlayer) {
+        const g = new THREE.Group();
+        const matBody = new THREE.MeshLambertMaterial({color: color});
+        const matSkin = new THREE.MeshLambertMaterial({color: 0xffccaa});
+        const matPants = new THREE.MeshLambertMaterial({color: 0x333344});
+
+        // 身体
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.6, 0.25), matBody);
+        body.position.y = 1.1; body.castShadow=true; g.add(body);
+        
+        // 头
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.35, 0.3), matSkin);
+        head.position.y = 1.6; head.castShadow=true; g.add(head);
+
+        // 肢体辅助
+        function limb(mat, x, y, z, w, h) {
+            const p = new THREE.Group(); p.position.set(x,y,z);
+            const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), mat);
+            m.position.y = -h/2; m.castShadow=true; p.add(m); g.add(p); return p;
+        }
+        
+        const legL = limb(matPants, 0.12, 0.8, 0, 0.16, 0.8);
+        const legR = limb(matPants, -0.12, 0.8, 0, 0.16, 0.8);
+        const armL = limb(matBody, 0.32, 1.35, 0, 0.14, 0.7);
+        const armR = limb(matBody, -0.32, 1.35, 0, 0.14, 0.7);
+
+        // 武器挂点
+        const hand = new THREE.Group();
+        hand.position.set(0, -0.6, 0.1); 
+        hand.rotation.x = -Math.PI/2;
+        armR.children[0].add(hand);
+
+        g.userData = { 
+            parts: { head, body, legL, legR, armL, armR, hand },
+            anim: { walk: 0 },
+            health: 100, isDead: false
+        };
+        return g;
+    }
+
+    function createCar(type, color) {
+        const g = new THREE.Group();
+        const matBody = new THREE.MeshPhongMaterial({color: color, shininess: 80});
+        const matDark = new THREE.MeshLambertMaterial({color: 0x111});
+        const matGlass = new THREE.MeshPhongMaterial({color: 0x112233, shininess: 120, opacity: 0.9, transparent:true});
+
+        const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.7, 4.6), matBody);
+        chassis.position.y = 0.75; chassis.castShadow=true; g.add(chassis);
+
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.6, 2.4), matBody);
+        cabin.position.set(0, 1.3, -0.2); cabin.castShadow=true; g.add(cabin);
+        
+        const wind = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.55, 0.1), matGlass);
+        wind.position.set(0, 1.3, 1.0); wind.rotation.x = -0.3; g.add(wind);
+
+        // 轮子
+        const wGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.3, 12);
+        const wMat = new THREE.MeshLambertMaterial({color:0x222});
+        [[-1.0,1.4],[1.0,1.4],[-1.0,-1.4],[1.0,-1.4]].forEach(p=>{
+            const w = new THREE.Mesh(wGeo, wMat);
+            w.rotation.z=Math.PI/2; w.position.set(p[0],0.42,p[1]); w.castShadow=true; g.add(w);
+        });
+
+        if(type==='police') {
+            const bar = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.15, 0.3), new THREE.MeshBasicMaterial({color:0xff0000}));
+            bar.position.set(0, 1.65, -0.2); g.add(bar);
+            g.userData.lightBar = bar;
+        }
+
+        g.userData = { 
+            type: type, health: type==='police'?300:150, 
+            speed: 0, maxSpeed: type==='sport'?2.2:1.6,
+            radius: 2.5
+        };
+        return g;
+    }
+
+    function createWeaponModel(type) {
+        const g = new THREE.Group();
+        if(type === 'bat') {
+            const m = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.02, 0.8), new THREE.MeshStandardMaterial({color:0x8B4513}));
+            m.position.y = 0.4; m.rotation.x = Math.PI/2; g.add(m);
+        } else if(type === 'gun') {
+            const b = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.3), new THREE.MeshStandardMaterial({color:0x222}));
+            b.position.z = 0.1;
+            const h = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.15, 0.06), new THREE.MeshStandardMaterial({color:0x111}));
+            h.position.y = -0.06; h.rotation.x = 0.3;
+            g.add(b); g.add(h);
+            
+            // 枪口火焰点
+            const flash = new THREE.PointLight(0xffaa00, 0, 5);
+            flash.position.z = 0.3;
+            g.add(flash);
+            g.userData.flash = flash;
+        }
+        return g;
+    }
+
+    // ================= 场景初始化 =================
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(CONFIG.worldSize, CONFIG.worldSize), new THREE.MeshLambertMaterial({color: 0x1a331a}));
+    ground.rotation.x = -Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+
+    const roadsX=[], roadsZ=[];
+    const matRoad = new THREE.MeshPhongMaterial({color: 0x333});
+    
+    for(let i=-CONFIG.worldSize/2+CONFIG.blockSize; i<CONFIG.worldSize/2; i+=CONFIG.blockSize) {
+        const rx=new THREE.Mesh(new THREE.PlaneGeometry(CONFIG.worldSize, CONFIG.roadWidth), matRoad);
+        rx.rotation.x=-Math.PI/2; rx.position.set(0,0.02,i); rx.receiveShadow=true; scene.add(rx); roadsX.push(i);
+        const rz=new THREE.Mesh(new THREE.PlaneGeometry(CONFIG.roadWidth, CONFIG.worldSize), matRoad);
+        rz.rotation.x=-Math.PI/2; rz.position.set(i,0.01,0); rz.receiveShadow=true; scene.add(rz); roadsZ.push(i);
+    }
+
+    // 建筑
+    const geoBox = new THREE.BoxGeometry(1,1,1);
+    function createBuildingTex() {
+        const c = document.createElement('canvas'); c.width=64; c.height=128; const ctx=c.getContext('2d');
+        ctx.fillStyle='#555'; ctx.fillRect(0,0,64,128);
+        ctx.fillStyle='#123'; for(let y=10;y<120;y+=15) for(let x=6;x<60;x+=14) ctx.fillRect(x,y,8,10);
+        ctx.fillStyle='#FE8'; for(let i=0;i<6;i++) ctx.fillRect(6+Math.floor(Math.random()*4)*14, 10+Math.floor(Math.random()*7)*15, 8, 10);
+        return new THREE.CanvasTexture(c);
+    }
+    const matBuild = new THREE.MeshPhongMaterial({map: createBuildingTex()});
+
+    for(let i=0; i<150; i++) {
+        const rx = roadsZ[Math.floor(Math.random()*roadsZ.length)];
+        const rz = roadsX[Math.floor(Math.random()*roadsX.length)];
+        const x = rx + CONFIG.blockSize/2 + (Math.random()-0.5)*80;
+        const z = rz + CONFIG.blockSize/2 + (Math.random()-0.5)*80;
+        const h = 20 + Math.random()*60;
+        
+        const b = new THREE.Mesh(geoBox, matBuild);
+        b.position.set(x, h/2, z); b.scale.set(18+Math.random()*10, h, 18+Math.random()*10);
+        b.castShadow=true; b.receiveShadow=true; scene.add(b);
+        
+        b.geometry.computeBoundingBox();
+        const bbox = new THREE.Box3().setFromObject(b);
+        game.colliders.push({type:'box', box:bbox});
+    }
+
+    // ================= 实体管理 =================
+    function spawnEntity(type, x, z) {
+        if(type==='player') {
+            game.player = createHuman(0x0088ff, true);
+            game.player.position.set(x,0,z); scene.add(game.player);
+        } else if(type==='npc') {
+            const n = createHuman(Math.random()*0xffffff);
+            n.position.set(x,0,z);
+            n.userData.ai={dir:Math.random()*6.28, moveT:0};
+            scene.add(n); game.entities.npcs.push(n);
+        } else if(type==='car' || type==='police') {
+            const color = type==='police' ? 0xffffff : CONFIG.colors[Math.floor(Math.random()*CONFIG.colors.length)];
+            const c = createCar(type, color);
+            c.position.set(x,0,z); 
+            if(Math.random()>0.5) c.rotation.y = Math.PI/2;
+            c.userData.ai = { active: type!=='player', dir:0 };
+            scene.add(c); game.entities.cars.push(c);
+            if(type==='police') game.police.push(c);
+            return c;
+        }
+    }
+
+    game.police = [];
+    
+    // 将出生点调整到地图中心附近
+    const startX = roadsZ[Math.floor(roadsZ.length / 2)] + 5; 
+    const startZ = roadsX[Math.floor(roadsX.length / 2)] + 5;
+    
+    spawnEntity('player', startX, startZ);
+    const startCar = spawnEntity('car', startX + 10, startZ + 5);
+    startCar.userData.type = 'sport'; startCar.userData.maxSpeed=2.2;
+
+    for(let i=0; i<CONFIG.npcCount; i++) spawnEntity('npc', startX + (Math.random()-0.5)*400, startZ + (Math.random()-0.5)*400);
+    for(let i=0; i<CONFIG.trafficCount; i++) {
+        const isX=Math.random()>0.5, lane=isX?roadsX:roadsZ, val=lane[Math.floor(Math.random()*lane.length)];
+        const offset = (Math.random()-0.5)*600;
+        spawnEntity('car', isX?(startZ+offset):val, isX?val:(startZ+offset));
+    }
+
+    // ================= 核心逻辑 =================
+    
+    // 碰撞检测
+    function checkCollision(pos, r) {
+        for(let c of game.colliders) {
+            if(pos.x>c.box.min.x-r && pos.x<c.box.max.x+r && pos.z>c.box.min.z-r && pos.z<c.box.max.z+r) return true;
+        }
+        return false;
+    }
+
+    // 粒子系统 (简单的Mesh池)
+    function createParticle(pos, color) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,0.1), new THREE.MeshBasicMaterial({color:color}));
+        m.position.copy(pos);
+        m.userData = { vel: new THREE.Vector3((Math.random()-0.5)*0.5, Math.random()*0.5, (Math.random()-0.5)*0.5), life: 1.0 };
+        scene.add(m); game.entities.particles.push(m);
+    }
+
+    // 武器切换
+    function setWeapon(w) {
+        if(game.state !== 'walking') return;
+        game.weapon = w;
+        const hand = game.player.userData.parts.hand;
+        while(hand.children.length) hand.remove(hand.children[0]);
+        
+        if(w !== 'none') hand.add(createWeaponModel(w));
+        
+        document.getElementById('weapon-name').innerText = w.toUpperCase();
+        document.getElementById('crosshair').style.display = w==='gun'?'block':'none';
+        document.getElementById('crosshair-circle').style.display = w==='gun'?'block':'none';
+    }
+
+    // 射击逻辑
+    function fireGun() {
+        if(Date.now() - game.lastShot < 150) return;
+        game.lastShot = Date.now();
+        
+        AudioSys.shoot();
+        
+        // 后坐力
+        game.recoil += 0.05;
+        game.cam.shake = 0.2;
+
+        // 枪口火光
+        const hand = game.player.userData.parts.hand;
+        if(hand.children[0] && hand.children[0].userData.flash) {
+            const f = hand.children[0].userData.flash;
+            f.intensity = 2; setTimeout(()=>f.intensity=0, 50);
+        }
+
+        // 射线检测
+        const start = new THREE.Vector3(); 
+        hand.getWorldPosition(start);
+        
+        // 射击方向: 从相机中心向前
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+        
+        // 简单的视觉子弹
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.05,0.05,0.5), new THREE.MeshBasicMaterial({color:0xffff00}));
+        b.position.copy(start);
+        b.lookAt(start.clone().add(dir));
+        b.userData = { vel: dir.multiplyScalar(4), life: 60 }; // 极快
+        scene.add(b); game.entities.particles.push(b);
+
+        // 命中判定 (简易)
+        const ray = new THREE.Raycaster(camera.position, dir, 0, 100);
+        
+        // 收集可命中物体
+        let targets = [];
+        game.entities.npcs.forEach(n=>targets.push(n.userData.parts.body));
+        game.entities.cars.forEach(c=>targets.push(c.children[0])); // 底盘
+
+        const hits = ray.intersectObjects(targets);
+        if(hits.length > 0) {
+            const obj = hits[0].object.parent; // 获取Group
+            createParticle(hits[0].point, 0xff0000); // 血/火花
+            AudioSys.hit();
+
+            if(obj.userData.health) {
+                obj.userData.health -= 35;
+                if(obj.userData.health <= 0 && !obj.userData.isDead) {
+                    obj.userData.isDead = true;
+                    if(obj.userData.type) { // 是车
+                         // 冒烟/变黑 (简化)
+                         obj.children.forEach(m=>m.material.color.setHex(0x333));
+                    } else { // 是人
+                        obj.rotation.x = -Math.PI/2; obj.position.y=0.2;
+                    }
+                    game.wanted++; updateWanted();
+                }
+            }
+        }
+    }
+
+    function updateWanted() {
+        game.wanted = Math.min(5, game.wanted);
+        let s = ""; for(let i=0;i<5;i++) s+= (i<game.wanted ? '<span class="star-active">★</span>' : '☆');
+        document.getElementById('stars').innerHTML = s;
+        
+        // 生成警察
+        if(game.wanted > 0 && game.police.length < CONFIG.policeCount) {
+            const angle = Math.random()*6.28;
+            const pos = game.player.position;
+            const p = spawnEntity('police', pos.x+Math.sin(angle)*80, pos.z+Math.cos(angle)*80);
+        }
+    }
+
+    // 玩家控制更新
+    function updatePlayer(dt) {
+        const p = game.player;
+        const parts = p.userData.parts;
+
+        // 输入读取
+        const aim = input.mouse.m2 || input.keys.f>0.5; // 手柄LT映射到keys.f暂代? 不, 下面有gamepad处理
+        const shoot = input.mouse.m1;
+        const run = input.keys.sh;
+        
+        // 视角控制
+        // 鼠标 X -> Yaw (左右), Y -> Pitch (上下)
+        const sens = aim ? 0.001 : 0.003;
+        game.cam.yaw -= input.mouse.x * sens;
+        game.cam.pitch -= input.mouse.y * sens;
+        game.cam.pitch = Math.max(0.1, Math.min(Math.PI/2-0.05, game.cam.pitch)); // 限制俯仰角，防止过度俯视
+        
+        // 手柄摇杆
+        if(input.pad) {
+            game.cam.yaw -= input.pad.axes[2] * 0.03;
+            game.cam.pitch -= input.pad.axes[3] * 0.03;
+        }
+        
+        // 重置鼠标增量
+        input.mouse.x = 0; input.mouse.y = 0;
+
+        // 移动方向计算 (修正：反转方向)
+        const camDir = new THREE.Vector3(-Math.sin(game.cam.yaw), 0, -Math.cos(game.cam.yaw));
+        const camRight = new THREE.Vector3(Math.cos(game.cam.yaw), 0, -Math.sin(game.cam.yaw));
+        
+        let move = new THREE.Vector3();
+        if(input.keys.w) move.add(camDir);
+        if(input.keys.s) move.sub(camDir);
+        if(input.keys.a) move.sub(camRight);
+        if(input.keys.d) move.add(camRight);
+        
+        if(input.pad) {
+            move.addScaledVector(camRight, input.pad.axes[0]);
+            move.addScaledVector(camDir, -input.pad.axes[1]);
+        }
+
+        const isMoving = move.lengthSq() > 0.1;
+        const speed = isMoving ? (run ? 0.4 : 0.15) : 0;
+        
+        if(isMoving) {
+            // 正常移动时朝向移动方向
+            if(!aim) {
+                const angle = Math.atan2(move.x, move.z);
+                // 平滑旋转
+                let diff = angle - p.rotation.y;
+                while(diff>Math.PI)diff-=Math.PI*2; while(diff<-Math.PI)diff+=Math.PI*2;
+                p.rotation.y += diff * 0.2;
+            }
+            // 移动位置
+            const old = p.position.clone();
+            move.normalize().multiplyScalar(speed);
+            p.position.add(move);
+            if(checkCollision(p.position, 0.4)) p.position.copy(old);
+            
+            // 简单的脚步声
+            if(Math.sin(p.userData.anim.walk * 2) > 0.9) AudioSys.step();
+        }
+
+        // 瞄准逻辑
+        if(aim) {
+            // 强制朝向相机前方
+            p.rotation.y = game.cam.yaw + Math.PI;
+            // 抬手
+            const pitchOffset = game.cam.pitch - 1.5;
+            parts.armR.rotation.x = pitchOffset;
+            parts.armL.rotation.x = pitchOffset;
+            
+            document.getElementById('crosshair').style.opacity = 1;
+            document.getElementById('crosshair-circle').style.opacity = 1;
+            
+            if(game.weapon === 'gun' && shoot) fireGun();
+
+        } else {
+            // 放下手
+            parts.armR.rotation.x = THREE.MathUtils.lerp(parts.armR.rotation.x, 0, 0.2);
+            parts.armL.rotation.x = THREE.MathUtils.lerp(parts.armL.rotation.x, 0, 0.2);
+            document.getElementById('crosshair').style.opacity = 0;
+            document.getElementById('crosshair-circle').style.opacity = 0;
+        }
+
+        // 动画
+        if(speed>0) {
+            p.userData.anim.walk += dt * (run?15:8);
+            const a = Math.sin(p.userData.anim.walk)*0.8;
+            parts.legL.rotation.x = a; parts.legR.rotation.x = -a;
+            if(game.weapon==='none') { parts.armL.rotation.x = -a; parts.armR.rotation.x = a; }
+        } else {
+            parts.legL.rotation.x=0; parts.legR.rotation.x=0;
+        }
+
+        // 后坐力恢复
+        game.recoil *= 0.9;
+        game.cam.pitch += game.recoil * 0.01;
+        game.cam.shake *= 0.8;
+
+        // 相机跟随
+        const targetD = aim ? 2.5 : [2.5, 5.0, 8.0][game.viewMode];
+        const targetY = aim ? 1.6 : 2.2;
+        const targetSide = aim ? 0.6 : 0;
+
+        game.cam.dist = THREE.MathUtils.lerp(game.cam.dist, targetD, 0.1);
+        
+        // 计算相机位置 (Orbit)
+        // Yaw + PI 是因为相机看着人
+        const cx = p.position.x + Math.sin(game.cam.yaw) * Math.cos(game.cam.pitch) * game.cam.dist;
+        const cz = p.position.z + Math.cos(game.cam.yaw) * Math.cos(game.cam.pitch) * game.cam.dist;
+        const cy = p.position.y + Math.sin(game.cam.pitch) * game.cam.dist + targetY;
+
+        // 越肩偏移
+        const right = new THREE.Vector3(Math.cos(game.cam.yaw), 0, -Math.sin(game.cam.yaw));
+        
+        camera.position.set(cx, cy, cz).addScaledVector(right, targetSide);
+        
+        // 震动
+        camera.position.x += (Math.random()-0.5)*game.cam.shake;
+        camera.position.y += (Math.random()-0.5)*game.cam.shake;
+        camera.position.z += (Math.random()-0.5)*game.cam.shake;
+
+        // 看向目标点 (视线远处)
+        const lookAtPos = p.position.clone();
+        lookAtPos.y += 1.5; // 胸口
+        // 瞄准时, lookAt 需要稍微偏一点修正
+        camera.lookAt(camera.position.clone().add(
+            new THREE.Vector3(
+                -Math.sin(game.cam.yaw)*Math.cos(game.cam.pitch), 
+                -Math.sin(game.cam.pitch), 
+                -Math.cos(game.cam.yaw)*Math.cos(game.cam.pitch)
+            )
+        ));
+
+        // 交互检测
+        let closeCar = null; let minDist=5;
+        game.entities.cars.forEach(c=>{
+            const d = p.position.distanceTo(c.position);
+            if(d<minDist){ minDist=d; closeCar=c; }
+        });
+        game.targetCar = (minDist<3.5) ? closeCar : null;
+        document.getElementById('interaction-prompt').style.display = game.targetCar ? 'block' : 'none';
+    }
+
+    function updateDriving(dt) {
+        const c = game.vehicle;
+        // 简单驾驶物理
+        let acc = 0; let steer = 0;
+        if(input.keys.w) acc += 1; if(input.keys.s) acc -= 1;
+        if(input.keys.a) steer = 1; if(input.keys.d) steer = -1;
+        if(input.pad) {
+            acc += input.pad.buttons[7].value - input.pad.buttons[6].value; // RT - LT
+            steer -= input.pad.axes[0];
+        }
+
+        // 速度处理
+        c.userData.speed += acc * dt * 5;
+        c.userData.speed *= 0.98; // 阻力
+        const maxS = c.userData.maxSpeed;
+        c.userData.speed = Math.max(-maxS/2, Math.min(maxS, c.userData.speed));
+
+        // 转向
+        if(Math.abs(c.userData.speed) > 0.1) {
+            c.rotation.y += steer * dt * 2 * (c.userData.speed>0?1:-1);
+        }
+
+        // 移动
+        const dir = new THREE.Vector3(Math.sin(c.rotation.y), 0, Math.cos(c.rotation.y));
+        const old = c.position.clone();
+        c.position.addScaledVector(dir, c.userData.speed * 0.4);
+        
+        if(checkCollision(c.position, 2)) {
+            c.position.copy(old); c.userData.speed *= -0.5;
+            AudioSys.shoot(); // 撞击音效复用
+        }
+
+        // 相机跟随
+        // 鼠标可以旋转观察，松开自动回正 (简化：一直跟随车尾 + 鼠标偏移)
+        const sens = 0.003;
+        game.cam.yaw -= input.mouse.x * sens;
+        game.cam.pitch -= input.mouse.y * sens;
+        game.cam.pitch = Math.max(0.1, Math.min(1.2, game.cam.pitch));
+        input.mouse.x=0; input.mouse.y=0;
+
+        // 自动回正 (Lerp back to car rear)
+        if(!input.mouse.x && !input.mouse.y) {
+            // const carRearAngle = c.rotation.y;
+            // game.cam.yaw = THREE.MathUtils.lerp(game.cam.yaw, carRearAngle, dt);
+        }
+
+        const tDist = [6, 9, 14][game.viewMode];
+        game.cam.dist = THREE.MathUtils.lerp(game.cam.dist, tDist, 0.1);
+        
+        const cx = c.position.x + Math.sin(game.cam.yaw) * Math.cos(game.cam.pitch) * game.cam.dist;
+        const cz = c.position.z + Math.cos(game.cam.yaw) * Math.cos(game.cam.pitch) * game.cam.dist;
+        const cy = c.position.y + Math.sin(game.cam.pitch) * game.cam.dist + 2;
+        
+        camera.position.lerp(new THREE.Vector3(cx,cy,cz), 0.1);
+        camera.lookAt(c.position);
+
+        document.getElementById('interaction-prompt').style.display = 'none';
+    }
+
+    function toggleVehicle() {
+        if(game.state==='walking' && game.targetCar) {
+            game.state = 'driving';
+            game.vehicle = game.targetCar;
+            game.vehicle.userData.ai.active = false;
+            game.player.visible = false;
+            AudioSys.playTone(100, 'sawtooth', 0.5); // 启动声
+        } else if(game.state==='driving') {
+            game.state = 'walking';
+            game.player.position.copy(game.vehicle.position).add(new THREE.Vector3(2,0,0));
+            game.player.visible = true;
+            game.vehicle.userData.speed = 0;
+            game.vehicle = null;
+        }
+    }
+
+    function updateParticles() {
+        for(let i=game.entities.particles.length-1; i>=0; i--) {
+            const p = game.entities.particles[i];
+            p.position.add(p.userData.vel);
+            p.userData.life -= 0.1;
+            if(p.userData.life <= 0) { scene.remove(p); game.entities.particles.splice(i,1); }
+        }
+    }
+
+    function takeDamage(amt) {
+        game.health -= amt;
+        document.getElementById('health-bar').style.width = Math.max(0, game.health)+'%';
+        if(game.health <= 0 && game.state !== 'wasted') {
+            game.state = 'wasted';
+            document.getElementById('wasted-screen').style.display = 'flex';
+        }
+    }
+
+    // ================= 输入事件 =================
+    window.addEventListener('keydown', e=>{
+        const k = e.key.toLowerCase();
+        if(input.keys.hasOwnProperty(k)) input.keys[k]=1;
+        if(e.key==='Shift') input.keys.sh=1;
+        if(k==='1') setWeapon('bat'); if(k==='2') setWeapon('gun');
+        if(k==='f') toggleVehicle();
+        if(k==='r' && game.state==='wasted') location.reload();
+        if(k==='v') game.viewMode = (game.viewMode+1)%3;
+    });
+    window.addEventListener('keyup', e=>{
+        const k = e.key.toLowerCase();
+        if(input.keys.hasOwnProperty(k)) input.keys[k]=0;
+        if(e.key==='Shift') input.keys.sh=0;
+    });
+    window.addEventListener('mousedown', e=>{
+        if(e.button===0) input.mouse.m1=1; 
+        if(e.button===2) input.mouse.m2=1;
+    });
+    window.addEventListener('mouseup', e=>{
+        if(e.button===0) input.mouse.m1=0; 
+        if(e.button===2) input.mouse.m2=0;
+    });
+    window.addEventListener('mousemove', e=>{
+        input.mouse.x = e.movementX; input.mouse.y = e.movementY;
+    });
+    window.addEventListener('wheel', e=>{
+        if(e.deltaY<0) game.viewMode = Math.max(0, game.viewMode-1);
+        else game.viewMode = Math.min(2, game.viewMode+1);
+    });
+    document.addEventListener('contextmenu', e=>e.preventDefault());
+    document.body.onclick = ()=>document.body.requestPointerLock();
+
+    function updatePad() {
+        const gp = navigator.getGamepads()[0];
+        if(gp) {
+            input.pad = gp;
+            if(gp.buttons[3].pressed && !input.keys.f) { toggleVehicle(); input.keys.f=1; } // Y button
+            if(!gp.buttons[3].pressed) input.keys.f=0;
+            if(gp.buttons[6].value>0.5) input.mouse.m2=1; else input.mouse.m2=0; // LT Aim
+            if(gp.buttons[7].value>0.5) input.mouse.m1=1; else input.mouse.m1=0; // RT Fire
+            if(gp.buttons[11].pressed) { game.viewMode=(game.viewMode+1)%3; } // R3
+        }
+    }
+
+    // ================= 小地图绘制 =================
+    const mapCtx = document.getElementById('minimap').getContext('2d');
+    function drawMinimap() {
+        mapCtx.fillStyle='#111'; mapCtx.fillRect(0,0,300,300);
+        mapCtx.save(); mapCtx.translate(150,150);
+        const center = game.state==='walking'?game.player.position:game.vehicle.position;
+        mapCtx.rotate(game.cam.yaw + Math.PI);
+        mapCtx.scale(0.12, 0.12); mapCtx.translate(-center.x, -center.z);
+        
+        mapCtx.strokeStyle='#444'; mapCtx.lineWidth=28; mapCtx.beginPath();
+        roadsX.forEach(z=>{mapCtx.moveTo(-1000,z);mapCtx.lineTo(1000,z)});
+        roadsZ.forEach(x=>{mapCtx.moveTo(x,-1000);mapCtx.lineTo(x,1000)});
+        mapCtx.stroke();
+
+        mapCtx.fillStyle='#666';
+        game.colliders.forEach(c=>{
+            if(c.type === 'box') {
+                const b=c.box; mapCtx.fillRect(b.min.x,b.min.z,b.max.x-b.min.x,b.max.z-b.min.z);
+            }
+        });
+        
+        game.entities.cars.forEach(c=>{
+            if(c===game.vehicle)return;
+            mapCtx.fillStyle = c.userData.type==='police' ? '#00f' : '#f00';
+            if(c.userData.isDead) mapCtx.fillStyle='#333';
+            mapCtx.beginPath(); mapCtx.arc(c.position.x,c.position.z,8,0,6.28); mapCtx.fill();
+        });
+        
+        // NPC
+        mapCtx.fillStyle='#fa0';
+        game.entities.npcs.forEach(n=>{
+             if(n.userData.isDead) return;
+             mapCtx.fillRect(n.position.x-2, n.position.z-2, 4, 4);
+        });
+
+        mapCtx.restore();
+        mapCtx.fillStyle='#0f0'; mapCtx.beginPath(); mapCtx.moveTo(150,140); mapCtx.lineTo(140,160); mapCtx.lineTo(160,160); mapCtx.fill();
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const dt = clock.getDelta();
+        updatePad();
+
+        if(game.state !== 'wasted') {
+            if(game.state==='walking') updatePlayer(dt);
+            else updateDriving(dt);
+            
+            updateParticles();
+            
+            // NPC & Traffic update
+            game.entities.cars.concat(game.entities.npcs).forEach(e=>{
+                if(e===game.vehicle || e.userData.isDead) return;
+                // Simple AI move
+                if(e.userData.type) { // Car
+                    if(e.userData.ai.active) {
+                        const s = 0.4;
+                        e.translateZ(s);
+                        if(Math.abs(e.position.x)>1000 || Math.abs(e.position.z)>1000) e.rotation.y+=Math.PI;
+                    }
+                } else { // NPC
+                    e.position.x += Math.sin(e.userData.ai.dir)*0.04;
+                    e.position.z += Math.cos(e.userData.ai.dir)*0.04;
+                    e.rotation.y = e.userData.ai.dir + Math.PI;
+                    if(Math.random()<0.01) e.userData.ai.dir = Math.random()*6.28;
+                    
+                    e.userData.anim.walk += 0.1;
+                    const a = Math.sin(e.userData.anim.walk)*0.5;
+                    e.userData.parts.legL.rotation.x=a; e.userData.parts.legR.rotation.x=-a;
+                    e.userData.parts.armL.rotation.x=-a; e.userData.parts.armR.rotation.x=a;
+                }
+            });
+        }
+        
+        drawMinimap();
+        renderer.render(scene, camera);
+    }
+</script>
+</body>
+</html>
