@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多功能处理工具 V6.2 (扁平化导航)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* CSS is identical to V6.1, so it is kept as is. */
+        :root {
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --bg-color: #f0f0f0; --container-bg: #ffffff; --text-color: #333333; --text-color-light: #555555;
+            --accent-color: #007aff; --accent-color-hover: #0056b3; --border-color: #e0e0e0;
+            --header-bg: #f7f7f7; --shadow-color: rgba(0, 0, 0, 0.1); --table-stripe-bg: #f9f9f9;
+            --success-bg: #d4edda; --success-text: #155724; --success-border: #c3e6cb;
+            --danger-bg: #f8d7da; --danger-text: #721c24; --danger-border: #f5c6cb;
+            --warning-bg: #fff3cd; --warning-text: #856404; --warning-border: #ffeeba;
+            --btn-secondary-bg: #e9e9eb; --btn-secondary-text: #333; --btn-secondary-hover: #d1d1d6;
+            --input-bg: #fdfdfd;
+        }
+        body.dark-mode {
+            --bg-color: #1e1e1e; --container-bg: #2d2d2d; --text-color: #e0e0e0; --text-color-light: #bbbbbb;
+            --accent-color: #0a84ff; --accent-color-hover: #0060df; --border-color: #444444;
+            --header-bg: #3a3a3a; --shadow-color: rgba(0, 0, 0, 0.4); --table-stripe-bg: #333333;
+            --success-bg: #2a3a2f; --success-text: #30d158; --success-border: #2e4c36;
+            --danger-bg: #452a2f; --danger-text: #ff453a; --danger-border: #5b2d31;
+            --warning-bg: #4a3c25; --warning-text: #ffcc00; --warning-border: #634e23;
+            --btn-secondary-bg: #555; --btn-secondary-text: #fff; --btn-secondary-hover: #666;
+            --input-bg: #3a3a3a;
+        }
+        body { font-family: var(--font-family); background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 25px; line-height: 1.6; transition: background-color 0.3s, color 0.3s; }
+        .container { max-width: 1200px; margin: auto; background: var(--container-bg); padding: 20px; border-radius: 12px; box-shadow: 0 8px 32px var(--shadow-color); border: 1px solid var(--border-color); position: relative; transition: background-color 0.3s, border-color 0.3s; }
+        .traffic-lights { position: absolute; top: 15px; left: 15px; display: flex; gap: 8px; }
+        .traffic-lights .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot.red { background-color: #ff5f56; } .dot.yellow { background-color: #ffbd2e; } .dot.green { background-color: #27c93f; }
+        .theme-switch-wrapper { position: absolute; top: 12px; right: 15px; display: flex; align-items: center; }
+        .theme-switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+        .theme-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 22px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent-color); } input:checked + .slider:before { transform: translateX(18px); }
+        h1, h2 { text-align: center; font-weight: 600; margin: 15px 0; }
+        h1 + p { text-align: center; color: var(--text-color-light); margin: 0 0 25px; }
+        h2 { border-bottom: 1px solid var(--border-color); padding-bottom: 10px; font-weight: 500;}
+        h3 { font-weight: 500; margin-top: 20px; }
+        .tool-switcher { display: flex; justify-content: center; gap: 10px; margin-bottom: 25px; background-color: var(--header-bg); padding: 5px; border-radius: 8px; }
+        .tool-switch-btn { padding: 8px 20px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; background-color: transparent; color: var(--text-color-light); transition: all 0.3s; }
+        .tool-switch-btn.active { background-color: var(--container-bg); color: var(--accent-color); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .tool-pane { display: none; }
+        .tool-pane.active { display: block; }
+        .action-buttons { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+        button { padding: 8px 18px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; font-weight: 500; }
+        button:active { transform: scale(0.97); }
+        .btn-primary { background-color: var(--accent-color); color: white; }
+        .btn-primary:hover { background-color: var(--accent-color-hover); }
+        .btn-secondary { background-color: var(--btn-secondary-bg); color: var(--btn-secondary-text); }
+        .btn-secondary:hover { background-color: var(--btn-secondary-hover); }
+        textarea { width: 100%; padding: 12px; font-size: 14px; border: 1px solid var(--border-color); border-radius: 8px; box-sizing: border-box; resize: vertical; background-color: var(--input-bg); color: var(--text-color); transition: all 0.3s; }
+        textarea:focus { border-color: var(--accent-color); outline: none; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2); }
+        .status-message { margin-top: 20px; padding: 15px; border-radius: 8px; display: none; text-align: left; white-space: pre-wrap; border: 1px solid transparent; }
+        .status-success { background-color: var(--success-bg); color: var(--success-text); border-color: var(--success-border); }
+        .status-danger { background-color: var(--danger-bg); color: var(--danger-text); border-color: var(--danger-border); }
+        .status-warning { background-color: var(--warning-bg); color: var(--warning-text); border-color: var(--warning-border); }
+        .table-wrapper { max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); margin-top: 15px; border-radius: 8px; }
+        #results-table { width: 100%; border-collapse: collapse; }
+        #results-table th, #results-table td { border-bottom: 1px solid var(--border-color); padding: 12px 15px; text-align: left; white-space: nowrap; }
+        #results-table th { background-color: var(--header-bg); position: sticky; top: 0; z-index: 1; font-weight: 500; }
+        #results-table tbody tr:nth-child(even) { background-color: var(--table-stripe-bg); }
+        #results-table tbody td { cursor: cell; color: var(--text-color-light); }
+        #results-table tbody td:focus { background-color: rgba(0, 122, 255, 0.1); outline: 2px solid var(--accent-color); }
+        .tracking-tool-layout { display: flex; gap: 20px; flex-wrap: wrap; }
+        .tracking-main-content { flex: 3; min-width: 300px; }
+        .tracking-sidebar { flex: 1; min-width: 250px; background-color: var(--header-bg); padding: 15px; border-radius: 8px; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;}
+        .stat-item { background-color: var(--container-bg); padding: 10px; border-radius: 6px; text-align: center; }
+        .stat-item .label { font-size: 12px; color: var(--text-color-light); }
+        .stat-item .value { font-size: 18px; font-weight: 600; color: var(--accent-color); }
+        .comparator-layout { display: flex; gap: 20px; flex-wrap: wrap; }
+        .comparator-col { flex: 1; min-width: 250px; }
+        .result-box { position: relative; }
+        .copy-btn { position: absolute; top: 10px; right: 10px; padding: 4px 8px; font-size: 12px; background-color: rgba(0,0,0,0.4); color: white; border-radius: 4px; opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="traffic-lights"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div>
+    <div class="theme-switch-wrapper"><label class="theme-switch" for="theme-checkbox"><input type="checkbox" id="theme-checkbox" onchange="toggleTheme()"><span class="slider"></span></label></div>
+
+    <h1>多功能处理工具</h1>
+    <p>macOS Style v6.2</p>
+
+    <!-- NEW: Flat Navigation Structure -->
+    <div class="tool-switcher">
+        <button class="tool-switch-btn active" onclick="switchTool('address-tool')">地址处理</button>
+        <button class="tool-switch-btn" onclick="switchTool('tracking-converter')">单号格式转换</button>
+        <button class="tool-switch-btn" onclick="switchTool('tracking-comparator')">单号比较</button>
+    </div>
+
+    <!-- ===== Address Processor Tool Pane ===== -->
+    <div id="address-tool" class="tool-pane active">
+        <div style="display: flex; gap: 10px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px;">
+            <div style="padding: 8px 0; font-weight: 500; font-size: 15px;">输入方式</div>
+        </div>
+        <textarea id="address-text-input" placeholder="请在此处粘贴三行一组或单行合并的地址信息..." style="height:180px;"></textarea>
+        <!-- Address tool actions and results remain the same as V6.1 -->
+        <div class="action-buttons">
+            <button class="btn-primary" onclick="processAddressData()">▶️ 开始处理</button>
+            <button class="btn-secondary" onclick="fillAddressExample()">📝 填充示例</button>
+            <button class="btn-danger" onclick="clearAddressAll()">🗑️ 清空所有</button>
+        </div>
+        <div id="address-status-message" class="status-message"></div>
+        <div id="address-results-section" style="display:none;">
+            <h2 id="address-results-title">处理结果</h2>
+            <div class="action-buttons">
+                <button class="btn-secondary" onclick="copyAddressTable()">📋 复制表格</button>
+                <button class="btn-secondary" onclick="exportCSV()">⬇️ 导出 CSV</button>
+                <button class="btn-secondary" onclick="exportXLSX()">⬇️ 导出 Excel</button>
+            </div>
+            <div class="table-wrapper"><table id="results-table"><thead><tr><th>收件人</th><th>手机号</th><th>收货地址</th><th>平台订单号</th><th>商品信息</th><th>规格信息</th><th>商品数量</th><th>重量kg</th><th>备注</th></tr></thead><tbody></tbody></table></div>
+        </div>
+    </div>
+
+    <!-- ===== Tracking Number Converter Pane ===== -->
+    <div id="tracking-converter" class="tool-pane">
+        <div class="tracking-tool-layout">
+            <div class="tracking-main-content">
+                <textarea id="tracking-input-converter" placeholder="在此输入快递单号，每行一个或用逗号分隔..." style="height: 400px;" oninput="updateTrackingStats()"></textarea>
+                <div class="action-buttons">
+                    <button class="btn-primary" onclick="convertToComma()">转为逗号分隔</button>
+                    <button class="btn-primary" onclick="convertToLines()">转为单行排列</button>
+                    <button class="btn-danger" onclick="clearTrackingConverter()">清空</button>
+                </div>
+            </div>
+            <div class="tracking-sidebar">
+                <h3>数据分析 (实时)</h3>
+                <div class="stats-grid">
+                    <div class="stat-item"><div class="label">输入行/项</div><div id="stat-input" class="value">0</div></div>
+                    <div class="stat-item"><div class="label">有效单号</div><div id="stat-valid" class="value">0</div></div>
+                    <div class="stat-item"><div class="label">重复数量</div><div id="stat-duplicate" class="value">0</div></div>
+                    <div class="stat-item"><div class="label">过滤数量</div><div id="stat-filtered" class="value">0</div></div>
+                </div>
+                <h3>前缀统计</h3>
+                <table id="prefix-analysis-table" style="width: 100%; font-size: 14px;"><tbody><tr><td colspan='2'>暂无数据</td></tr></tbody></table>
+                <h3 style="margin-top:20px;">设置</h3>
+                <div>
+                    <label><input type="checkbox" id="option-deduplicate" checked onchange="updateTrackingStats()"> 自动移除重复项</label>
+                    <label style="display: block; margin-top: 10px;">最小长度过滤: <input type="number" id="option-min-length" value="10" style="width: 50px;" oninput="updateTrackingStats()"></label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Tracking Number Comparator Pane ===== -->
+    <div id="tracking-comparator" class="tool-pane">
+        <div class="action-buttons" style="justify-content: center; margin-bottom: 20px;">
+            <button class="btn-primary" onclick="compareTrackingNumbers()">🚀 开始比较</button>
+            <button class="btn-danger" onclick="clearTrackingComparator()">🗑️ 全部清空</button>
+        </div>
+        <div class="comparator-layout">
+            <div class="comparator-col">
+                <h3>单号列表 A</h3>
+                <textarea id="tracking-input-a" placeholder="在此输入第一组单号，每行一个或用逗号分隔..." style="height: 300px;"></textarea>
+            </div>
+            <div class="comparator-col">
+                <h3>单号列表 B</h3>
+                <textarea id="tracking-input-b" placeholder="在此输入第二组单号，每行一个或用逗号分隔..." style="height: 300px;"></textarea>
+            </div>
+        </div>
+        <div id="comparator-results" style="display:none; margin-top:20px;">
+            <h2 style="text-align:left;">比较结果</h2>
+            <div class="comparator-layout">
+                 <div class="comparator-col result-box">
+                    <h3 id="common-title">共有单号 (0)</h3>
+                    <textarea id="result-common" readonly></textarea>
+                    <button class="copy-btn" onclick="copyResult('result-common')">复制</button>
+                </div>
+                <div class="comparator-col result-box">
+                    <h3 id="unique-a-title">列表 A 独有 (0)</h3>
+                    <textarea id="result-unique-a" readonly></textarea>
+                    <button class="copy-btn" onclick="copyResult('result-unique-a')">复制</button>
+                </div>
+                <div class="comparator-col result-box">
+                    <h3 id="unique-b-title">列表 B 独有 (0)</h3>
+                    <textarea id="result-unique-b" readonly></textarea>
+                    <button class="copy-btn" onclick="copyResult('result-unique-b')">复制</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ===== Global & Theme Management =====
+const themeToggle = document.getElementById('theme-checkbox');
+function toggleTheme() {
+    document.body.classList.toggle('dark-mode');
+    localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+}
+function applySavedTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+        themeToggle.checked = true;
+    }
+}
+// MODIFIED: Simplified tool switcher
+function switchTool(toolId) {
+    document.querySelectorAll('.tool-pane').forEach(p => p.classList.remove('active'));
+    document.getElementById(toolId).classList.add('active');
+    document.querySelectorAll('.tool-switch-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.tool-switch-btn[onclick="switchTool('${toolId}')"]`).classList.add('active');
+}
+document.addEventListener('DOMContentLoaded', applySavedTheme);
+
+// ===== Address Tool Logic (Same as V6.1) =====
+let address_processedData=[];const ADDRESS_HEADERS=['收件人','手机号','收货地址','平台订单号','商品信息','规格信息','商品数量','重量kg','备注'];const ADDRESS_CSV_HEADERS=['收件人(必填)','手机号(必填)','收货地址(必填)','平台订单号（非必填）','商品信息(非必填)','规格信息(非必填)','商品数量(非必填)','重量kg(非必填)','备注(非必填)'];
+function fillAddressExample(){document.getElementById('address-text-input').value=`// --- 单行合并格式 ---\n邓华坤[7846] 19593243304贵州省贵阳市花溪区贵阳花溪区改貌小区步梯房B9幢三单元2-1[7846] 。2355白深蓝41\n\n// --- 空格分隔格式 ---\n刘**[9190]\n19592426857\n广东省 东莞市 厚街镇 广东省东莞市汀山路与博民路交叉口东北160米卓兴公寓[9190]    2355黑色42`;}
+function clearAddressAll(){document.getElementById('address-text-input').value='';document.getElementById('address-results-section').style.display='none';document.getElementById('address-status-message').style.display='none';document.querySelector('#results-table tbody').innerHTML='';address_processedData=[];}
+function showAddressStatus(message,type='success'){const s=document.getElementById('address-status-message');s.innerHTML=message.replace(/\n/g,'<br>');s.className=`status-message status-${type}`;s.style.display='block';}
+function normalizeInput(rawText){const pR=/(\d{11})/;const iL=rawText.split('\n').filter(l=>l.trim()!=='');const nL=[];for(const l of iL){const tL=l.trim();const pM=tL.match(pR);if(pM&&/^\D/.test(tL)&&tL.length>25){const p=pM[0];const pI=pM.index;const n=tL.substring(0,pI).trim();const r=tL.substring(pI+11).trim();nL.push(n,p,r);}else{nL.push(tL);}}return nL;}
+function processAddressData(){const rawText=document.getElementById('address-text-input').value;const tbody=document.querySelector('#results-table tbody');tbody.innerHTML='';address_processedData=[];let warnings=[];const phoneSet=new Set();let duplicateCount=0;if(!rawText.trim())return showAddressStatus('错误：输入内容不能为空！','danger');const lines=normalizeInput(rawText);if(lines.length===0)return showAddressStatus('错误：未识别到有效数据行！','danger');if(lines.length%3!==0)warnings.push(`数据归一化后，总行数不是3的倍数，末尾 ${lines.length%3} 行数据可能被忽略。`);const totalGroups=Math.floor(lines.length/3);if(totalGroups===0)return showAddressStatus('错误：没有完整的三行数据组可供处理。','danger');for(let i=0;i<totalGroups*3;i+=3){const recipient=lines[i].trim();const phone=lines[i+1].trim();const line3=lines[i+2].trim();let address=line3;let productInfo='';const pSR=/(。|\s{2,})(.+)$/;const pM=line3.match(pSR);if(pM){productInfo=pM[2].trim();address=line3.substring(0,pM.index).trim();}if(!/^\d{11}$/.test(phone))warnings.push(`第 ${Math.floor(i/3)+1} 组数据的手机号 "${phone}" 格式不正确。`);if(phoneSet.has(phone))duplicateCount++;phoneSet.add(phone);address_processedData.push({'收件人':recipient,'手机号':phone,'收货地址':address,'平台订单号':'','商品信息':productInfo,'规格信息':'','商品数量':'','重量kg':'','备注':''});}
+address_processedData.forEach(item=>{const row=tbody.insertRow();ADDRESS_HEADERS.forEach(header=>{const cell=row.insertCell();cell.textContent=item[header];cell.setAttribute('contenteditable','true');});});document.getElementById('address-results-title').textContent=`处理结果 (共 ${totalGroups} 条)`;document.getElementById('address-results-section').style.display='block';let statusMessage=`处理完成！成功解析 ${totalGroups} 组数据。`;if(duplicateCount>0)warnings.push(`检测到 ${duplicateCount} 条重复手机号的数据。`);if(warnings.length>0)showAddressStatus(statusMessage+'\n\n【处理提示】:\n- '+warnings.join('\n- '),'warning');else showAddressStatus(statusMessage,'success');}
+function syncAddressDataFromTable(){address_processedData=Array.from(document.querySelectorAll('#results-table tbody tr')).map(row=>{const d={};row.querySelectorAll('td').forEach((cell,i)=>{d[ADDRESS_HEADERS[i]]=cell.textContent;});return d;});}
+function generateFilename(ext){const n=new Date(),m=`${n.getMonth()+1}`.padStart(2,'0'),d=`${n.getDate()}`.padStart(2,'0'),h=`${n.getHours()}`.padStart(2,'0');return`地址信息${m}${d}${h}.${ext}`;}
+function downloadBlob(blob,filename){const l=document.createElement('a');l.href=URL.createObjectURL(blob);l.download=filename;document.body.appendChild(l);l.click();document.body.removeChild(l);URL.revokeObjectURL(l.href);}
+function copyAddressTable(){syncAddressDataFromTable();if(address_processedData.length===0)return showAddressStatus('没有可复制的数据。','warning');const tsv=address_processedData.map(r=>ADDRESS_HEADERS.map(h=>(r[h]||'').replace(/\s/g,' ')).join('\t')).join('\n');navigator.clipboard.writeText(tsv).then(()=>showAddressStatus('表格内容 (无表头) 已成功复制！','success'),()=>showAddressStatus('复制失败。','danger'));}
+function exportCSV(){syncAddressDataFromTable();if(address_processedData.length===0)return showAddressStatus('没有可导出的数据。','warning');const rows=address_processedData.map(r=>ADDRESS_HEADERS.map(h=>{let c=r[h]||'';return/[",\n]/.test(c)?`"${c.replace(/"/g,'""')}"`:c;}).join(','));const csv=[ADDRESS_CSV_HEADERS.join(','),...rows].join('\n');const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});const filename=generateFilename('csv');downloadBlob(blob,filename);showAddressStatus(`CSV文件 (${filename}) 已开始下载。`,'success');}
+function exportXLSX(){syncAddressDataFromTable();if(address_processedData.length===0)return showAddressStatus('没有可导出的数据。','warning');const data=address_processedData.map(r=>ADDRESS_HEADERS.map(h=>r[h]||''));const ws=XLSX.utils.aoa_to_sheet([ADDRESS_CSV_HEADERS,...data]);ws['!cols']=ADDRESS_CSV_HEADERS.map((h,i)=>({wch:Math.min(60,Math.max(10,h.length*1.5,...data.map(r=>(r[i]?String(r[i]).length:0))))}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'地址信息');const filename=generateFilename('xlsx');XLSX.writeFile(wb,filename);showAddressStatus(`Excel文件 (${filename}) 已开始下载。`,'success');}
+
+// ===== Tracking Tool Logic (Same as V6.1, just split into panes) =====
+function getTrackingOptions(){return{deduplicate:document.getElementById('option-deduplicate').checked,minLength:parseInt(document.getElementById('option-min-length').value)||0,};}
+function processTrackingNumbers(rawText,options){const lines=rawText.replace(/，/g,',').split(/[\n\s,]/).map(item=>item.trim()).filter(Boolean);const initialCount=lines.length;let filteredCount=0;const validFormatNumbers=lines.filter(item=>{const isValid=/^[a-zA-Z0-9]+$/.test(item)&&item.length>=options.minLength;if(!isValid)filteredCount++;return isValid;});const uniqueNumbers=options.deduplicate?[...new Set(validFormatNumbers)]:validFormatNumbers;const duplicateCount=validFormatNumbers.length-uniqueNumbers.length;const prefixMap={'SF':'顺丰','JD':'京东','YT':'圆通','ZT':'中通','YZ':'邮政','DB':'德邦','HT':'百世'};const prefixCounts={};uniqueNumbers.forEach(num=>{const prefix=num.substring(0,2).toUpperCase();if(prefixMap[prefix]){const key=`${prefixMap[prefix]} (${prefix})`;prefixCounts[key]=(prefixCounts[key]||0)+1;}});return{numbers:uniqueNumbers,stats:{input:initialCount,valid:uniqueNumbers.length,duplicate:duplicateCount,filtered:filteredCount},prefixes:prefixCounts,};}
+function updateTrackingStats(){const rawText=document.getElementById('tracking-input-converter').value;const options=getTrackingOptions();const{stats,prefixes}=processTrackingNumbers(rawText,options);document.getElementById('stat-input').textContent=stats.input;document.getElementById('stat-valid').textContent=stats.valid;document.getElementById('stat-duplicate').textContent=stats.duplicate;document.getElementById('stat-filtered').textContent=stats.filtered;const prefixTbody=document.querySelector('#prefix-analysis-table tbody');prefixTbody.innerHTML='';const sortedPrefixes=Object.entries(prefixes).sort((a,b)=>b[1]-a[1]);if(sortedPrefixes.length>0){sortedPrefixes.forEach(([name,count])=>{const row=prefixTbody.insertRow();row.insertCell().textContent=name;row.insertCell().textContent=count;});}else{prefixTbody.innerHTML='<tr><td colspan="2">暂无数据</td></tr>';}}
+function convertToComma(){const rawText=document.getElementById('tracking-input-converter').value;const options=getTrackingOptions();const{numbers}=processTrackingNumbers(rawText,options);document.getElementById('tracking-input-converter').value=numbers.join('，');updateTrackingStats();}
+function convertToLines(){const rawText=document.getElementById('tracking-input-converter').value;const options=getTrackingOptions();const{numbers}=processTrackingNumbers(rawText,options);document.getElementById('tracking-input-converter').value=numbers.join('\n');updateTrackingStats();}
+function clearTrackingConverter(){document.getElementById('tracking-input-converter').value='';updateTrackingStats();}
+function compareTrackingNumbers(){const options=getTrackingOptions();const listA=processTrackingNumbers(document.getElementById('tracking-input-a').value,options).numbers;const listB=processTrackingNumbers(document.getElementById('tracking-input-b').value,options).numbers;const setA=new Set(listA);const setB=new Set(listB);const common=listA.filter(item=>setB.has(item));const uniqueA=listA.filter(item=>!setB.has(item));const uniqueB=listB.filter(item=>!setA.has(item));document.getElementById('result-common').value=common.join('\n');document.getElementById('result-unique-a').value=uniqueA.join('\n');document.getElementById('result-unique-b').value=uniqueB.join('\n');document.getElementById('common-title').textContent=`共有单号 (${common.length})`;document.getElementById('unique-a-title').textContent=`列表 A 独有 (${uniqueA.length})`;document.getElementById('unique-b-title').textContent=`列表 B 独有 (${uniqueB.length})`;document.getElementById('comparator-results').style.display='block';}
+function clearTrackingComparator(){document.getElementById('tracking-input-a').value='';document.getElementById('tracking-input-b').value='';document.getElementById('comparator-results').style.display='none';}
+function copyResult(elementId){const textarea=document.getElementById(elementId);textarea.select();document.execCommand('copy');}
+</script>
+</body>
+</html>

@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>3D 合成大西瓜 - 优化版</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #fff1f6 0%, #ffe4e9 100%);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10; display: flex; flex-direction: column;
+        }
+
+        /* --- 主菜单 --- */
+        #main-menu {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.9); backdrop-filter: blur(10px);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            pointer-events: auto; z-index: 200; transition: opacity 0.3s;
+        }
+        .menu-title {
+            font-size: 48px; font-weight: 900; color: #e91e63; margin-bottom: 10px;
+            text-shadow: 2px 2px 0px #fff; letter-spacing: 2px;
+        }
+        .menu-subtitle { font-size: 16px; color: #666; margin-bottom: 40px; }
+        
+        .menu-card-container {
+            display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;
+            max-width: 800px; padding: 20px;
+        }
+        
+        .mode-card {
+            background: white; border-radius: 20px; padding: 20px; width: 160px;
+            box-shadow: 0 10px 25px rgba(233, 30, 99, 0.15);
+            cursor: pointer; transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+            border: 2px solid transparent;
+        }
+        .mode-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(233, 30, 99, 0.25); border-color: #ff80ab; }
+        .mode-icon { font-size: 40px; margin-bottom: 10px; }
+        .mode-name { font-weight: 800; color: #333; margin-bottom: 5px; }
+        .mode-desc { font-size: 12px; color: #888; line-height: 1.4; }
+
+        .record-badge {
+            margin-top: 30px; background: #fff; padding: 8px 20px; border-radius: 50px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); color: #666; font-size: 14px; font-weight: bold;
+        }
+        .record-val { color: #e91e63; margin-left: 5px; font-size: 18px; }
+
+        /* --- 游戏 UI --- */
+        .top-bar {
+            display: flex; justify-content: center; gap: 20px;
+            padding-top: max(20px, env(safe-area-inset-top));
+            width: 100%; pointer-events: auto;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px); border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 4px 16px rgba(31, 38, 135, 0.05);
+            padding: 8px 20px; text-align: center; min-width: 90px;
+        }
+        .score-label { font-size: 12px; color: #888; font-weight: 700; }
+        #score-value { font-size: 28px; font-weight: 800; color: #333; line-height: 1.1; }
+        
+        .back-btn {
+            position: absolute; top: max(20px, env(safe-area-inset-top)); left: 20px;
+            width: 40px; height: 40px; border-radius: 50%; background: white;
+            border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            cursor: pointer; font-size: 20px; color: #666; pointer-events: auto;
+            display: flex; justify-content: center; align-items: center; z-index: 50;
+        }
+        .back-btn:hover { background: #fce4ec; color: #e91e63; }
+
+        .next-preview-box { display: flex; align-items: center; gap: 10px; position: relative; min-width: 110px; justify-content: center; }
+        .preview-circle-container { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+        #next-fruit-preview {
+            border-radius: 50%; background-color: #ddd; border: 2px solid #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: all 0.3s ease;
+        }
+        #next-fruit-name { font-size: 14px; font-weight: bold; color: #555; }
+
+        /* 侧边栏 */
+        .side-panel {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            width: 160px; max-height: 70%; overflow-y: auto;
+            pointer-events: auto; padding: 15px; display: none; flex-direction: column; gap: 8px;
+            scrollbar-width: none; -ms-overflow-style: none;
+        }
+        .side-panel::-webkit-scrollbar { display: none; }
+        .side-left { left: 20px; text-align: left; }
+        .side-right { right: 20px; text-align: center; }
+        .panel-title { font-size: 14px; font-weight: 900; color: #ff4081; margin-bottom: 8px; text-align: center; }
+        .guide-item { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.4); padding: 6px; border-radius: 10px; margin-bottom: 4px; }
+        .guide-circle-wrapper { width: 30px; display: flex; justify-content: center; align-items: center; }
+        .guide-circle { border-radius: 50%; border: 1px solid #fff; flex-shrink: 0; }
+        .guide-name { font-size: 11px; color: #555; font-weight: 600; }
+        .guide-score { font-size: 10px; color: #999; margin-left: auto; }
+        .instruction-line { font-size: 12px; color: #555; margin-bottom: 6px; line-height: 1.4; }
+        .key-highlight { color: #e91e63; font-weight: 800; }
+
+        /* 模式切换按钮 */
+        #mode-toggle-btn {
+            position: absolute; bottom: 40px; right: 30px; width: 64px; height: 64px;
+            border-radius: 50%; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border: none; display: flex; justify-content: center; align-items: center;
+            font-size: 24px; cursor: pointer; pointer-events: auto; z-index: 50;
+            transition: transform 0.1s, background 0.3s;
+        }
+        #mode-toggle-btn:active { transform: scale(0.9); }
+        #mode-toggle-btn.mode-camera { background: #e3f2fd; color: #2196f3; border: 2px solid #2196f3; }
+        #mode-toggle-btn.mode-fruit { background: #fce4ec; color: #e91e63; border: 2px solid #e91e63; }
+        .mode-label {
+            position: absolute; bottom: 110px; right: 20px; background: rgba(0,0,0,0.6);
+            color: white; padding: 5px 10px; border-radius: 8px; font-size: 12px;
+            pointer-events: none; opacity: 0; transition: opacity 0.3s;
+        }
+
+        /* Game Over */
+        #game-over-modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(5px);
+            display: none; justify-content: center; align-items: center;
+            pointer-events: auto; z-index: 100;
+        }
+        .modal-content {
+            background: white; padding: 30px 50px; border-radius: 30px; text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .game-over-title { font-size: 24px; font-weight: 900; color: #333; margin-bottom: 10px; }
+        .final-score { font-size: 48px; font-weight: 900; color: #ff4081; margin-bottom: 20px; }
+        .btn-group { display: flex; gap: 10px; justify-content: center; }
+        .btn {
+            background: linear-gradient(45deg, #ff4081, #ff80ab); color: white; border: none;
+            padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 50px;
+            cursor: pointer; box-shadow: 0 5px 15px rgba(255, 64, 129, 0.3); transition: transform 0.1s;
+        }
+        .btn-secondary { background: #eee; color: #555; box-shadow: none; }
+        .btn:active { transform: scale(0.95); }
+
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: white; padding: 20px; border-radius: 15px; font-weight: bold; color: #555; z-index: 300;
+        }
+
+        @media (min-width: 800px) { 
+            .side-panel { display: flex; } 
+            #mode-toggle-btn { display: none; } 
+            .mode-label { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading">资源生成中...</div>
+
+    <!-- 主菜单 -->
+    <div id="main-menu">
+        <div class="menu-title">3D 合成大西瓜</div>
+        <div class="menu-subtitle">选择容器与玩法</div>
+        
+        <div class="menu-card-container">
+            <div class="mode-card" onclick="startGame('BOX')">
+                <div class="mode-icon">📦</div>
+                <div class="mode-name">经典方形</div>
+                <div class="mode-desc">传统的长方体容器，经典耐玩。</div>
+            </div>
+            <div class="mode-card" onclick="startGame('CYLINDER')">
+                <div class="mode-icon">🛢️</div>
+                <div class="mode-name">圆柱容器</div>
+                <div class="mode-desc">无死角的圆润边缘，防止卡角。</div>
+            </div>
+        </div>
+
+        <div class="record-badge">最高记录: <span id="menu-high-score" class="record-val">0</span></div>
+    </div>
+
+    <!-- 游戏界面 -->
+    <div id="ui-layer" style="display:none;">
+        <button class="back-btn" onclick="showMenu()">🏠</button>
+
+        <div class="top-bar">
+            <div class="glass-panel score-board">
+                <div class="score-label">SCORE</div>
+                <div id="score-value">0</div>
+            </div>
+            <div class="glass-panel next-preview-box">
+                <div class="score-label">NEXT</div>
+                <div class="preview-circle-container">
+                    <div id="next-fruit-preview"></div>
+                </div>
+                <div id="next-fruit-name">葡萄</div>
+            </div>
+        </div>
+
+        <div class="glass-panel side-panel side-left" id="side-left">
+            <div class="panel-title">操作说明</div>
+            <div class="instruction-line"><span class="key-highlight">单指/左键</span><br>平移水果</div>
+            <div class="instruction-line"><span class="key-highlight">松开</span><br>投放水果</div>
+            <div class="instruction-line"><span class="key-highlight">右键/中键</span><br>旋转/缩放视角</div>
+            <div class="instruction-line" style="margin-top: 8px; color: #ff4081; font-weight: bold;" id="mode-hint-text">
+                虚线球为落点预判
+            </div>
+        </div>
+
+        <div class="glass-panel side-panel side-right" id="fruit-guide">
+            <div class="panel-title">水果图鉴</div>
+        </div>
+
+        <button id="mode-toggle-btn" class="mode-fruit">🍎</button>
+        <div id="mode-label" class="mode-label">当前：控制水果</div>
+
+        <div id="game-over-modal">
+            <div class="modal-content">
+                <div class="game-over-title">游戏结束</div>
+                <div class="score-label">最终得分</div>
+                <div class="final-score" id="final-score">0</div>
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="showMenu()">返回菜单</button>
+                    <button class="btn" id="restart-btn">再来一次</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+                "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import * as CANNON from 'cannon-es';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        window.startGame = (mode) => App.startGame(mode);
+        window.showMenu = () => App.showMenu();
+
+        const FRUITS = [
+            { level: 0, radius: 0.45, score: 1, name: "葡萄", colors: { base: '#9c27b0', detail: '#7b1fa2' }, roughness: 0.4 },
+            { level: 1, radius: 0.65, score: 2, name: "樱桃", colors: { base: '#ff1744', detail: '#d50000' }, roughness: 0.2, hasStem: true },
+            { level: 2, radius: 0.85, score: 4, name: "橘子", colors: { base: '#ff9800', detail: '#f57c00' }, roughness: 0.6 },
+            { level: 3, radius: 1.1, score: 6, name: "柠檬", colors: { base: '#fdd835', detail: '#fbc02d' }, roughness: 0.5, scaleY: 1.1 },
+            { level: 4, radius: 1.4, score: 8, name: "猕猴桃", colors: { base: '#8d6e63', detail: '#6d4c41' }, roughness: 0.9 },
+            { level: 5, radius: 1.7, score: 10, name: "番茄", colors: { base: '#f44336', detail: '#d32f2f' }, roughness: 0.3, hasCalyx: true },
+            { level: 6, radius: 2.0, score: 12, name: "桃子", colors: { base: '#ffccbc', detail: '#ffab91' }, roughness: 0.5 },
+            { level: 7, radius: 2.4, score: 14, name: "菠萝", colors: { base: '#fdd835', detail: '#f57f17' }, roughness: 0.7 },
+            { level: 8, radius: 2.8, score: 16, name: "椰子", colors: { base: '#795548', detail: '#5d4037' }, roughness: 0.8 },
+            { level: 9, radius: 3.2, score: 18, name: "哈密瓜", colors: { base: '#fff9c4', detail: '#c8e6c9' }, roughness: 0.4 }, 
+            { level: 10, radius: 3.6, score: 20, name: "大西瓜", colors: { base: '#2e7d32', detail: '#1b5e20' }, roughness: 0.3, hasZigzag: true }
+        ];
+
+        const BOX_SIZE = { width: 11, height: 16, depth: 11 }; 
+        const WALL_THICKNESS = 0.5;
+        const DROP_HEIGHT = 12; 
+        let LIMIT_LINE_Y = BOX_SIZE.height / 2 - 1.0;
+
+        const TextureFactory = {
+            size: 512, 
+            createCanvas() { const c = document.createElement('canvas'); c.width=this.size; c.height=this.size; return c; },
+            getTexture(type, config) {
+                const canvas = this.createCanvas();
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = config.base; ctx.fillRect(0,0,this.size,this.size);
+                ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                for(let i=0;i<50;i++) { ctx.beginPath(); ctx.arc(Math.random()*this.size, Math.random()*this.size, 2, 0, Math.PI*2); ctx.fill(); }
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.colorSpace = THREE.SRGBColorSpace;
+                return tex;
+            }
+        };
+
+        const App = {
+            mode: 'BOX', 
+            score: 0, highScore: 0, nextFruitLevel: 0, canDrop: true, isGameOver: false, fruitsInScene: [],
+            scene: null, camera: null, renderer: null, world: null, controls: null,
+            aimLine: null, ghostFruit: null, shadowMarker: null, rangeRing: null, dummyFruit: null, floorMesh: null,
+            fruitMaterials: [], fruitGeometries: [], physicsMaterial: null,
+            stemGeometry: null, calyxGeometry: null, stemMaterial: null,
+            isDragging: false, lastPointer: new THREE.Vector2(), currentFruitPos: new THREE.Vector3(0, DROP_HEIGHT, 0),
+            mobileMode: 'FRUIT', raycasterDown: new THREE.Raycaster(),
+
+            init() {
+                this.highScore = parseInt(localStorage.getItem('suika_high_score') || '0');
+                document.getElementById('menu-high-score').innerText = this.highScore;
+
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0xfff1f6);
+                this.scene.fog = new THREE.Fog(0xfff1f6, 25, 80);
+
+                this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+                this.camera.position.set(0, 24, 30);
+
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFShadowMap; 
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+                document.body.appendChild(this.renderer.domElement);
+
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+                this.scene.add(ambientLight);
+                const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+                dirLight.position.set(10, 20, 10);
+                dirLight.castShadow = true;
+                dirLight.shadow.mapSize.set(1024, 1024);
+                this.scene.add(dirLight);
+
+                this.generateAssets();
+                this.renderFruitGuide();
+
+                this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.target.set(0, 2, 0);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                this.controls.maxPolarAngle = Math.PI / 2 - 0.1;
+                this.controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+                this.controls.touches = { ONE: null, TWO: THREE.TOUCH.DOLLY_ROTATE };
+                this.controls.enabled = true;
+
+                window.addEventListener('resize', () => this.onWindowResize());
+                this.renderer.domElement.addEventListener('pointerdown', (e) => this.onPointerDown(e), { passive: false });
+                window.addEventListener('pointermove', (e) => this.onPointerMove(e), { passive: false });
+                window.addEventListener('pointerup', (e) => this.onPointerUp(e));
+
+                document.getElementById('restart-btn').addEventListener('click', () => this.restartGame());
+                document.getElementById('mode-toggle-btn').addEventListener('click', () => this.toggleMobileMode());
+
+                this.raycasterDown.ray.direction.set(0, -1, 0);
+                document.getElementById('loading').style.display = 'none';
+                this.animate();
+            },
+
+            showMenu() {
+                this.isGameOver = true; 
+                document.getElementById('ui-layer').style.display = 'none';
+                document.getElementById('main-menu').style.display = 'flex';
+                document.getElementById('main-menu').style.opacity = '1';
+                document.getElementById('menu-high-score').innerText = this.highScore;
+            },
+
+            startGame(mode) {
+                this.mode = mode;
+                document.getElementById('main-menu').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('main-menu').style.display = 'none';
+                    document.getElementById('ui-layer').style.display = 'flex';
+                }, 300);
+                this.resetWorld();
+            },
+
+            resetWorld() {
+                this.fruitsInScene = [];
+                this.world = new CANNON.World();
+                this.world.gravity.set(0, -40, 0);
+                this.world.broadphase = new CANNON.NaiveBroadphase();
+                this.world.allowSleep = true;
+                this.physicsMaterial = new CANNON.Material('fruit');
+                this.world.addContactMaterial(new CANNON.ContactMaterial(this.physicsMaterial, this.physicsMaterial, { friction: 0.3, restitution: 0 }));
+
+                const toRemove = [];
+                this.scene.traverse(child => {
+                    if (child.isMesh || child.isLine || child.isGroup) {
+                        if (child !== this.scene && !child.isLight && child.name !== 'Sky') toRemove.push(child);
+                    }
+                });
+                toRemove.forEach(obj => this.scene.remove(obj));
+
+                this.score = 0;
+                this.updateScoreUI();
+                this.isGameOver = false;
+                this.canDrop = true;
+                document.getElementById('game-over-modal').style.display = 'none';
+                
+                this.controls.reset();
+                this.currentFruitPos.set(0, DROP_HEIGHT, 0);
+
+                if (this.mode === 'CYLINDER') this.createContainerCylinder();
+                else this.createContainerBox();
+                document.getElementById('mode-hint-text').innerText = "虚线球为落点预判";
+
+                this.createAimHelpers();
+                this.prepareNextFruit();
+                this.mobileMode = 'FRUIT';
+                this.updateMobileModeUI();
+            },
+
+            createContainerBox() {
+                const glassMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
+                const gridHelper = new THREE.GridHelper(BOX_SIZE.width, 8, 0xff4081, 0xffc1e3);
+                gridHelper.position.y = -BOX_SIZE.height/2 + 0.05;
+                this.scene.add(gridHelper);
+
+                this.createWall(BOX_SIZE.width, WALL_THICKNESS, BOX_SIZE.depth, 0, -BOX_SIZE.height/2, 0, glassMat);
+                this.floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(BOX_SIZE.width-0.2, BOX_SIZE.depth-0.2), new THREE.MeshBasicMaterial({visible:false}));
+                this.floorMesh.rotation.x = -Math.PI/2;
+                this.floorMesh.position.y = -BOX_SIZE.height/2 + WALL_THICKNESS;
+                this.scene.add(this.floorMesh);
+
+                this.createWall(WALL_THICKNESS, BOX_SIZE.height, BOX_SIZE.depth, -BOX_SIZE.width/2, 0, 0, glassMat);
+                this.createWall(WALL_THICKNESS, BOX_SIZE.height, BOX_SIZE.depth, BOX_SIZE.width/2, 0, 0, glassMat);
+                this.createWall(BOX_SIZE.width, BOX_SIZE.height, WALL_THICKNESS, 0, 0, -BOX_SIZE.depth/2, glassMat);
+                this.createWall(BOX_SIZE.width, BOX_SIZE.height, WALL_THICKNESS, 0, 0, BOX_SIZE.depth/2, new THREE.MeshBasicMaterial({visible:false, transparent:true, opacity:0}));
+                
+                const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(BOX_SIZE.width, BOX_SIZE.height, BOX_SIZE.depth));
+                const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.4, transparent: true }));
+                this.scene.add(line);
+                
+                LIMIT_LINE_Y = BOX_SIZE.height / 2 - 1.0;
+                this.createLimitLine(LIMIT_LINE_Y);
+            },
+
+            createContainerCylinder() {
+                const radius = BOX_SIZE.width / 2;
+                const height = BOX_SIZE.height;
+                const segments = 24;
+                
+                const geo = new THREE.CylinderGeometry(radius, radius, height, segments, 1, true);
+                const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
+                const mesh = new THREE.Mesh(geo, mat);
+                this.scene.add(mesh);
+
+                // 视觉底面
+                const bottomGeo = new THREE.CircleGeometry(radius, segments);
+                const bottomMesh = new THREE.Mesh(bottomGeo, mat);
+                bottomMesh.rotation.x = -Math.PI / 2;
+                bottomMesh.position.y = -height / 2;
+                this.scene.add(bottomMesh);
+
+                // 底部辅助网格 (PolarGridHelper)
+                const polarGrid = new THREE.PolarGridHelper(radius, 8, 5, 64, 0xff4081, 0xffc1e3);
+                polarGrid.position.y = -height / 2 + 0.05;
+                this.scene.add(polarGrid);
+                
+                const edges = new THREE.EdgesGeometry(geo);
+                const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.4, transparent: true }));
+                this.scene.add(line);
+
+                const angleStep = (Math.PI * 2) / segments;
+                const wallWidth = 2 * radius * Math.tan(Math.PI / segments) + 0.1;
+                
+                for (let i = 0; i < segments; i++) {
+                    const angle = i * angleStep;
+                    const x = Math.cos(angle) * radius;
+                    const z = Math.sin(angle) * radius;
+                    const shape = new CANNON.Box(new CANNON.Vec3(wallWidth/2, height/2, WALL_THICKNESS/2));
+                    const body = new CANNON.Body({ mass: 0, material: this.physicsMaterial });
+                    body.addShape(shape);
+                    body.position.set(x, 0, z);
+                    body.quaternion.setFromEuler(0, -angle, 0);
+                    this.world.addBody(body);
+                }
+
+                // 物理底面：使用巨大的Box确保无缝隙
+                const floorShape = new CANNON.Box(new CANNON.Vec3(radius * 2, 5, radius * 2)); // 5 units thickness
+                const floorBody = new CANNON.Body({ mass: 0, material: this.physicsMaterial });
+                floorBody.addShape(floorShape);
+                floorBody.position.set(0, -height/2 - 5, 0); // 中心点在地面下5单位
+                this.world.addBody(floorBody);
+
+                // 射线检测面
+                this.floorMesh = new THREE.Mesh(new THREE.CircleGeometry(radius-0.2, segments), new THREE.MeshBasicMaterial({visible:false}));
+                this.floorMesh.rotation.x = -Math.PI/2;
+                this.floorMesh.position.y = -height/2 + 0.5;
+                this.scene.add(this.floorMesh);
+                
+                LIMIT_LINE_Y = height / 2 - 1.0;
+                this.createLimitLine(LIMIT_LINE_Y, true, radius);
+            },
+
+            createWall(w, h, d, x, y, z, mat) {
+                if (mat.visible !== false) {
+                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+                    mesh.position.set(x, y, z);
+                    mesh.receiveShadow = false;
+                    this.scene.add(mesh);
+                }
+                const shape = new CANNON.Box(new CANNON.Vec3(w/2, h/2, d/2));
+                const body = new CANNON.Body({ mass: 0, material: this.physicsMaterial });
+                body.addShape(shape);
+                body.position.set(x, y, z);
+                this.world.addBody(body);
+            },
+
+            createLimitLine(y, isCircle = false, r = 0) {
+                const mat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.15, side: THREE.DoubleSide, depthWrite: false });
+                let mesh;
+                if (isCircle) mesh = new THREE.Mesh(new THREE.CircleGeometry(r, 32), mat);
+                else mesh = new THREE.Mesh(new THREE.PlaneGeometry(BOX_SIZE.width, BOX_SIZE.depth), mat);
+                mesh.rotation.x = -Math.PI / 2;
+                mesh.position.y = y;
+                this.scene.add(mesh);
+            },
+
+            createAimHelpers() {
+                const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,-25,0)]);
+                this.aimLine = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, dashSize: 0.5, gapSize: 0.2 }));
+                this.aimLine.computeLineDistances();
+                this.scene.add(this.aimLine);
+
+                this.ghostFruit = new THREE.Group();
+                this.scene.add(this.ghostFruit);
+
+                this.shadowMarker = new THREE.Mesh(new THREE.CircleGeometry(1, 32), new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0.3, transparent: true }));
+                this.shadowMarker.rotation.x = -Math.PI / 2;
+                this.scene.add(this.shadowMarker);
+
+                this.rangeRing = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.0, 64), new THREE.MeshBasicMaterial({ color: 0xffeb3b, opacity: 0.8, transparent: true, side: THREE.DoubleSide }));
+                this.rangeRing.rotation.x = -Math.PI / 2;
+                this.scene.add(this.rangeRing);
+            },
+
+            generateAssets() {
+                this.stemGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8);
+                this.stemGeometry.translate(0, 0.25, 0);
+                this.calyxGeometry = new THREE.ConeGeometry(0.3, 0.1, 5);
+                this.stemMaterial = new THREE.MeshStandardMaterial({ color: 0x33691e, roughness: 0.8 });
+
+                FRUITS.forEach(fruit => {
+                    let geo = new THREE.SphereGeometry(fruit.radius, 32, 32);
+                    if (fruit.scaleY) geo.scale(1, fruit.scaleY, 1);
+                    this.fruitGeometries.push(geo);
+                    const texture = TextureFactory.getTexture(fruit.type, fruit.colors);
+                    const mat = new THREE.MeshStandardMaterial({ map: texture, roughness: fruit.roughness, metalness: 0.1 });
+                    this.fruitMaterials.push(mat);
+                });
+            },
+
+            renderFruitGuide() {
+                const container = document.getElementById('fruit-guide');
+                container.innerHTML = '<div class="panel-title">水果图鉴</div>';
+                FRUITS.forEach(fruit => {
+                    const item = document.createElement('div');
+                    item.className = 'guide-item';
+                    const size = 8 + (fruit.radius - 0.45) / 3.15 * 22;
+                    item.innerHTML = `
+                        <div class="guide-circle-wrapper">
+                            <div class="guide-circle" style="background-color: ${fruit.colors.base}; width: ${size}px; height: ${size}px;"></div>
+                        </div>
+                        <div class="guide-name">${fruit.name}</div>
+                        <div class="guide-score">${fruit.score}</div>
+                    `;
+                    container.appendChild(item);
+                });
+            },
+
+            updateNextFruitUI() {
+                this.nextFruitLevel = Math.floor(Math.random() * 4); 
+                const fruitData = FRUITS[this.nextFruitLevel];
+                
+                const previewSize = 12 + (fruitData.radius - 0.45) / 0.65 * 16; 
+                const preview = document.getElementById('next-fruit-preview');
+                preview.style.backgroundColor = fruitData.colors.base;
+                preview.style.width = `${previewSize}px`;
+                preview.style.height = `${previewSize}px`;
+                document.getElementById('next-fruit-name').innerText = fruitData.name;
+                
+                if (this.dummyFruit) this.scene.remove(this.dummyFruit);
+                this.dummyFruit = this.createFruitVisual(this.nextFruitLevel);
+                this.dummyFruit.children[0].material = this.dummyFruit.children[0].material.clone();
+                this.dummyFruit.children[0].material.transparent = true;
+                this.dummyFruit.children[0].material.opacity = 0.8;
+                
+                this.currentFruitPos.set(0, DROP_HEIGHT, 0);
+                this.dummyFruit.position.copy(this.currentFruitPos);
+                this.scene.add(this.dummyFruit);
+
+                this.updateGhostGeometry(this.nextFruitLevel);
+                this.updateAimHelpers();
+            },
+
+            createFruitVisual(level) {
+                const config = FRUITS[level];
+                const group = new THREE.Group();
+                const mesh = new THREE.Mesh(this.fruitGeometries[level], this.fruitMaterials[level]);
+                mesh.castShadow = true; mesh.receiveShadow = true;
+                group.add(mesh);
+                if (config.hasStem) {
+                    const stem = new THREE.Mesh(this.stemGeometry, this.stemMaterial);
+                    stem.position.y = config.radius * 0.9; stem.rotation.z = (Math.random() - 0.5) * 0.5; stem.castShadow = true; group.add(stem);
+                }
+                return group;
+            },
+
+            updateGhostGeometry(level) {
+                while(this.ghostFruit.children.length > 0){ 
+                    const child = this.ghostFruit.children[0];
+                    if (child.geometry) child.geometry.dispose();
+                    this.ghostFruit.remove(child); 
+                }
+                const geometry = this.fruitGeometries[level];
+                const wireframe = new THREE.WireframeGeometry(geometry);
+                const line = new THREE.LineSegments(wireframe);
+                line.material = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 });
+                this.ghostFruit.add(line);
+            },
+
+            updateAimHelpers() {
+                if (!this.canDrop || this.isGameOver || this.mobileMode === 'CAMERA') {
+                    this.aimLine.visible = false; this.ghostFruit.visible = false; 
+                    this.shadowMarker.visible = false; this.rangeRing.visible = false;
+                    if (this.dummyFruit) this.dummyFruit.visible = false; 
+                    return;
+                }
+                
+                if (this.dummyFruit) this.dummyFruit.visible = true;
+                this.aimLine.visible = true; this.ghostFruit.visible = true; 
+                this.shadowMarker.visible = true; this.rangeRing.visible = true;
+                
+                const { x, y, z } = this.currentFruitPos;
+                const r = FRUITS[this.nextFruitLevel].radius;
+
+                this.raycasterDown.ray.origin.set(x, y, z);
+                const targets = [this.floorMesh, ...this.fruitsInScene.map(f => f.mesh.children[0])];
+                const hits = this.raycasterDown.intersectObjects(targets, false);
+                
+                let dropY = -BOX_SIZE.height/2 + r;
+                if (hits.length > 0) dropY = hits[0].point.y + r;
+
+                this.ghostFruit.position.set(x, dropY, z);
+                const positions = this.aimLine.geometry.attributes.position.array;
+                positions[0] = x; positions[1] = y; positions[2] = z;
+                positions[3] = x; positions[4] = dropY; positions[5] = z;
+                this.aimLine.geometry.attributes.position.needsUpdate = true;
+
+                const contactY = dropY - r + 0.02;
+                this.shadowMarker.position.set(x, contactY, z);
+                this.shadowMarker.scale.set(r, r, 1);
+                this.rangeRing.position.set(x, contactY, z);
+                this.rangeRing.scale.set(r, r, 1);
+            },
+
+            toggleMobileMode() {
+                this.mobileMode = this.mobileMode === 'FRUIT' ? 'CAMERA' : 'FRUIT';
+                this.updateMobileModeUI();
+            },
+
+            updateMobileModeUI() {
+                const btn = document.getElementById('mode-toggle-btn');
+                const label = document.getElementById('mode-label');
+                this.controls.enabled = true; 
+                if (this.mobileMode === 'FRUIT') {
+                    btn.className = 'mode-fruit'; btn.innerText = '🍎';
+                    label.innerText = '当前：控制水果 (点击切换)';
+                    this.controls.touches.ONE = null;
+                } else {
+                    btn.className = 'mode-camera'; btn.innerText = '📷';
+                    label.innerText = '当前：调整视角 (点击切换)';
+                    this.controls.touches.ONE = THREE.TOUCH.ROTATE;
+                }
+                label.style.opacity = 1;
+                setTimeout(() => label.style.opacity = 0, 2000);
+            },
+
+            onPointerDown(event) {
+                if (!this.canDrop || this.isGameOver) return;
+                if (event.pointerType === 'mouse') {
+                    if (event.button !== 0) return; 
+                    this.isDragging = true; this.lastPointer.set(event.clientX, event.clientY);
+                    return;
+                }
+                if (this.mobileMode === 'CAMERA') return;
+                if (event.isPrimary) {
+                    this.isDragging = true; this.lastPointer.set(event.clientX, event.clientY);
+                }
+            },
+
+            onPointerMove(event) {
+                if (!this.isDragging || !this.canDrop || this.isGameOver) return;
+                if (this.mobileMode === 'CAMERA' && event.pointerType !== 'mouse') return; 
+                
+                const dx = event.clientX - this.lastPointer.x;
+                const dy = event.clientY - this.lastPointer.y;
+                this.lastPointer.set(event.clientX, event.clientY);
+
+                const sensitivity = 20.0 / window.innerWidth; 
+                const forward = new THREE.Vector3(); this.camera.getWorldDirection(forward); forward.y = 0; forward.normalize();
+                const right = new THREE.Vector3(); right.crossVectors(forward, new THREE.Vector3(0, 1, 0));
+                const moveDelta = new THREE.Vector3().addScaledVector(right, dx * sensitivity).addScaledVector(forward, -dy * sensitivity); 
+
+                this.currentFruitPos.add(moveDelta);
+                
+                if (this.mode === 'BOX') {
+                    const r = FRUITS[this.nextFruitLevel].radius;
+                    const limitX = BOX_SIZE.width / 2 - r;
+                    const limitZ = BOX_SIZE.depth / 2 - r;
+                    this.currentFruitPos.x = Math.max(-limitX, Math.min(limitX, this.currentFruitPos.x));
+                    this.currentFruitPos.z = Math.max(-limitZ, Math.min(limitZ, this.currentFruitPos.z));
+                } else if (this.mode === 'CYLINDER') {
+                     const r = FRUITS[this.nextFruitLevel].radius;
+                     const limit = BOX_SIZE.width/2 - r; 
+                     const distSq = this.currentFruitPos.x * this.currentFruitPos.x + this.currentFruitPos.z * this.currentFruitPos.z;
+                     if (distSq > limit * limit) {
+                         const ratio = limit / Math.sqrt(distSq);
+                         this.currentFruitPos.x *= ratio;
+                         this.currentFruitPos.z *= ratio;
+                     }
+                     this.currentFruitPos.y = DROP_HEIGHT;
+                }
+                
+                if (this.dummyFruit) {
+                    this.dummyFruit.position.copy(this.currentFruitPos);
+                    this.updateAimHelpers();
+                }
+            },
+
+            onPointerUp(event) {
+                if (!this.isDragging) return;
+                if (event.pointerType === 'mouse' && event.button !== 0) return;
+                this.isDragging = false;
+                if (!this.canDrop || this.isGameOver) return;
+                if (event.pointerType !== 'mouse' && this.mobileMode === 'CAMERA') return;
+
+                this.dropFruit(this.currentFruitPos.x, this.currentFruitPos.z, this.nextFruitLevel);
+                this.canDrop = false;
+                this.scene.remove(this.dummyFruit);
+                this.dummyFruit = null;
+                this.updateAimHelpers();
+                setTimeout(() => this.prepareNextFruit(), 600);
+            },
+
+            dropFruit(x, z, level) {
+                const fruitData = FRUITS[level];
+                const visualGroup = this.createFruitVisual(level);
+                visualGroup.position.set(x, DROP_HEIGHT, z);
+                visualGroup.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+                this.scene.add(visualGroup);
+
+                const shape = new CANNON.Sphere(fruitData.radius);
+                const body = new CANNON.Body({
+                    mass: 1 * (level + 1), material: this.physicsMaterial,
+                    position: new CANNON.Vec3(x, DROP_HEIGHT, z),
+                    quaternion: new CANNON.Quaternion().setFromEuler(visualGroup.rotation.x, visualGroup.rotation.y, visualGroup.rotation.z)
+                });
+                body.addShape(shape);
+                body.linearDamping = 0.5; body.angularDamping = 0.5;
+                body.velocity.set(0, -15, 0);
+                this.world.addBody(body);
+                body.safeFrames = 60;
+
+                const fruitObj = { mesh: visualGroup, body, level, id: body.id, isMerging: false };
+                this.fruitsInScene.push(fruitObj);
+
+                body.addEventListener("collide", (e) => this.handleCollision(fruitObj, e.body));
+            },
+
+            handleCollision(fruitA, bodyB) {
+                if (fruitA.isMerging || this.isGameOver) return;
+                const fruitB = this.fruitsInScene.find(f => f.body === bodyB);
+                if (!fruitB || fruitB.isMerging) return;
+                if (fruitA.level === fruitB.level && fruitA.id < fruitB.id) {
+                    this.mergeFruits(fruitA, fruitB);
+                }
+            },
+
+            mergeFruits(fruitA, fruitB) {
+                fruitA.isMerging = true; fruitB.isMerging = true;
+                const midX = (fruitA.body.position.x + fruitB.body.position.x) / 2;
+                const midY = (fruitA.body.position.y + fruitB.body.position.y) / 2;
+                const midZ = (fruitA.body.position.z + fruitB.body.position.z) / 2;
+                this.removeFruit(fruitA); this.removeFruit(fruitB);
+                
+                this.score += FRUITS[fruitA.level].score * 2;
+                this.updateScoreUI();
+                
+                const nextLevel = fruitA.level + 1;
+                if (nextLevel < FRUITS.length) this.createMergedFruit(midX, midY, midZ, nextLevel);
+                else { 
+                    this.score += 100; this.updateScoreUI(); 
+                }
+            },
+
+            createMergedFruit(x, y, z, level) {
+                const fruitData = FRUITS[level];
+                const visualGroup = this.createFruitVisual(level);
+                visualGroup.position.set(x, y, z);
+                this.scene.add(visualGroup);
+                visualGroup.scale.set(0.1, 0.1, 0.1);
+                let scale = 0.1;
+                const growInterval = setInterval(() => {
+                    scale += 0.2;
+                    if (scale >= 1.0) { clearInterval(growInterval); visualGroup.scale.set(1,1,1); } 
+                    else visualGroup.scale.set(scale, scale, scale);
+                }, 16);
+
+                const shape = new CANNON.Sphere(fruitData.radius);
+                const body = new CANNON.Body({
+                    mass: 1 * (level + 1), material: this.physicsMaterial,
+                    position: new CANNON.Vec3(x, y, z),
+                    quaternion: new CANNON.Quaternion().setFromEuler(visualGroup.rotation.x, visualGroup.rotation.y, visualGroup.rotation.z)
+                });
+                body.addShape(shape);
+                body.linearDamping = 0.5; body.angularDamping = 0.5;
+                this.world.addBody(body);
+                body.safeFrames = 30;
+
+                const fruitObj = { mesh: visualGroup, body, level, id: body.id, isMerging: false };
+                this.fruitsInScene.push(fruitObj);
+                body.addEventListener("collide", (e) => this.handleCollision(fruitObj, e.body));
+            },
+
+            removeFruit(fruitObj) {
+                this.world.removeBody(fruitObj.body);
+                this.scene.remove(fruitObj.mesh);
+                const index = this.fruitsInScene.indexOf(fruitObj);
+                if (index > -1) this.fruitsInScene.splice(index, 1);
+            },
+
+            updateScoreUI() {
+                const scoreEl = document.getElementById('score-value');
+                scoreEl.innerText = this.score;
+                scoreEl.style.transform = "scale(1.5)";
+                setTimeout(() => scoreEl.style.transform = "scale(1)", 150);
+                
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('suika_high_score', this.highScore);
+                }
+            },
+
+            prepareNextFruit() {
+                if(this.isGameOver) return;
+                this.updateNextFruitUI();
+                this.canDrop = true;
+            },
+
+            restartGame() {
+                this.resetWorld();
+            },
+
+            triggerGameOver() {
+                this.isGameOver = true;
+                document.getElementById('final-score').innerText = this.score;
+                document.getElementById('game-over-modal').style.display = 'flex';
+            },
+
+            checkGameOver() {
+                if (this.isGameOver) return;
+                for (let i = 0; i < this.fruitsInScene.length; i++) {
+                    const f = this.fruitsInScene[i];
+                    if (f.body.safeFrames > 0) { f.body.safeFrames--; continue; }
+                    if (f.body.position.y > LIMIT_LINE_Y) {
+                        const speed = f.body.velocity.length();
+                        if (speed < 0.15) { this.triggerGameOver(); break; }
+                    }
+                }
+            },
+
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            },
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                if (!this.isGameOver && this.world) {
+                    this.world.step(1 / 60);
+                    this.checkGameOver();
+                }
+                
+                if (this.controls) this.controls.update();
+
+                if (this.fruitsInScene) {
+                    for (let i = 0; i < this.fruitsInScene.length; i++) {
+                        const f = this.fruitsInScene[i];
+                        f.mesh.position.copy(f.body.position);
+                        f.mesh.quaternion.copy(f.body.quaternion);
+                        if (f.mesh.position.y < -30) this.removeFruit(f);
+                    }
+                }
+
+                if (this.renderer && this.scene && this.camera) {
+                    this.renderer.render(this.scene, this.camera);
+                }
+            }
+        };
+
+        App.init();
+
+    </script>
+</body>
+</html>

@@ -20,6 +20,9 @@
 >[Index](./map.html)
 
 ## html页面
+
+>[小游戏合集](../game/readme.md)
+
 >[太阳系](./solar.html)
 
 >[魔方](./cube/index.html)

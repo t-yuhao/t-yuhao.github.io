@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>真正的 WebGL 立体水果 (Three.js)</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #aaa; font-family: sans-serif; }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: white; font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">真正的立体水果展示 (使用鼠标旋转/缩放)<br>从小到大排列，纹理程序化生成</div>
+    <div id="loading">正在生成纹理和模型...</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        let scene, camera, renderer, controls;
+        const fruits = [];
+
+        // ==========================================
+        // 1. 纹理生成辅助函数 (在Canvas上动态绘制)
+        // ==========================================
+        
+        // 通用基础噪点纹理 (用于橘子、柠檬、猕猴桃等)
+        function createNoiseTexture(baseColorHex, noiseColorHex, density = 1) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            // 填充底色
+            ctx.fillStyle = baseColorHex;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 添加噪点
+            ctx.fillStyle = noiseColorHex;
+            for (let i = 0; i < 5000 * density; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const size = Math.random() * 2 * density;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // 椰子纹理 (纤维状)
+        function createCoconutTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#5D4037'; // 深棕底色
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = '#3E2723'; // 更深的纤维色
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 1000; i++) {
+                ctx.beginPath();
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + Math.random() * 50 - 25, y + Math.random() * 50);
+                ctx.stroke();
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // 菠萝纹理 (简化的交叉网格)
+        function createPineappleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#FBC02D'; // 黄底
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = '#E65100'; // 橙棕色线条
+            ctx.lineWidth = 3;
+            const step = 30;
+            // 绘制交叉线
+            for (let i = -canvas.height; i < canvas.width; i += step) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + canvas.height, canvas.height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(i, canvas.height); ctx.lineTo(i + canvas.height, 0); ctx.stroke();
+            }
+            // 加点点缀中心
+            ctx.fillStyle = '#BF360C';
+            for(let x = step/2; x < canvas.width; x+=step) {
+                for(let y = step/2; y < canvas.height; y+=step) {
+                    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI*2); ctx.fill();
+                }
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // 哈密瓜纹理 (网纹)
+        function createCantaloupeTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#FBE9E7'; // 浅肉色底
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制不规则网纹
+            ctx.strokeStyle = '#D7CCC8'; // 网纹色
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 300; i++) {
+                ctx.beginPath();
+                ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
+                ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
+                ctx.stroke();
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // 西瓜纹理 (条纹)
+        function createWatermelonTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024; canvas.height = 512; // 宽一点用于环绕
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#4CAF50'; // 基础绿色
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#1B5E20'; // 深绿条纹
+            for (let i = 0; i < canvas.width; i += 80) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                // 绘制波浪形条纹
+                for(let y = 0; y <= canvas.height; y+=10) {
+                    ctx.lineTo(i + Math.sin(y * 0.05) * 20 + Math.random()*5, y);
+                }
+                ctx.lineTo(i + 40, canvas.height);
+                for(let y = canvas.height; y >= 0; y-=10) {
+                     ctx.lineTo(i + 40 + Math.sin(y * 0.05) * 20 + Math.random()*5, y);
+                }
+                ctx.fill();
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // ==========================================
+        // 2. 水果数据定义 (名称, 半径估算cm, 颜色/纹理处理)
+        // ==========================================
+        const fruitData = [
+            { name: "葡萄", radius: 1.2, color: 0x673ab7, roughness: 0.3 },
+            { name: "樱桃", radius: 1.5, color: 0xd50000, roughness: 0.2 }, // 樱桃更光滑
+            { name: "猕猴桃", radius: 3.5, textureFunc: () => createNoiseTexture('#8D6E63', '#5D4037', 1.5), roughness: 0.9 },
+            { name: "柠檬", radius: 3.8, textureFunc: () => createNoiseTexture('#FDD835', '#FBC02D', 0.8), roughness: 0.6 },
+            { name: "橘子", radius: 4.2, textureFunc: () => createNoiseTexture('#FF9800', '#E65100', 0.8), roughness: 0.7 },
+            { name: "番茄", radius: 4.5, color: 0xFF5252, roughness: 0.4 },
+            { name: "桃子", radius: 5.0, color: 0xFFAB91, roughness: 0.8 }, // 桃子有毛绒感，这里简单用高粗糙度模拟
+            { name: "菠萝", radius: 7.5, textureFunc: createPineappleTexture, roughness: 0.8, bumpScale: 0.5 },
+            { name: "椰子", radius: 8.5, textureFunc: createCoconutTexture, roughness: 0.9 },
+            { name: "哈密瓜", radius: 11, textureFunc: createCantaloupeTexture, roughness: 0.9, bumpScale: 0.2 },
+            { name: "大西瓜", radius: 16, textureFunc: createWatermelonTexture, roughness: 0.6 }
+        ];
+
+
+        // ==========================================
+        // 3. Three.js 场景初始化
+        // ==========================================
+        function init() {
+            // 创建场景
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x333333);
+            // 添加一点环境雾气，增加深度感
+            scene.fog = new THREE.Fog(0x333333, 100, 300);
+
+            // 创建相机 (视角, 宽高比, 近裁面, 远裁面)
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
+            // 设置相机初始位置，需要离得足够远才能看到所有水果
+            camera.position.set(0, 30, 180); 
+
+            // 创建渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true }); // 开启抗锯齿
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true; // 开启阴影
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            // 添加控制器 (允许鼠标旋转缩放)
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; // 开启阻尼滑动效果
+            controls.dampingFactor = 0.05;
+
+            // =================== 灯光系统 ===================
+            // 1. 环境光 (照亮暗部)
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            // 2. 主平行光 (模拟太阳，产生高光和阴影)
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            dirLight.position.set(50, 100, 50);
+            dirLight.castShadow = true; // 产生阴影
+            // 优化阴影参数
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.near = 0.5;
+            dirLight.shadow.camera.far = 500;
+            dirLight.shadow.camera.left = -150; dirLight.shadow.camera.right = 150;
+            dirLight.shadow.camera.top = 150; dirLight.shadow.camera.bottom = -150;
+            scene.add(dirLight);
+
+            // 3. 点光源 (增加一点侧面补光)
+            const pointLight = new THREE.PointLight(0xffeedd, 0.5);
+            pointLight.position.set(-50, 50, -50);
+            scene.add(pointLight);
+
+            // =================== 创建地面 ===================
+            const planeGeometry = new THREE.PlaneGeometry(500, 500);
+            const planeMaterial = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.8 });
+            const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+            plane.rotation.x = -Math.PI / 2; // 旋转为水平面
+            plane.position.y = -5; // 稍微往下放一点
+            plane.receiveShadow = true; // 接收阴影
+            scene.add(plane);
+
+            // =================== 创建水果模型 ===================
+            let currentXOffset = 0; // 用于水平排列的偏移量
+
+            fruitData.forEach((data, index) => {
+                const radius = data.radius;
+                // 创建球体几何体 (半径，水平分段数，垂直分段数)。分段越高越圆滑。
+                const geometry = new THREE.SphereGeometry(radius, 64, 64);
+
+                // 创建材质
+                let materialParams = {
+                    roughness: data.roughness || 0.5, // 粗糙度 (0=光滑镜面, 1=粗糙亚光)
+                    metalness: 0.0, // 非金属
+                };
+
+                // 如果有自定义纹理函数，则生成纹理
+                if (data.textureFunc) {
+                    const texture = data.textureFunc();
+                    materialParams.map = texture;
+                    // 对于菠萝和哈密瓜，把纹理也作为凹凸贴图，增加立体感
+                    if (data.bumpScale) {
+                        materialParams.bumpMap = texture;
+                        materialParams.bumpScale = data.bumpScale;
+                    }
+                } else {
+                    // 否则使用纯色
+                    materialParams.color = data.color;
+                }
+
+                // 使用标准物理材质 (MeshStandardMaterial)
+                const material = new THREE.MeshStandardMaterial(materialParams);
+                const sphere = new THREE.Mesh(geometry, material);
+
+                // 计算位置：让它们底部对齐放在地面上，并水平隔开
+                if (index === 0) {
+                    currentXOffset = -120; // 起始位置偏移到左侧
+                }
+                // x位置 = 当前累计偏移 + 当前半径
+                sphere.position.x = currentXOffset + radius;
+                sphere.position.y = radius; // y位置设为半径，确保正好并在地面上
+                sphere.castShadow = true; // 投射阴影
+
+                scene.add(sphere);
+                fruits.push(sphere);
+
+                // 更新下一个水果的起始偏移量 (当前半径 + 间距 + 下一个水果的半径估算)
+                let nextRadius = (fruitData[index+1] ? fruitData[index+1].radius : 0);
+                currentXOffset += (radius * 2 + 5); // 5是间距
+            });
+
+            // 移除加载提示
+            document.getElementById('loading').style.display = 'none';
+
+            animate();
+        }
+
+        // ==========================================
+        // 4. 动画循环
+        // ==========================================
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 让水果缓慢自转，展示立体感
+            fruits.forEach(f => {
+                f.rotation.y += 0.005;
+            });
+
+            controls.update(); // 更新控制器状态
+            renderer.render(scene, camera);
+        }
+
+        // 处理窗口大小调整
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // 启动
+        init();
+
+    </script>
+</body>
+</html>
