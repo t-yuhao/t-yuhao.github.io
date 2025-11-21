@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>3D 合成大太阳 - 完美修正版</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            /* 调亮背景：使用更明亮的星云渐变 */
+            background: radial-gradient(circle at center, #303f9f 0%, #1a237e 40%, #000000 100%);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            color: #fff;
+        }
+
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10; display: flex; flex-direction: column;
+        }
+
+        /* --- 主菜单 --- */
+        #main-menu {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(12px);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            pointer-events: auto; z-index: 200; transition: opacity 0.3s;
+        }
+        .menu-title {
+            font-size: 48px; font-weight: 900; 
+            background: linear-gradient(to right, #ffd54f 0%, #ff6f00 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            margin-bottom: 10px; letter-spacing: 2px; text-align: center;
+            filter: drop-shadow(0 2px 15px rgba(255, 160, 0, 0.5));
+        }
+        .menu-subtitle { font-size: 16px; color: #b0bec5; margin-bottom: 40px; }
+        
+        .menu-card-container {
+            display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;
+            max-width: 800px; padding: 20px;
+        }
+        
+        .mode-card {
+            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 20px; padding: 20px; width: 160px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            cursor: pointer; transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s, background 0.2s;
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+        }
+        .mode-card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 15px 35px rgba(255, 160, 0, 0.3); 
+            border-color: #ffd54f; 
+            background: rgba(255, 255, 255, 0.15);
+        }
+        .mode-icon { font-size: 40px; margin-bottom: 10px; }
+        .mode-name { font-weight: 800; color: #fff; margin-bottom: 5px; }
+        .mode-desc { font-size: 12px; color: #cfd8dc; line-height: 1.4; }
+
+        .record-badge {
+            margin-top: 30px; background: rgba(255,255,255,0.08); padding: 10px 25px; border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); color: #cfd8dc; font-size: 14px; 
+            border: 1px solid rgba(255,255,255,0.1); text-align: center;
+        }
+        .record-val { color: #ffd54f; font-weight: bold; font-size: 18px; margin-left: 5px; }
+
+        /* --- 游戏 UI --- */
+        .top-bar {
+            display: flex; justify-content: center; gap: 20px;
+            padding-top: max(20px, env(safe-area-inset-top));
+            width: 100%; pointer-events: auto;
+        }
+        .glass-panel {
+            background: rgba(40, 50, 70, 0.7); backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px); border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            padding: 8px 20px; text-align: center; min-width: 90px;
+        }
+        .score-label { font-size: 12px; color: #b0bec5; font-weight: 700; }
+        #score-value { font-size: 28px; font-weight: 800; color: #fff; line-height: 1.1; text-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+        
+        .back-btn {
+            position: absolute; top: max(20px, env(safe-area-inset-top)); left: 20px;
+            width: 40px; height: 40px; border-radius: 50%; 
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            cursor: pointer; font-size: 20px; color: #fff; pointer-events: auto;
+            display: flex; justify-content: center; align-items: center; z-index: 50;
+        }
+        .back-btn:hover { background: rgba(255,255,255,0.25); color: #ffd54f; }
+
+        .next-preview-box { display: flex; align-items: center; gap: 10px; position: relative; min-width: 130px; justify-content: center; }
+        .preview-circle-container { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+        #next-fruit-preview {
+            border-radius: 50%; background-color: #333; border: 2px solid rgba(255,255,255,0.3);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: all 0.3s ease;
+        }
+        #next-fruit-name { font-size: 14px; font-weight: bold; color: #eceff1; }
+
+        /* 侧边栏 */
+        .side-panel {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            width: 200px; max-height: 80%; overflow-y: auto;
+            pointer-events: auto; padding: 15px; display: none; flex-direction: column; gap: 8px;
+            scrollbar-width: none; -ms-overflow-style: none;
+        }
+        .side-panel::-webkit-scrollbar { display: none; }
+        .side-left { left: 20px; text-align: left; }
+        .side-right { right: 20px; text-align: center; }
+        .panel-title { font-size: 14px; font-weight: 900; color: #ffd54f; margin-bottom: 8px; text-align: center; text-shadow: 0 1px 5px rgba(255, 193, 7, 0.3); }
+        
+        .guide-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* 双列布局 */
+            gap: 6px;
+        }
+        .guide-item { 
+            display: flex; align-items: center; gap: 6px; 
+            background: rgba(255,255,255,0.08); padding: 5px; 
+            border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); 
+            min-width: 0; 
+        }
+        .guide-circle-wrapper { width: 24px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+        .guide-circle { border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); flex-shrink: 0; }
+        .guide-name { font-size: 10px; color: #cfd8dc; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .guide-score { font-size: 9px; color: #90a4ae; margin-left: auto; }
+        
+        .instruction-line { font-size: 12px; color: #cfd8dc; margin-bottom: 6px; line-height: 1.4; }
+        .key-highlight { color: #ffd54f; font-weight: 800; }
+
+        /* 设置控件 */
+        .setting-group { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .setting-row {
+            display: flex; flex-direction: column; 
+            margin-bottom: 8px; color: #eee; font-size: 12px; font-weight: bold;
+        }
+        .setting-header { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .setting-val { color: #ffd54f; }
+        
+        input[type="range"] {
+            -webkit-appearance: none; width: 100%; height: 6px; border-radius: 5px; background: rgba(255,255,255,0.2); outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #ffd54f; cursor: pointer;
+        }
+        input[type="range"]:disabled { opacity: 0.3; cursor: not-allowed; }
+        input[type="range"]:disabled::-webkit-slider-thumb { background: #555; }
+
+        .setting-checkbox-row {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: 12px;
+        }
+        input[type="checkbox"] {
+            transform: scale(1.2); accent-color: #ffd54f; cursor: pointer; margin-right: 0;
+        }
+
+        /* Mode Toggle */
+        #mode-toggle-btn {
+            position: absolute; bottom: 40px; right: 30px; width: 64px; height: 64px;
+            border-radius: 50%; background: rgba(40,50,70,0.8); box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.2); display: flex; justify-content: center; align-items: center;
+            font-size: 24px; cursor: pointer; pointer-events: auto; z-index: 50;
+            transition: transform 0.1s, background 0.3s, border-color 0.3s;
+            color: white;
+        }
+        #mode-toggle-btn:active { transform: scale(0.9); }
+        #mode-toggle-btn.mode-camera { border-color: #4fc3f7; color: #4fc3f7; }
+        #mode-toggle-btn.mode-fruit { border-color: #ffd54f; color: #ffd54f; }
+        .mode-label {
+            position: absolute; bottom: 110px; right: 20px; background: rgba(0,0,0,0.8);
+            color: white; padding: 5px 10px; border-radius: 8px; font-size: 12px;
+            pointer-events: none; opacity: 0; transition: opacity 0.3s;
+        }
+
+        /* Game Over */
+        #game-over-modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+            display: none; justify-content: center; align-items: center;
+            pointer-events: auto; z-index: 100;
+        }
+        .modal-content {
+            background: linear-gradient(135deg, #263238 0%, #000000 100%);
+            padding: 30px 50px; border-radius: 30px; text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.15);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            color: #fff;
+            min-width: 300px;
+        }
+        @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .game-over-title { font-size: 24px; font-weight: 900; color: #fff; margin-bottom: 10px; }
+        .final-score { font-size: 48px; font-weight: 900; color: #ffd54f; margin-bottom: 15px; text-shadow: 0 0 10px rgba(255, 213, 79, 0.3); }
+        
+        .stats-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;
+            background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px;
+        }
+        .stat-item { display: flex; flex-direction: column; }
+        .stat-label { font-size: 12px; color: #90a4ae; margin-bottom: 2px; }
+        .stat-val { font-size: 16px; font-weight: bold; color: #eceff1; }
+
+        .btn-group { display: flex; gap: 10px; justify-content: center; }
+        .btn {
+            background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.15);
+            padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 50px;
+            cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.1s;
+        }
+        .btn:hover { background: rgba(255,255,255,0.2); }
+        .btn-primary { background: #ff6f00; border-color: #ff6f00; color: white; }
+        .btn-primary:hover { background: #ff8f00; }
+        .btn:active { transform: scale(0.95); }
+
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8); padding: 20px; border-radius: 15px; font-weight: bold; color: #fff; z-index: 300;
+            border: 1px solid rgba(255,255,255,0.1); text-align: center;
+        }
+
+        @media (min-width: 800px) { 
+            .side-panel { display: flex; } 
+            #mode-toggle-btn { display: none; } 
+            .mode-label { display: none; }
+        }
+        
+        .locked-hint { font-size: 10px; color: #ff5252; margin-top: 2px; display: none; }
+        .input-disabled + .locked-hint { display: block; }
+    </style>
+</head>
+<body>
+
+    <div id="loading">资源生成中...</div>
+
+    <!-- 主菜单 -->
+    <div id="main-menu">
+        <div class="menu-title">3D 合成大太阳</div>
+        <div class="menu-subtitle">宇宙终极演化 · 黑洞尽头</div>
+        
+        <div class="menu-card-container">
+            <div class="mode-card" onclick="startGame('BOX')">
+                <div class="mode-icon">📦</div>
+                <div class="mode-name">星域空间</div>
+                <div class="mode-desc">自定义长宽高的方形星域。</div>
+            </div>
+            <div class="mode-card" onclick="startGame('CYLINDER')">
+                <div class="mode-icon">🌀</div>
+                <div class="mode-name">引力深井</div>
+                <div class="mode-desc">自定义半径的圆柱形引力场。</div>
+            </div>
+        </div>
+
+        <div class="record-badge">
+            历史最佳: <span id="menu-high-score" class="record-val">0</span>
+            <div style="font-size: 10px; font-weight: normal; margin-top: 2px; opacity: 0.7;" id="menu-high-score-date">-</div>
+        </div>
+    </div>
+
+    <!-- 游戏界面 -->
+    <div id="ui-layer" style="display:none;">
+        <button class="back-btn" onclick="showMenu()">🏠</button>
+
+        <div class="top-bar">
+            <div class="glass-panel score-board">
+                <div class="score-label">MASS</div>
+                <div id="score-value">0</div>
+            </div>
+            <div class="glass-panel next-preview-box">
+                <div class="score-label">NEXT</div>
+                <div class="preview-circle-container">
+                    <div id="next-fruit-preview"></div>
+                </div>
+                <div id="next-fruit-name">月球</div>
+            </div>
+        </div>
+
+        <div class="glass-panel side-panel side-left" id="side-left">
+            <div class="panel-title">宇宙控制台</div>
+            
+            <div class="setting-group">
+                <div class="setting-row">
+                    <div class="setting-header">
+                        <span>单次生成数量</span>
+                        <span class="setting-val" id="drop-count-val">1</span>
+                    </div>
+                    <input type="range" id="drop-count-slider" min="1" max="100" value="1">
+                </div>
+                <div class="setting-checkbox-row">
+                    <span>自动投放</span>
+                    <input type="checkbox" id="auto-drop-check">
+                </div>
+            </div>
+
+            <div class="panel-title" style="font-size: 12px; margin-top: 5px;">容器参数 (仅初始可调)</div>
+            
+            <!-- 方形容器设置 -->
+            <div id="box-settings" style="display:none;">
+                <div class="setting-row">
+                    <div class="setting-header">
+                        <span>宽度 (X)</span>
+                        <span class="setting-val" id="box-w-val">12</span>
+                    </div>
+                    <input type="range" id="box-w-slider" class="container-input" min="8" max="30" value="12">
+                </div>
+                <div class="setting-row">
+                    <div class="setting-header">
+                        <span>深度 (Z)</span>
+                        <span class="setting-val" id="box-d-val">12</span>
+                    </div>
+                    <input type="range" id="box-d-slider" class="container-input" min="8" max="30" value="12">
+                </div>
+                <div class="setting-row">
+                    <div class="setting-header">
+                        <span>高度 (Y)</span>
+                        <span class="setting-val" id="box-h-val">18</span>
+                    </div>
+                    <input type="range" id="box-h-slider" class="container-input" min="10" max="40" value="18">
+                </div>
+            </div>
+
+            <!-- 圆柱容器设置 -->
+            <div id="cylinder-settings" style="display:none;">
+                <div class="setting-row">
+                    <div class="setting-header">
+                        <span>半径 (R)</span>
+                        <span class="setting-val" id="cyl-r-val">7</span>
+                    </div>
+                    <input type="range" id="cyl-r-slider" class="container-input" min="5" max="18" value="7">
+                </div>
+                <div class="setting-row">
+                    <div class="setting-header">
+                        <span>高度 (Y)</span>
+                        <span class="setting-val" id="cyl-h-val">18</span>
+                    </div>
+                    <input type="range" id="cyl-h-slider" class="container-input" min="10" max="40" value="18">
+                </div>
+            </div>
+            
+            <div class="locked-hint" id="locked-hint">游戏进行中，容器尺寸已锁定</div>
+
+            <div class="instruction-line" style="margin-top: 15px; color: #ffd54f; font-weight: bold; text-align: center;">
+                左键/单指：移动<br>松开：生成
+            </div>
+        </div>
+
+        <div class="glass-panel side-panel side-right" id="fruit-guide">
+            <div class="panel-title">天体序列</div>
+        </div>
+
+        <button id="mode-toggle-btn" class="mode-fruit">🌍</button>
+        <div id="mode-label" class="mode-label">当前：控制星球</div>
+
+        <div id="game-over-modal">
+            <div class="modal-content">
+                <div class="game-over-title">奇点坍缩</div>
+                <div class="score-label">本次质量</div>
+                <div class="final-score" id="final-score">0</div>
+                
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">存活时间</span>
+                        <span class="stat-val" id="stat-time">00:00</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">最大天体</span>
+                        <span class="stat-val" id="stat-max-planet">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">历史最高</span>
+                        <span class="stat-val" id="stat-best-score">0</span>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn" onclick="showMenu()">返回星图</button>
+                    <button class="btn btn-primary" id="restart-btn">重启宇宙</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+                "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import * as CANNON from 'cannon-es';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        window.startGame = (mode) => App.startGame(mode);
+        window.showMenu = () => App.showMenu();
+
+        // 扩展的星球列表 - 纯色配置
+        const PLANETS = [
+            { level: 0, radius: 0.5, score: 1, name: "月球", color: '#cfd8dc' },
+            { level: 1, radius: 0.7, score: 2, name: "水星", color: '#90a4ae' },
+            { level: 2, radius: 0.9, score: 4, name: "火星", color: '#ff7043' },
+            { level: 3, radius: 1.2, score: 6, name: "金星", color: '#ffe082' },
+            { level: 4, radius: 1.5, score: 8, name: "地球", color: '#2979ff' },
+            { level: 5, radius: 1.9, score: 10, name: "海王星", color: '#304ffe' },
+            { level: 6, radius: 2.3, score: 12, name: "天王星", color: '#00b8d4' },
+            { level: 7, radius: 2.7, score: 14, name: "土星", color: '#fbc02d' },
+            { level: 8, radius: 3.2, score: 16, name: "木星", color: '#ff9800' },
+            { level: 9, radius: 3.8, score: 20, name: "太阳", color: '#ffea00', emissive: true },
+            { level: 10, radius: 4.4, score: 30, name: "天狼星", color: '#80d8ff', emissive: true }, 
+            { level: 11, radius: 5.0, score: 40, name: "北河三", color: '#ffcc80', emissive: true },
+            { level: 12, radius: 5.6, score: 50, name: "大角星", color: '#ff5722', emissive: true },
+            { level: 13, radius: 6.3, score: 60, name: "参宿七", color: '#448aff', emissive: true },
+            { level: 14, radius: 7.0, score: 80, name: "参宿四", color: '#b71c1c', emissive: true },
+            { level: 15, radius: 7.8, score: 100, name: "大犬VY", color: '#880e4f', emissive: true },
+            { level: 16, radius: 8.5, score: 150, name: "史蒂文森", color: '#311b92', emissive: true }, 
+            { level: 17, radius: 4.0, score: 500, name: "黑洞", color: '#000000', emissive: false, blackHole: true } 
+        ];
+
+        // 全局变量，将由UI控制
+        let CONTAINER_W = 12;
+        let CONTAINER_D = 12;
+        let CONTAINER_H = 18;
+        let CONTAINER_R = 7;
+        
+        // 物理墙厚度大幅增加，防止穿透
+        let WALL_THICKNESS = 0.5; 
+        let CYLINDER_WALL_THICKNESS = 3.0; // 圆柱体模式专用厚墙
+
+        let DROP_HEIGHT = 14; 
+        let LIMIT_LINE_Y = 8;
+
+        // 极简版贴图工厂
+        const PlanetTextureFactory = {
+            size: 256, 
+            createCanvas() { 
+                const c = document.createElement('canvas'); 
+                c.width=this.size; c.height=this.size; 
+                return c; 
+            },
+            getTexture(planet) {
+                const canvas = this.createCanvas();
+                const ctx = canvas.getContext('2d');
+                const w = this.size, h = this.size;
+                
+                ctx.fillStyle = planet.color;
+                ctx.fillRect(0, 0, w, h);
+                
+                if (planet.blackHole) {
+                    const grd = ctx.createRadialGradient(w/2, h/2, w/4, w/2, h/2, w/2);
+                    grd.addColorStop(0, '#000000');
+                    grd.addColorStop(0.9, '#000000');
+                    grd.addColorStop(1, '#ffffff'); 
+                    ctx.fillStyle = grd;
+                    ctx.fillRect(0,0,w,h);
+                } else {
+                    // 仅保留极淡的边缘阴影，无噪点
+                    const shading = ctx.createRadialGradient(w/2, h/2, w/2 * 0.85, w/2, h/2, w/2);
+                    shading.addColorStop(0, 'rgba(0,0,0,0)');
+                    shading.addColorStop(1, 'rgba(0,0,0,0.2)');
+                    ctx.globalAlpha = 1.0;
+                    ctx.fillStyle = shading;
+                    ctx.fillRect(0,0,w,h);
+                }
+                
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.colorSpace = THREE.SRGBColorSpace;
+                return tex;
+            }
+        };
+
+        const App = {
+            mode: 'BOX', 
+            score: 0, highScore: 0, nextPlanetLevel: 0, canDrop: true, isGameOver: false, fruitsInScene: [],
+            hasStarted: false, 
+            
+            startTime: 0, // 记录开始时间
+            maxPlanetIndex: 0, // 记录本局最大星球
+            
+            scene: null, camera: null, renderer: null, world: null, controls: null,
+            dummyFruit: null, floorMesh: null,
+            fruitMaterials: [], fruitGeometries: [], physicsMaterial: null,
+            
+            isDragging: false, lastPointer: new THREE.Vector2(), currentFruitPos: new THREE.Vector3(0, DROP_HEIGHT, 0),
+            mobileMode: 'FRUIT', raycasterDown: new THREE.Raycaster(),
+            
+            containerBodies: [], containerMeshes: [],
+            
+            dropCount: 1,
+            isAutoDrop: false,
+            lastAutoDropTime: 0,
+            multiDropOffsets: [], 
+            aimHelpers: [],
+
+            init() {
+                this.loadHighScore();
+
+                this.scene = new THREE.Scene();
+
+                this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
+                this.camera.position.set(0, 36, 48);
+
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFShadowMap; 
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+                this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                this.renderer.toneMappingExposure = 1.0;
+                document.body.appendChild(this.renderer.domElement);
+
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                this.scene.add(ambientLight);
+                
+                const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+                dirLight.position.set(20, 50, 20);
+                dirLight.castShadow = true;
+                dirLight.shadow.mapSize.set(2048, 2048);
+                this.scene.add(dirLight);
+
+                const fillLight = new THREE.DirectionalLight(0x607d8b, 0.5);
+                fillLight.position.set(-20, -10, -20);
+                this.scene.add(fillLight);
+
+                this.createStarField();
+                this.generateAssets();
+                this.renderGuide();
+
+                this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.target.set(0, 0, 0);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                this.controls.maxPolarAngle = Math.PI / 2 - 0.1;
+                this.controls.minDistance = 10;
+                this.controls.maxDistance = 120;
+                this.controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+                this.controls.touches = { ONE: null, TWO: THREE.TOUCH.DOLLY_ROTATE };
+                this.controls.enabled = true;
+
+                window.addEventListener('resize', () => this.onWindowResize());
+                this.renderer.domElement.addEventListener('pointerdown', (e) => this.onPointerDown(e), { passive: false });
+                window.addEventListener('pointermove', (e) => this.onPointerMove(e), { passive: false });
+                window.addEventListener('pointerup', (e) => this.onPointerUp(e));
+
+                document.getElementById('restart-btn').addEventListener('click', () => this.restartGame());
+                document.getElementById('mode-toggle-btn').addEventListener('click', () => this.toggleMobileMode());
+
+                this.initSettingsListeners();
+
+                this.raycasterDown.ray.direction.set(0, -1, 0);
+                document.getElementById('loading').style.display = 'none';
+                this.animate();
+            },
+
+            loadHighScore() {
+                const saved = localStorage.getItem('sun_game_record');
+                if (saved) {
+                    const record = JSON.parse(saved);
+                    this.highScore = record.score || 0;
+                    document.getElementById('menu-high-score').innerText = this.highScore;
+                    if(record.date) {
+                        document.getElementById('menu-high-score-date').innerText = record.date;
+                    }
+                } else {
+                    this.highScore = 0;
+                }
+            },
+
+            saveHighScore() {
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    const record = {
+                        score: this.highScore,
+                        date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString()
+                    };
+                    localStorage.setItem('sun_game_record', JSON.stringify(record));
+                }
+            },
+
+            initSettingsListeners() {
+                const dropSlider = document.getElementById('drop-count-slider');
+                dropSlider.addEventListener('input', (e) => {
+                    this.dropCount = parseInt(e.target.value);
+                    document.getElementById('drop-count-val').innerText = this.dropCount;
+                    this.prepareNextFruit();
+                });
+
+                document.getElementById('auto-drop-check').addEventListener('change', (e) => {
+                    this.isAutoDrop = e.target.checked;
+                });
+
+                const updateBox = () => {
+                    if (this.hasStarted) return;
+                    CONTAINER_W = parseInt(document.getElementById('box-w-slider').value);
+                    CONTAINER_D = parseInt(document.getElementById('box-d-slider').value);
+                    CONTAINER_H = parseInt(document.getElementById('box-h-slider').value);
+                    document.getElementById('box-w-val').innerText = CONTAINER_W;
+                    document.getElementById('box-d-val').innerText = CONTAINER_D;
+                    document.getElementById('box-h-val').innerText = CONTAINER_H;
+                    this.rebuildContainer();
+                };
+                document.getElementById('box-w-slider').addEventListener('input', updateBox);
+                document.getElementById('box-d-slider').addEventListener('input', updateBox);
+                document.getElementById('box-h-slider').addEventListener('input', updateBox);
+
+                const updateCyl = () => {
+                    if (this.hasStarted) return;
+                    CONTAINER_R = parseInt(document.getElementById('cyl-r-slider').value);
+                    CONTAINER_H = parseInt(document.getElementById('cyl-h-slider').value);
+                    document.getElementById('cyl-r-val').innerText = CONTAINER_R;
+                    document.getElementById('cyl-h-val').innerText = CONTAINER_H;
+                    this.rebuildContainer();
+                };
+                document.getElementById('cyl-r-slider').addEventListener('input', updateCyl);
+                document.getElementById('cyl-h-slider').addEventListener('input', updateCyl);
+            },
+
+            createStarField() {
+                const geometry = new THREE.BufferGeometry();
+                const count = 800;
+                const pos = new Float32Array(count * 3);
+                for(let i=0; i<count*3; i++) pos[i] = (Math.random()-0.5) * 200;
+                geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+                const material = new THREE.PointsMaterial({color: 0xffffff, size: 0.25, transparent: true, opacity: 0.7});
+                this.scene.add(new THREE.Points(geometry, material));
+            },
+
+            showMenu() {
+                this.isGameOver = true; 
+                document.getElementById('ui-layer').style.display = 'none';
+                document.getElementById('main-menu').style.display = 'flex';
+                setTimeout(() => document.getElementById('main-menu').style.opacity = '1', 10);
+                
+                this.loadHighScore();
+            },
+
+            startGame(mode) {
+                this.mode = mode;
+                document.getElementById('main-menu').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('main-menu').style.display = 'none';
+                    document.getElementById('ui-layer').style.display = 'flex';
+                }, 300);
+                
+                document.getElementById('box-settings').style.display = mode === 'BOX' ? 'block' : 'none';
+                document.getElementById('cylinder-settings').style.display = mode === 'CYLINDER' ? 'block' : 'none';
+                
+                this.resetWorld();
+            },
+
+            resetWorld() {
+                this.fruitsInScene = [];
+                this.world = new CANNON.World();
+                this.world.gravity.set(0, -40, 0);
+                this.world.broadphase = new CANNON.NaiveBroadphase();
+                this.world.allowSleep = true;
+                this.physicsMaterial = new CANNON.Material('fruit');
+                this.world.addContactMaterial(new CANNON.ContactMaterial(this.physicsMaterial, this.physicsMaterial, { friction: 0.3, restitution: 0.1 }));
+
+                const toRemove = [];
+                this.scene.traverse(child => {
+                    if (child.userData.isFruit) toRemove.push(child);
+                });
+                toRemove.forEach(obj => this.scene.remove(obj));
+
+                this.clearAimHelpers();
+
+                this.score = 0;
+                this.maxPlanetIndex = 0;
+                this.startTime = Date.now(); // 开始计时
+                
+                this.updateScoreUI();
+                this.isGameOver = false;
+                this.canDrop = true;
+                this.hasStarted = false; 
+                this.updateInputState();
+                document.getElementById('game-over-modal').style.display = 'none';
+                
+                this.controls.reset();
+                this.controls.target.set(0, 0, 0);
+                
+                this.rebuildContainer();
+                
+                this.currentFruitPos.set(0, DROP_HEIGHT, 0);
+                this.prepareNextFruit();
+                this.mobileMode = 'FRUIT';
+                this.updateMobileModeUI();
+            },
+
+            updateInputState() {
+                const inputs = document.querySelectorAll('.container-input');
+                const hint = document.getElementById('locked-hint');
+                inputs.forEach(input => {
+                    input.disabled = this.hasStarted;
+                    if(this.hasStarted) input.classList.add('input-disabled');
+                    else input.classList.remove('input-disabled');
+                });
+                hint.style.display = this.hasStarted ? 'block' : 'none';
+            },
+
+            clearContainer() {
+                this.containerBodies.forEach(b => this.world.removeBody(b));
+                this.containerBodies = [];
+                this.containerMeshes.forEach(m => this.scene.remove(m));
+                this.containerMeshes = [];
+                if(this.floorMesh) this.scene.remove(this.floorMesh);
+            },
+
+            rebuildContainer() {
+                this.clearContainer();
+                const h = this.mode === 'BOX' ? CONTAINER_H : CONTAINER_H;
+                DROP_HEIGHT = h / 2 + 5;
+                LIMIT_LINE_Y = h / 2 - 1.0;
+
+                if (this.mode === 'CYLINDER') this.createContainerCylinder();
+                else this.createContainerBox();
+            },
+
+            createContainerBox() {
+                const glassMat = new THREE.MeshPhysicalMaterial({ 
+                    color: 0x88ccff, roughness: 0.1, metalness: 0.1, transmission: 0.6, transparent: true, opacity: 0.15, side: THREE.DoubleSide 
+                });
+                
+                const gridHelper = new THREE.GridHelper(CONTAINER_W, Math.max(4, CONTAINER_W), 0x80d8ff, 0x3f51b5);
+                gridHelper.position.y = -CONTAINER_H/2 + 0.05;
+                gridHelper.material.opacity = 0.4;
+                gridHelper.material.transparent = true;
+                this.scene.add(gridHelper);
+                this.containerMeshes.push(gridHelper);
+
+                this.createWall(CONTAINER_W, WALL_THICKNESS, CONTAINER_D, 0, -CONTAINER_H/2, 0, glassMat);
+                this.createWall(WALL_THICKNESS, CONTAINER_H, CONTAINER_D, -CONTAINER_W/2, 0, 0, glassMat);
+                this.createWall(WALL_THICKNESS, CONTAINER_H, CONTAINER_D, CONTAINER_W/2, 0, 0, glassMat);
+                this.createWall(CONTAINER_W, CONTAINER_H, WALL_THICKNESS, 0, 0, -CONTAINER_D/2, glassMat);
+                this.createWall(CONTAINER_W, CONTAINER_H, WALL_THICKNESS, 0, 0, CONTAINER_D/2, new THREE.MeshBasicMaterial({visible:false}));
+                
+                const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(CONTAINER_W, CONTAINER_H, CONTAINER_D));
+                const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x80d8ff, opacity: 0.3, transparent: true }));
+                this.scene.add(line);
+                this.containerMeshes.push(line);
+                
+                this.floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(CONTAINER_W-0.2, CONTAINER_D-0.2), new THREE.MeshBasicMaterial({visible:false}));
+                this.floorMesh.rotation.x = -Math.PI/2;
+                this.floorMesh.position.y = -CONTAINER_H/2 + WALL_THICKNESS;
+                this.scene.add(this.floorMesh);
+
+                this.createLimitLine(LIMIT_LINE_Y);
+            },
+
+            createContainerCylinder() {
+                const radius = CONTAINER_R;
+                const height = CONTAINER_H;
+                const segments = 32;
+                
+                // 视觉圆柱 - 稍微扩大一点点，让厚物理墙在视觉上被包裹或居中
+                const geo = new THREE.CylinderGeometry(radius, radius, height, segments, 1, true);
+                const mat = new THREE.MeshPhysicalMaterial({ 
+                    color: 0x88ccff, roughness: 0.1, metalness: 0.1, transmission: 0.6, transparent: true, opacity: 0.15, side: THREE.DoubleSide 
+                });
+                const mesh = new THREE.Mesh(geo, mat);
+                this.scene.add(mesh);
+                this.containerMeshes.push(mesh);
+
+                // 底部网格
+                const polarGrid = new THREE.PolarGridHelper(radius, 8, 5, 64, 0x80d8ff, 0x3f51b5);
+                polarGrid.position.y = -height / 2 + 0.05;
+                polarGrid.material.opacity = 0.4;
+                polarGrid.material.transparent = true;
+                this.scene.add(polarGrid);
+                this.containerMeshes.push(polarGrid);
+                
+                // 边缘线
+                const edges = new THREE.EdgesGeometry(geo);
+                const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x80d8ff, opacity: 0.3, transparent: true }));
+                this.scene.add(line);
+                this.containerMeshes.push(line);
+
+                // 物理圆柱墙壁 - 修复：加厚 & 重叠
+                const angleStep = (Math.PI * 2) / segments;
+                // 基础宽度 + 15% 重叠，防止缝隙
+                const wallWidth = 2 * radius * Math.tan(Math.PI / segments) * 1.15;
+                
+                for (let i = 0; i < segments; i++) {
+                    const angle = i * angleStep;
+                    const x = Math.cos(angle) * radius;
+                    const z = Math.sin(angle) * radius;
+                    
+                    // 使用专用厚度 CYLINDER_WALL_THICKNESS (3.0)
+                    const shape = new CANNON.Box(new CANNON.Vec3(wallWidth/2, height/2, CYLINDER_WALL_THICKNESS/2));
+                    const body = new CANNON.Body({ mass: 0, material: this.physicsMaterial });
+                    body.addShape(shape);
+                    body.position.set(x, 0, z);
+                    body.quaternion.setFromEuler(0, -angle, 0);
+                    this.world.addBody(body);
+                    this.containerBodies.push(body);
+                }
+
+                // 物理底部
+                const floorShape = new CANNON.Box(new CANNON.Vec3(radius * 2, 5, radius * 2));
+                const floorBody = new CANNON.Body({ mass: 0, material: this.physicsMaterial });
+                floorBody.addShape(floorShape);
+                floorBody.position.set(0, -height/2 - 5, 0);
+                this.world.addBody(floorBody);
+                this.containerBodies.push(floorBody);
+
+                // 射线检测层 - 确保双面渲染
+                this.floorMesh = new THREE.Mesh(new THREE.CircleGeometry(radius-0.2, segments), new THREE.MeshBasicMaterial({visible:false, side: THREE.DoubleSide}));
+                this.floorMesh.rotation.x = -Math.PI/2;
+                this.floorMesh.position.y = -height/2 + 0.5;
+                this.scene.add(this.floorMesh);
+                
+                this.createLimitLine(LIMIT_LINE_Y, true, radius);
+            },
+
+            createWall(w, h, d, x, y, z, mat) {
+                if (mat.visible !== false) {
+                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+                    mesh.position.set(x, y, z);
+                    mesh.receiveShadow = false;
+                    this.scene.add(mesh);
+                    this.containerMeshes.push(mesh);
+                }
+                // 方形容器使用普通厚度即可，因为没有角度缝隙问题
+                const shape = new CANNON.Box(new CANNON.Vec3(w/2, h/2, d/2));
+                const body = new CANNON.Body({ mass: 0, material: this.physicsMaterial });
+                body.addShape(shape);
+                body.position.set(x, y, z);
+                this.world.addBody(body);
+                this.containerBodies.push(body);
+            },
+
+            createLimitLine(y, isCircle = false, r = 0) {
+                const mat = new THREE.MeshBasicMaterial({ color: 0xff5252, transparent: true, opacity: 0.4, side: THREE.DoubleSide, depthWrite: false });
+                let mesh;
+                if (isCircle) mesh = new THREE.Mesh(new THREE.CircleGeometry(r, 64), mat);
+                else mesh = new THREE.Mesh(new THREE.PlaneGeometry(CONTAINER_W, CONTAINER_D), mat);
+                mesh.rotation.x = -Math.PI / 2;
+                mesh.position.y = y;
+                this.scene.add(mesh);
+                this.containerMeshes.push(mesh);
+            },
+
+            createAimHelpers() {},
+
+            generateAssets() {
+                PLANETS.forEach(p => {
+                    let geo = new THREE.SphereGeometry(p.radius, 48, 48); 
+                    this.fruitGeometries.push(geo);
+                    
+                    const texture = PlanetTextureFactory.getTexture(p);
+                    const matConfig = { 
+                        map: texture, 
+                        roughness: 0.4, 
+                        metalness: 0.1,
+                    };
+                    
+                    if(p.emissive) {
+                        matConfig.emissive = new THREE.Color(p.color);
+                        matConfig.emissiveIntensity = 0.6;
+                    }
+
+                    const mat = new THREE.MeshStandardMaterial(matConfig);
+                    this.fruitMaterials.push(mat);
+                });
+            },
+
+            renderGuide() {
+                const container = document.getElementById('fruit-guide');
+                container.innerHTML = '<div class="panel-title">天体序列</div><div class="guide-list"></div>';
+                const list = container.querySelector('.guide-list');
+                PLANETS.forEach(p => {
+                    const item = document.createElement('div');
+                    item.className = 'guide-item';
+                    const size = Math.min(20, 6 + (p.radius) * 1.5);
+                    item.innerHTML = `
+                        <div class="guide-circle-wrapper">
+                            <div class="guide-circle" style="background-color: ${p.color}; width: ${size}px; height: ${size}px;"></div>
+                        </div>
+                        <div class="guide-name">${p.name}</div>
+                        <div class="guide-score">${p.score}</div>
+                    `;
+                    list.appendChild(item);
+                });
+            },
+
+            updateNextFruitUI() {
+                this.nextPlanetLevel = Math.floor(Math.random() * 5); 
+                const planet = PLANETS[this.nextPlanetLevel];
+                
+                const previewSize = 14 + (planet.radius - 0.5) / 0.7 * 16; 
+                const preview = document.getElementById('next-fruit-preview');
+                preview.style.backgroundColor = planet.color;
+                preview.style.width = `${previewSize}px`;
+                preview.style.height = `${previewSize}px`;
+                document.getElementById('next-fruit-name').innerText = planet.name;
+                
+                this.generateMultiDropOffsets(this.nextPlanetLevel);
+
+                if (this.dummyFruit) this.scene.remove(this.dummyFruit);
+                this.dummyFruit = new THREE.Group();
+                
+                this.multiDropOffsets.forEach(offset => {
+                    const visualGroup = this.createFruitVisual(this.nextPlanetLevel);
+                    visualGroup.position.set(offset.x, 0, offset.z);
+                    visualGroup.children.forEach(c => {
+                        if(c.material) {
+                            c.material = c.material.clone();
+                            c.material.transparent = true;
+                            c.material.opacity = 0.6;
+                        }
+                    });
+                    this.dummyFruit.add(visualGroup);
+                });
+                
+                this.currentFruitPos.set(0, DROP_HEIGHT, 0);
+                this.dummyFruit.position.copy(this.currentFruitPos);
+                this.scene.add(this.dummyFruit);
+
+                this.updateAimHelpers();
+            },
+
+            generateMultiDropOffsets(level) {
+                const count = this.dropCount;
+                const r = PLANETS[level].radius;
+                const offsets = [];
+                const boundX = this.mode === 'BOX' ? CONTAINER_W : CONTAINER_R * 1.5; 
+                const spread = count === 1 ? 0 : Math.min(boundX * 0.8, count * r * 1.8); 
+                const maxAttempts = 50;
+
+                for(let i = 0; i < count; i++) {
+                    if (i === 0 && count === 1) {
+                        offsets.push({x: 0, z: 0});
+                        continue;
+                    }
+
+                    let found = false;
+                    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                        let offsetX = (Math.random() - 0.5) * spread;
+                        let offsetZ = (Math.random() - 0.5) * spread;
+                        if (i === 0) { offsetX = 0; offsetZ = 0; } 
+
+                        let overlap = false;
+                        for (let existing of offsets) {
+                            const dx = offsetX - existing.x;
+                            const dz = offsetZ - existing.z;
+                            if (dx*dx + dz*dz < (2*r + 0.1)**2) {
+                                overlap = true; break;
+                            }
+                        }
+                        if (!overlap) {
+                            offsets.push({x: offsetX, z: offsetZ});
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                this.multiDropOffsets = offsets;
+            },
+
+            createFruitVisual(level) {
+                const config = PLANETS[level];
+                const group = new THREE.Group();
+                const mesh = new THREE.Mesh(this.fruitGeometries[level], this.fruitMaterials[level]);
+                mesh.castShadow = true; mesh.receiveShadow = true;
+                mesh.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
+                mesh.userData.isFruit = true; 
+                group.add(mesh);
+                group.userData.isFruit = true;
+                return group;
+            },
+
+            clearAimHelpers() {
+                this.aimHelpers.forEach(h => {
+                    if(h.ghost) this.scene.remove(h.ghost);
+                    if(h.line) this.scene.remove(h.line);
+                });
+                this.aimHelpers = [];
+            },
+
+            createSingleAimHelper() {
+                const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,-60,0)]);
+                const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.15 }));
+                this.scene.add(line);
+
+                const ghostGroup = new THREE.Group();
+                this.scene.add(ghostGroup);
+
+                this.aimHelpers.push({ line, ghost: ghostGroup, level: -1 });
+            },
+
+            updateAimHelpers() {
+                if (!this.canDrop || this.isGameOver || this.mobileMode === 'CAMERA') {
+                    this.aimHelpers.forEach(h => {
+                        h.ghost.visible = false; h.line.visible = false;
+                    });
+                    if (this.dummyFruit) this.dummyFruit.visible = false; 
+                    return;
+                }
+                
+                if (this.dummyFruit) this.dummyFruit.visible = true;
+
+                const offsets = this.multiDropOffsets;
+                while(this.aimHelpers.length < offsets.length) {
+                    this.createSingleAimHelper();
+                }
+
+                const currentLevel = this.nextPlanetLevel;
+                const r = PLANETS[currentLevel].radius;
+
+                offsets.forEach((offset, i) => {
+                    const helper = this.aimHelpers[i];
+                    
+                    if (helper.level !== currentLevel) {
+                        while(helper.ghost.children.length > 0) {
+                            helper.ghost.remove(helper.ghost.children[0]);
+                        }
+                        const visual = this.createFruitVisual(currentLevel);
+                        visual.traverse((child) => {
+                            if (child.isMesh) {
+                                child.material = child.material.clone();
+                                child.material.transparent = true;
+                                child.material.opacity = 0.3;
+                                child.castShadow = false;
+                                child.receiveShadow = false;
+                            }
+                        });
+                        helper.ghost.add(visual);
+                        helper.level = currentLevel;
+                    }
+
+                    helper.ghost.visible = true; 
+                    helper.line.visible = true; 
+
+                    let targetX = this.currentFruitPos.x + offset.x;
+                    let targetZ = this.currentFruitPos.z + offset.z;
+
+                    if (this.mode === 'BOX') {
+                        const limitX = CONTAINER_W / 2 - r;
+                        const limitZ = CONTAINER_D / 2 - r;
+                        targetX = Math.max(-limitX, Math.min(limitX, targetX));
+                        targetZ = Math.max(-limitZ, Math.min(limitZ, targetZ));
+                    } else if (this.mode === 'CYLINDER') {
+                        const limit = CONTAINER_R - r; 
+                        const distSq = targetX * targetX + targetZ * targetZ;
+                        if (distSq > limit * limit) {
+                            const ratio = limit / Math.sqrt(distSq);
+                            targetX *= ratio;
+                            targetZ *= ratio;
+                        }
+                    }
+
+                    this.raycasterDown.ray.origin.set(targetX, DROP_HEIGHT, targetZ);
+                    const targets = [this.floorMesh, ...this.fruitsInScene.map(f => f.mesh.children[0])];
+                    const hits = this.raycasterDown.intersectObjects(targets, false);
+                    
+                    let dropY = -CONTAINER_H/2 + r; 
+                    if (hits.length > 0) dropY = hits[0].point.y + r;
+
+                    helper.ghost.position.set(targetX, dropY, targetZ);
+                    
+                    const positions = helper.line.geometry.attributes.position.array;
+                    positions[0] = targetX; positions[1] = DROP_HEIGHT; positions[2] = targetZ;
+                    positions[3] = targetX; positions[4] = dropY; positions[5] = targetZ;
+                    helper.line.geometry.attributes.position.needsUpdate = true;
+                });
+
+                for(let i = offsets.length; i < this.aimHelpers.length; i++) {
+                    const h = this.aimHelpers[i];
+                    h.ghost.visible = false; h.line.visible = false;
+                }
+            },
+
+            toggleMobileMode() {
+                this.mobileMode = this.mobileMode === 'FRUIT' ? 'CAMERA' : 'FRUIT';
+                this.updateMobileModeUI();
+            },
+
+            updateMobileModeUI() {
+                const btn = document.getElementById('mode-toggle-btn');
+                const label = document.getElementById('mode-label');
+                this.controls.enabled = true; 
+                if (this.mobileMode === 'FRUIT') {
+                    btn.className = 'mode-fruit'; btn.innerText = '🌍';
+                    label.innerText = '当前：控制星球 (点击切换)';
+                    this.controls.touches.ONE = null;
+                } else {
+                    btn.className = 'mode-camera'; btn.innerText = '📷';
+                    label.innerText = '当前：调整视角 (点击切换)';
+                    this.controls.touches.ONE = THREE.TOUCH.ROTATE;
+                }
+                label.style.opacity = 1;
+                setTimeout(() => label.style.opacity = 0, 2000);
+            },
+
+            onPointerDown(event) {
+                if (!this.canDrop || this.isGameOver) return;
+                if (event.pointerType === 'mouse') {
+                    if (event.button !== 0) return; 
+                    this.isDragging = true; this.lastPointer.set(event.clientX, event.clientY);
+                    return;
+                }
+                if (this.mobileMode === 'CAMERA') return;
+                if (event.isPrimary) {
+                    this.isDragging = true; this.lastPointer.set(event.clientX, event.clientY);
+                }
+            },
+
+            onPointerMove(event) {
+                if (!this.isDragging || !this.canDrop || this.isGameOver) return;
+                if (this.mobileMode === 'CAMERA' && event.pointerType !== 'mouse') return; 
+                
+                const dx = event.clientX - this.lastPointer.x;
+                const dy = event.clientY - this.lastPointer.y;
+                this.lastPointer.set(event.clientX, event.clientY);
+
+                const sensitivity = 24.0 / window.innerWidth; 
+                const forward = new THREE.Vector3(); this.camera.getWorldDirection(forward); forward.y = 0; forward.normalize();
+                const right = new THREE.Vector3(); right.crossVectors(forward, new THREE.Vector3(0, 1, 0));
+                const moveDelta = new THREE.Vector3().addScaledVector(right, dx * sensitivity).addScaledVector(forward, -dy * sensitivity); 
+
+                this.currentFruitPos.add(moveDelta);
+                
+                if (this.mode === 'BOX') {
+                    const r = PLANETS[this.nextPlanetLevel].radius;
+                    const limitX = CONTAINER_W / 2 - r;
+                    const limitZ = CONTAINER_D / 2 - r;
+                    this.currentFruitPos.x = Math.max(-limitX, Math.min(limitX, this.currentFruitPos.x));
+                    this.currentFruitPos.z = Math.max(-limitZ, Math.min(limitZ, this.currentFruitPos.z));
+                } else if (this.mode === 'CYLINDER') {
+                     const r = PLANETS[this.nextPlanetLevel].radius;
+                     const limit = CONTAINER_R - r; 
+                     const distSq = this.currentFruitPos.x * this.currentFruitPos.x + this.currentFruitPos.z * this.currentFruitPos.z;
+                     if (distSq > limit * limit) {
+                         const ratio = limit / Math.sqrt(distSq);
+                         this.currentFruitPos.x *= ratio;
+                         this.currentFruitPos.z *= ratio;
+                     }
+                     this.currentFruitPos.y = DROP_HEIGHT;
+                }
+                
+                if (this.dummyFruit) {
+                    this.dummyFruit.position.copy(this.currentFruitPos);
+                    this.updateAimHelpers();
+                }
+            },
+
+            onPointerUp(event) {
+                if (!this.isDragging) return;
+                if (event.pointerType === 'mouse' && event.button !== 0) return;
+                this.isDragging = false;
+                if (!this.canDrop || this.isGameOver) return;
+                if (event.pointerType !== 'mouse' && this.mobileMode === 'CAMERA') return;
+
+                this.dropFruit();
+                this.canDrop = false;
+                this.scene.remove(this.dummyFruit);
+                this.dummyFruit = null;
+                this.updateAimHelpers();
+                setTimeout(() => this.prepareNextFruit(), 600);
+            },
+
+            dropFruit() {
+                if (!this.hasStarted) {
+                    this.hasStarted = true;
+                    this.updateInputState();
+                }
+
+                const level = this.nextPlanetLevel;
+                const r = PLANETS[level].radius;
+                
+                const activeHelpers = this.aimHelpers.slice(0, this.multiDropOffsets.length);
+                
+                activeHelpers.forEach(helper => {
+                    const dropX = helper.ghost.position.x;
+                    const dropZ = helper.ghost.position.z;
+
+                    const visualGroup = this.createFruitVisual(level);
+                    visualGroup.position.set(dropX, DROP_HEIGHT, dropZ);
+                    visualGroup.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
+                    this.scene.add(visualGroup);
+
+                    const shape = new CANNON.Sphere(r);
+                    const body = new CANNON.Body({
+                        mass: 1 * (level + 1), material: this.physicsMaterial,
+                        position: new CANNON.Vec3(dropX, DROP_HEIGHT, dropZ),
+                        quaternion: new CANNON.Quaternion().setFromEuler(visualGroup.rotation.x, visualGroup.rotation.y, visualGroup.rotation.z)
+                    });
+                    body.addShape(shape);
+                    body.linearDamping = 0.5; body.angularDamping = 0.5;
+                    body.velocity.set((Math.random()-0.5)*2, -15, (Math.random()-0.5)*2);
+                    this.world.addBody(body);
+                    body.safeFrames = 60;
+
+                    const fruitObj = { mesh: visualGroup, body, level, id: body.id, isMerging: false };
+                    this.fruitsInScene.push(fruitObj);
+
+                    body.addEventListener("collide", (e) => this.handleCollision(fruitObj, e.body));
+                });
+            },
+
+            handleCollision(fruitA, bodyB) {
+                if (fruitA.isMerging || this.isGameOver) return;
+                const fruitB = this.fruitsInScene.find(f => f.body === bodyB);
+                if (!fruitB || fruitB.isMerging) return;
+                if (fruitA.level === fruitB.level && fruitA.id < fruitB.id) {
+                    this.mergeFruits(fruitA, fruitB);
+                }
+            },
+
+            mergeFruits(fruitA, fruitB) {
+                fruitA.isMerging = true; fruitB.isMerging = true;
+                const midX = (fruitA.body.position.x + fruitB.body.position.x) / 2;
+                const midY = (fruitA.body.position.y + fruitB.body.position.y) / 2;
+                const midZ = (fruitA.body.position.z + fruitB.body.position.z) / 2;
+                this.removeFruit(fruitA); this.removeFruit(fruitB);
+                
+                this.score += PLANETS[fruitA.level].score * 2;
+                this.updateScoreUI();
+                
+                const nextLevel = fruitA.level + 1;
+                // Update Max Planet Record
+                if (nextLevel > this.maxPlanetIndex) this.maxPlanetIndex = nextLevel;
+
+                if (nextLevel < PLANETS.length) {
+                    this.createMergedFruit(midX, midY, midZ, nextLevel);
+                } else { 
+                    // 达到终极
+                    this.score += 5000; this.updateScoreUI(); 
+                }
+            },
+
+            createMergedFruit(x, y, z, level) {
+                const planetData = PLANETS[level];
+                const visualGroup = this.createFruitVisual(level);
+                visualGroup.position.set(x, y, z);
+                this.scene.add(visualGroup);
+                visualGroup.scale.set(0.1, 0.1, 0.1);
+                let scale = 0.1;
+                const growInterval = setInterval(() => {
+                    scale += 0.15;
+                    if (scale >= 1.0) { clearInterval(growInterval); visualGroup.scale.set(1,1,1); } 
+                    else visualGroup.scale.set(scale, scale, scale);
+                }, 16);
+
+                const shape = new CANNON.Sphere(planetData.radius);
+                const body = new CANNON.Body({
+                    mass: 1 * (level + 1), material: this.physicsMaterial,
+                    position: new CANNON.Vec3(x, y, z),
+                    quaternion: new CANNON.Quaternion().setFromEuler(visualGroup.rotation.x, visualGroup.rotation.y, visualGroup.rotation.z)
+                });
+                body.addShape(shape);
+                body.linearDamping = 0.5; body.angularDamping = 0.5;
+                this.world.addBody(body);
+                body.safeFrames = 30;
+
+                const fruitObj = { mesh: visualGroup, body, level, id: body.id, isMerging: false };
+                this.fruitsInScene.push(fruitObj);
+                body.addEventListener("collide", (e) => this.handleCollision(fruitObj, e.body));
+            },
+
+            removeFruit(fruitObj) {
+                this.world.removeBody(fruitObj.body);
+                this.scene.remove(fruitObj.mesh);
+                const index = this.fruitsInScene.indexOf(fruitObj);
+                if (index > -1) this.fruitsInScene.splice(index, 1);
+            },
+
+            updateScoreUI() {
+                const scoreEl = document.getElementById('score-value');
+                scoreEl.innerText = this.score;
+                scoreEl.style.transform = "scale(1.3)";
+                scoreEl.style.color = "#ffcc80";
+                setTimeout(() => {
+                    scoreEl.style.transform = "scale(1)";
+                    scoreEl.style.color = "#fff";
+                }, 150);
+                
+                this.saveHighScore();
+            },
+
+            prepareNextFruit() {
+                if(this.isGameOver) return;
+                this.updateNextFruitUI();
+                this.canDrop = true;
+            },
+
+            restartGame() {
+                this.resetWorld();
+            },
+
+            triggerGameOver() {
+                this.isGameOver = true;
+                document.getElementById('final-score').innerText = this.score;
+                
+                // Update Game Over Stats
+                const duration = Date.now() - this.startTime;
+                const minutes = Math.floor(duration / 60000);
+                const seconds = Math.floor((duration % 60000) / 1000);
+                document.getElementById('stat-time').innerText = `${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+                document.getElementById('stat-max-planet').innerText = PLANETS[this.maxPlanetIndex] ? PLANETS[this.maxPlanetIndex].name : '-';
+                document.getElementById('stat-best-score').innerText = this.highScore;
+
+                document.getElementById('game-over-modal').style.display = 'flex';
+            },
+
+            checkGameOver() {
+                if (this.isGameOver) return;
+                for (let i = 0; i < this.fruitsInScene.length; i++) {
+                    const f = this.fruitsInScene[i];
+                    if (f.body.safeFrames > 0) { f.body.safeFrames--; continue; }
+                    
+                    if (f.body.position.y > LIMIT_LINE_Y) {
+                        const speed = f.body.velocity.length();
+                        if (speed < 0.15) { this.triggerGameOver(); break; }
+                    }
+                }
+            },
+
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            },
+
+            handleAutoDrop() {
+                if (!this.isAutoDrop || !this.canDrop || this.isGameOver) return;
+                
+                const now = performance.now();
+                if (now - this.lastAutoDropTime > 800) { 
+                    this.lastAutoDropTime = now;
+                    
+                    const r = PLANETS[this.nextPlanetLevel].radius;
+                    if (this.mode === 'BOX') {
+                        this.currentFruitPos.x = (Math.random() - 0.5) * (CONTAINER_W - 2*r);
+                        this.currentFruitPos.z = (Math.random() - 0.5) * (CONTAINER_D - 2*r);
+                    } else {
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = Math.sqrt(Math.random()) * (CONTAINER_R - r);
+                        this.currentFruitPos.x = Math.cos(angle) * dist;
+                        this.currentFruitPos.z = Math.sin(angle) * dist;
+                    }
+                    
+                    this.dropFruit();
+                    this.canDrop = false;
+                    this.scene.remove(this.dummyFruit);
+                    this.dummyFruit = null;
+                    this.updateAimHelpers();
+                    setTimeout(() => this.prepareNextFruit(), 600);
+                }
+            },
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                this.handleAutoDrop();
+
+                if (!this.isGameOver && this.world) {
+                    this.world.step(1 / 60);
+                    this.checkGameOver();
+                }
+                
+                if (this.controls) this.controls.update();
+
+                if (this.fruitsInScene) {
+                    for (let i = 0; i < this.fruitsInScene.length; i++) {
+                        const f = this.fruitsInScene[i];
+                        f.mesh.position.copy(f.body.position);
+                        f.mesh.quaternion.copy(f.body.quaternion);
+                        if (f.mesh.position.y < -30) this.removeFruit(f);
+                    }
+                }
+
+                if (this.renderer && this.scene && this.camera) {
+                    this.renderer.render(this.scene, this.camera);
+                }
+            }
+        };
+
+        App.init();
+
+    </script>
+</body>
+</html>
