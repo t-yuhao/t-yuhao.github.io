@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NewTab - Minimalist</title>
+    <style>
+        /* --- 基础重置 --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, "Microsoft YaHei", sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        ul, li { list-style: none; }
+        a { text-decoration: none; color: inherit; }
+
+        /* --- 搜索框区域 --- */
+        .search-wrapper {
+            margin-top: 22vh; 
+            width: 100%;
+            max-width: 840px; 
+            position: relative;
+            z-index: 100; 
+            padding: 0 20px;
+        }
+
+        /* 搜索输入框主体 */
+        .search-bg {
+            width: 100%;
+            height: 52px;
+            background: #fff;
+            border-radius: 26px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08); /* 稍微柔和一点的阴影 */
+            display: flex;
+            align-items: center;
+            position: relative;
+            transition: box-shadow 0.2s;
+            z-index: 100; 
+        }
+        .search-bg:hover, .search-bg:focus-within {
+            box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+        }
+
+        /* --- 按钮通用样式 --- */
+        .icon-btn {
+            position: absolute;
+            top: 6px; /* 垂直居中微调: (52-40)/2 = 6 */
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+            border: none;
+            background: transparent;
+        }
+        .icon-btn:hover { background-color: #f0f0f0; }
+        .icon-btn svg { width: 22px; height: 22px; }
+
+        /* 搜索引擎切换按钮 (左侧) */
+        .engine-select {
+            left: 8px; /* 与右侧按钮对称 */
+            z-index: 102; /* 高于输入框 */
+        }
+        
+        /* 搜索提交按钮 (右侧) */
+        .search-btn {
+            right: 8px;
+            z-index: 102;
+        }
+        .search-btn svg { fill: #666; }
+
+        /* 输入框 */
+        #search-input {
+            flex: 1;
+            height: 100%;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 16px;
+            /* 左右留出按钮的空间，保持对称 */
+            padding-left: 56px; 
+            padding-right: 56px;
+            color: #343434;
+        }
+
+        /* --- 下拉菜单与联想词 --- */
+        
+        /* 搜索引擎列表 (Dropdown) */
+        .engine-list {
+            position: absolute;
+            top: 60px; /* 位于搜索框下方 */
+            left: 8px; /* 对齐左侧按钮 */
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            padding: 8px 0;
+            display: none;
+            flex-direction: column;
+            width: 130px;
+            /* 关键：Z-index 最高，确保覆盖联想词 */
+            z-index: 300; 
+        }
+        .engine-list.show { display: flex; animation: popIn 0.2s ease; }
+        .engine-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            color: #444;
+            transition: background 0.1s;
+        }
+        .engine-item:hover { background-color: #f5f5f5; color: #000; }
+        .engine-item svg { margin-right: 12px; width: 18px; height: 18px; }
+
+        /* 联想词列表 */
+        .suggestions {
+            position: absolute;
+            top: 60px; /* 与引擎列表同高度开始 */
+            left: 26px; /* 稍微缩进，配合圆角视觉 */
+            right: 26px;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+            overflow: hidden;
+            display: none;
+            /* Z-index 低于引擎列表 */
+            z-index: 200; 
+        }
+        .suggestions li {
+            padding: 12px 24px;
+            font-size: 15px;
+            cursor: pointer;
+            color: #333;
+        }
+        .suggestions li:hover { background-color: #f5f5f5; }
+
+
+        /* --- 导航 Tab 区域 --- */
+        .tab-container {
+            margin-top: 50px;
+            width: 100%;
+            max-width: 1000px; /* 稍微加宽以容纳更多图标 */
+            text-align: center;
+            padding-bottom: 50px;
+        }
+        
+        .tab-ul {
+            display: inline-flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        .tab-li {
+            padding: 8px 24px;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            position: relative;
+            transition: all 0.2s;
+            border-radius: 20px;
+            margin: 0 4px;
+            font-weight: 500;
+        }
+        .tab-li:hover {
+            color: #000;
+            background-color: rgba(0,0,0,0.04);
+        }
+        .tab-li.current {
+            color: #000;
+            font-weight: bold;
+        }
+        .tab-li.current::after {
+            content: '';
+            position: absolute;
+            bottom: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 3px;
+            background: #333;
+            border-radius: 2px;
+        }
+
+        /* --- 网站图标列表 --- */
+        .sites-container {
+            width: 100%;
+            background: transparent; 
+            min-height: 200px;
+        }
+
+        .site-grid {
+            display: none;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            padding: 10px;
+            animation: fadeIn 0.3s ease;
+        }
+        .site-grid.active { display: flex; }
+
+        .site-outer {
+            width: 90px; /* 稍微调小一点宽度，以便排下更多 */
+            padding: 10px 0;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .site-outer:hover { background-color: rgba(255,255,255, 0.8); }
+
+        .site-link {
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .tile {
+            width: 64px;
+            height: 64px;
+            background-color: #fff;
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .site-outer:hover .tile { 
+            transform: translateY(-4px); 
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .icon-outer {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .site-icon {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .site-title {
+            color: #444;
+            font-size: 13px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            padding: 0 4px;
+        }
+
+        @keyframes popIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    </style>
+</head>
+<body>
+
+    <!-- 搜索区域 -->
+    <div class="search-wrapper">
+        <form id="search-form" action="https://www.baidu.com/s" method="GET" target="_blank" class="search-bg">
+            <!-- 引擎切换按钮 (左侧) -->
+            <div class="icon-btn engine-select" id="engine-btn" title="切换搜索引擎">
+                <!-- 默认图标占位 -->
+                <svg viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"/></svg>
+            </div>
+
+            <!-- 引擎列表 (Dropdown) -->
+            <div class="engine-list" id="engine-list">
+                <!-- JS 动态生成 -->
+            </div>
+
+            <!-- 输入框 -->
+            <input type="text" name="wd" id="search-input" autocomplete="off" placeholder="百度一下">
+            
+            <!-- 提交按钮 (右侧) -->
+            <button type="submit" class="icon-btn search-btn">
+                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            </button>
+        </form>
+
+        <!-- 联想建议 (Suggestion Box) -->
+        <ul class="suggestions" id="suggestions"></ul>
+    </div>
+
+    <!-- 导航 Tab -->
+    <div class="tab-container">
+        <div class="tab-ul" id="tab-header">
+            <!-- JS 生成 Tabs -->
+        </div>
+
+        <!-- 网站内容 -->
+        <div class="sites-container" id="tab-content">
+            <!-- JS 生成网站列表 -->
+        </div>
+    </div>
+
+<script>
+    // --- 1. 核心数据配置 ---
+    
+    // 网站数据 (严格按照要求配置)
+    const sitesData = {
+        '常用': [
+            { name: 'Bing', url: 'https://cn.bing.com/' },
+            { name: '百度', url: 'https://baidu.com/' },
+            { name: '知乎', url: 'https://zhihu.com/' },
+            { name: 'bilibili', url: 'https://bilibili.com/' },
+            { name: 'ChatGPT', url: 'https://chatgpt.com/' },
+            { name: 'Gemini', url: 'https://gemini.google.com/' },
+            { name: 'DeepSeek', url: 'https://chat.deepseek.com/' },
+            { name: 'Github', url: 'https://github.com/' },
+            { name: '腾讯视频', url: 'https://v.qq.com/' },
+            { name: '优酷', url: 'https://www.youku.com/' },
+            { name: 'Steam', url: 'https://store.steampowered.com/' },
+            { name: 'Epic', url: 'https://store.epicgames.com/' },
+            { name: 'Opencritic', url: 'https://opencritic.com/' },
+            { name: 'Metacritic', url: 'https://www.metacritic.com/' },
+            { name: '豆瓣电影', url: 'https://movie.douban.com/' }
+        ],
+        '学术': [
+            { name: 'Google Scholar', url: 'https://scholar.google.com/' },
+            { name: 'WOS', url: 'https://www.webofscience.com/' },
+            { name: 'ScienceDirect', url: 'https://www.sciencedirect.com/' },
+            { name: 'IEEE Xplore', url: 'https://ieeexplore.ieee.org/' },
+            { name: 'PubMed', url: 'https://pubmed.ncbi.nlm.nih.gov/' },
+            { name: 'Sci-Hub', url: 'https://sci-hub.se/' },
+            { name: 'BASE', url: 'https://www.base-search.net/' },
+            { name: 'DOAJ', url: 'https://doaj.org/' },
+            { name: 'arXiv', url: 'https://arxiv.org/' },
+            { name: 'OALib', url: 'https://www.oalib.com/' },
+            { name: 'ResearchGate', url: 'https://www.researchgate.net/' },
+            { name: '知网', url: 'https://www.cnki.net/' },
+            { name: 'PubScholar', url: 'https://pubscholar.cn/' },
+            { name: '万方', url: 'https://www.wanfangdata.com.cn/' },
+            { name: '维普', url: 'http://www.cqvip.com/' },
+            { name: '超星学术', url: 'https://fs.chaoxing.com/' },
+            { name: 'PapersWithCode', url: 'https://paperswithcode.com/' }
+        ],
+        'AI': [
+            { name: 'ChatGPT', url: 'https://chatgpt.com/' },
+            { name: 'Gemini', url: 'https://gemini.google.com/' },
+            { name: 'Claude', url: 'https://claude.ai/' },
+            { name: 'Grok', url: 'https://x.ai/' },
+            { name: 'Copilot', url: 'https://copilot.microsoft.com/' },
+            { name: 'DeepSeek', url: 'https://chat.deepseek.com/' },
+            { name: '豆包', url: 'https://www.doubao.com/' },
+            { name: '元宝', url: 'https://yuanbao.tencent.com/' },
+            { name: '通义千问', url: 'https://chat.qwen.ai/' },
+            { name: 'Kimi', url: 'https://kimi.moonshot.cn/' },
+            { name: '智谱清言', url: 'https://chatglm.cn/' },
+            { name: '文心一言', url: 'https://yiyan.baidu.com/' },
+            { name: 'HuggingFace', url: 'https://huggingface.co/' },
+            { name: '秘塔AI', url: 'https://metaso.cn/' },
+            { name: '硅基流动', url: 'https://cloud.siliconflow.cn/' }
+        ],
+        '娱乐': [
+            { name: '知乎', url: 'https://zhihu.com/' },
+            { name: 'bilibili', url: 'https://bilibili.com/' },
+            { name: '腾讯视频', url: 'https://v.qq.com/' },
+            { name: '优酷', url: 'https://www.youku.com/' },
+            { name: '爱奇艺', url: 'https://www.iqiyi.com/' },
+            { name: '抖音', url: 'https://www.douyin.com/' },
+            { name: 'YouTube', url: 'https://www.youtube.com/' },
+            { name: 'Netflix', url: 'https://www.netflix.com/' },
+            { name: '豆瓣电影', url: 'https://movie.douban.com/' },
+            { name: '小黑盒', url: 'https://www.xiaoheihe.cn/' },
+            { name: 'QQ音乐', url: 'https://y.qq.com/' },
+            { name: '网易云音乐', url: 'https://music.163.com/' }
+        ]
+    };
+
+    // 搜索引擎配置及重绘的 Logo SVG
+    // 修复：移除所有 class 定义，直接在 path 上使用 fill 属性，防止颜色样式冲突
+    const engines = {
+        baidu: { 
+            name: '百度',
+            url: 'https://www.baidu.com/s', 
+            key: 'wd', 
+            placeholder: '百度一下',
+            icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72"><path fill="#3245df" d="M18.71,37.47c5.87-1.26,5.08-8.28,4.9-9.81-.29-2.36-3.07-6.5-6.85-6.18-4.75.43-5.45,7.29-5.45,7.29C10.68,31.94,12.86,38.73,18.71,37.47ZM25,49.68a4.85,4.85,0,0,0-.22,2.86,3.23,3.23,0,0,0,2.79,2.58h3.08V47.59H27.32A3.63,3.63,0,0,0,25,49.68Zm4.66-24c3.24,0,5.87-3.72,5.87-8.35S32.86,9,29.62,9s-5.87,3.73-5.87,8.34S26.38,25.69,29.62,25.69Zm14,.56c4.34.56,7.13-4.07,7.67-7.56S49,11.13,46,10.42s-6.91,4.22-7.27,7.44C38.28,21.77,39.26,25.69,43.6,26.25ZM54.22,46.87S47.5,41.69,43.6,36.07c-5.32-8.27-12.86-4.9-15.38-.71s-6.43,6.87-7,7.57-8.1,4.77-6.43,12.19,7.55,7.29,7.55,7.29a32.34,32.34,0,0,0,9.36-.7,19.76,19.76,0,0,1,9.36.27s11.75,3.93,15-3.64-1.82-11.47-1.82-11.47ZM34.12,58.13H26.49a6.64,6.64,0,0,1-4.77-3.3,8.72,8.72,0,0,1-.62-5.27,6.71,6.71,0,0,1,5.5-4.94h4.07v-5l3.45.06V58.13Zm14.23,0H39.56C36.16,57.21,36,54.8,36,54.8V45.07l3.56,0v8.73c.22.94,1.37,1.1,1.37,1.1h3.62V45.07h3.8v13ZM60.78,32.14c0-1.67-1.39-6.73-6.58-6.73s-5.87,4.77-5.87,8.14.27,7.7,6.7,7.56,5.75-7.28,5.75-9Z"/></svg>'
+        },
+        bing: { 
+            name: '必应',
+            url: 'https://cn.bing.com/search', 
+            key: 'q', 
+            placeholder: '微软 Bing 搜索',
+            icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72"><path fill="#038374" d="M17.16,9,28,12.77V50.7L43,42,35.6,38.46,31,26.89l23.87,8.32,0,12.19L27.9,63,17.12,56.94S17.16,8.66,17.16,9Z"/></svg>'
+        },
+        google: { 
+            name: '谷歌',
+            url: 'https://www.google.com/search', 
+            key: 'q', 
+            placeholder: 'Google 搜索',
+            // 替换为新的 SVG，去除多余属性并确保格式一致
+            icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M23 12.245c0-.905-.075-1.565-.236-2.25h-10.54v4.083h6.186c-.124 1.014-.797 2.542-2.294 3.569l-.021.136 3.332 2.53.23.022C21.779 18.417 23 15.593 23 12.245z" fill="#4285F4"></path><path d="M12.225 23c3.03 0 5.574-.978 7.433-2.665l-3.542-2.688c-.948.648-2.22 1.1-3.891 1.1a6.745 6.745 0 01-6.386-4.572l-.132.011-3.465 2.628-.045.124C4.043 20.531 7.835 23 12.225 23z" fill="#34A853"></path><path d="M5.84 14.175A6.65 6.65 0 015.463 12c0-.758.138-1.491.361-2.175l-.006-.147-3.508-2.67-.115.054A10.831 10.831 0 001 12c0 1.772.436 3.447 1.197 4.938l3.642-2.763z" fill="#FBBC05"></path><path d="M12.225 5.253c2.108 0 3.529.892 4.34 1.638l3.167-3.031C17.787 2.088 15.255 1 12.225 1 7.834 1 4.043 3.469 2.197 7.062l3.63 2.763a6.77 6.77 0 016.398-4.572z" fill="#EB4335"></path></svg>'
+        },
+        sogou: { 
+            name: '搜狗',
+            url: 'https://www.sogou.com/web', 
+            key: 'query', 
+            placeholder: '搜狗搜索',
+            icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72"><path fill="#fd6e17" d="M56.6,52.61a22.09,22.09,0,0,1-4.18,4.13,2.38,2.38,0,0,0-.25,3.59h0a2.37,2.37,0,0,0,3.09.2,27.1,27.1,0,0,0,5.1-5.05,2.38,2.38,0,0,0-.22-3.13h0A2.37,2.37,0,0,0,56.6,52.61Z"/><path fill="#fd6e17" d="M49.8,27.34c.11-.15,2.13-3.19-4.73-4.85S21,21,21,29.59s16.46,8.94,18.89,11,.07,4.68-7,3.91S22.22,40.79,20.8,44,25.42,49.9,36.43,50s15.1-5.14,15.1-8.46-4.8-7-13.56-9.12-7.75-4-4.69-5.44,10.4.69,12.5,1.19C48.06,28.65,49,28.5,49.8,27.34Z"/><path fill="#fd6e17" d="M46.7,55.51a22.26,22.26,0,1,1,8.69-8.6,2.19,2.19,0,0,0,.53,2.77l.32.25a2.15,2.15,0,0,0,3.22-.6A26.92,26.92,0,1,0,49.09,59.62a2.16,2.16,0,0,0,.67-3.17l-.25-.32A2.17,2.17,0,0,0,46.7,55.51Z"/></svg>'
+        }
+    };
+
+    // --- 2. 页面渲染逻辑 ---
+
+    // 渲染网站列表
+    function renderSites() {
+        const header = document.getElementById('tab-header');
+        const content = document.getElementById('tab-content');
+        const categories = Object.keys(sitesData);
+
+        // 生成 Tab 标题
+        categories.forEach((cat, index) => {
+            const li = document.createElement('li');
+            li.className = `tab-li ${index === 0 ? 'current' : ''}`;
+            li.textContent = cat;
+            li.onclick = () => switchTab(index, li);
+            header.appendChild(li);
+        });
+
+        // 生成 Tab 内容
+        categories.forEach((cat, index) => {
+            const div = document.createElement('div');
+            div.className = `site-grid ${index === 0 ? 'active' : ''}`;
+            div.id = `grid-${index}`;
+            
+            sitesData[cat].forEach(site => {
+                const iconUrl = `https://www.google.com/s2/favicons?domain=${site.url}&sz=128`;
+                
+                div.innerHTML += `
+                    <div class="site-outer" onclick="window.open('${site.url}', '_blank')">
+                        <a href="${site.url}" class="site-link" target="_blank">
+                            <div class="tile">
+                                <div class="icon-outer">
+                                    <img src="${iconUrl}" class="site-icon" alt="${site.name}" onerror="this.style.opacity='0.5'">
+                                </div>
+                            </div>
+                            <div class="site-title">${site.name}</div>
+                        </a>
+                    </div>
+                `;
+            });
+            content.appendChild(div);
+        });
+    }
+
+    // 切换 Tab
+    function switchTab(index, element) {
+        document.querySelectorAll('.tab-li').forEach(el => el.classList.remove('current'));
+        element.classList.add('current');
+        document.querySelectorAll('.site-grid').forEach(el => el.classList.remove('active'));
+        document.getElementById(`grid-${index}`).classList.add('active');
+    }
+
+    // --- 3. 搜索与联想逻辑 ---
+
+    const searchInput = document.getElementById('search-input');
+    const suggestionBox = document.getElementById('suggestions');
+    const searchForm = document.getElementById('search-form');
+    let timer = null;
+
+    // 渲染引擎列表
+    const engineBtn = document.getElementById('engine-btn');
+    const engineList = document.getElementById('engine-list');
+
+    function initEngines() {
+        Object.keys(engines).forEach(key => {
+            const eng = engines[key];
+            const div = document.createElement('div');
+            div.className = 'engine-item';
+            div.innerHTML = `${eng.icon} ${eng.name}`;
+            div.onclick = () => setEngine(key);
+            engineList.appendChild(div);
+        });
+    }
+
+    engineBtn.onclick = (e) => {
+        e.stopPropagation();
+        engineList.classList.toggle('show');
+    };
+
+    window.setEngine = function(name) {
+        const config = engines[name];
+        searchForm.action = config.url;
+        searchInput.name = config.key;
+        searchInput.placeholder = config.placeholder;
+        // 动态更新左侧图标
+        engineBtn.innerHTML = config.icon;
+        
+        engineList.classList.remove('show');
+    };
+
+    // 联想词 JSONP
+    searchInput.onkeyup = function(e) {
+        if (e.key === 'Enter' || e.key === 'ArrowUp' || e.key === 'ArrowDown') return;
+        
+        const val = this.value.trim();
+        if (val === '') {
+            suggestionBox.style.display = 'none';
+            return;
+        }
+
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+            const script = document.createElement('script');
+            script.src = `https://www.baidu.com/su?wd=${encodeURIComponent(val)}&cb=handleBaiduSug`;
+            document.body.appendChild(script);
+            script.onload = () => document.body.removeChild(script);
+        }, 150);
+    };
+
+    window.handleBaiduSug = function(res) {
+        const list = res.s;
+        if (list && list.length > 0) {
+            suggestionBox.innerHTML = list.slice(0, 6).map(s => `<li>${s}</li>`).join('');
+            suggestionBox.style.display = 'block';
+            
+            document.querySelectorAll('.suggestions li').forEach(li => {
+                li.onclick = () => {
+                    searchInput.value = li.textContent;
+                    suggestionBox.style.display = 'none';
+                    searchForm.submit();
+                };
+            });
+        } else {
+            suggestionBox.style.display = 'none';
+        }
+    };
+
+    document.addEventListener('click', (e) => {
+        if (!engineBtn.contains(e.target)) engineList.classList.remove('show');
+        if (!searchForm.contains(e.target)) suggestionBox.style.display = 'none';
+    });
+
+    // 初始化
+    initEngines();
+    renderSites();
+    setEngine('baidu'); 
+
+</script>
+</body>
+</html>

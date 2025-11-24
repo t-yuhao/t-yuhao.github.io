@@ -1,7 +1,9 @@
 ## 浏览器页面
 >[AI](./search/index.html)
 
->[Firefox](./search/search.html)
+>[Firefox](./firefox1.html)
+
+>[Search](./search/search.html)
 
 >[Firefox](./firefox.html)
 
