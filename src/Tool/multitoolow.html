@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多功能处理工具 | Overwatch Style</title>
+    <!-- 引入 SheetJS 用于 Excel 导出及解析 -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            /* 核心颜色 */
+            --ow-orange: #f99e1a;
+            --ow-orange-hover: #ffb042;
+            --ow-blue: #00c3ff;
+            
+            /* 默认暗色主题变量 (作为基础，通过类名覆盖) */
+            --bg-color: #1a1c23;
+            --header-bg: linear-gradient(90deg, #292f36 0%, #1a1c23 100%);
+            --text-main: #f0edf2;
+            --text-muted: #9ea3b0;
+            --card-bg: rgba(41, 47, 54, 0.85);
+            --input-bg: rgba(0, 0, 0, 0.3);
+            --border-color: rgba(255, 255, 255, 0.15);
+            --th-bg: rgba(0, 0, 0, 0.4);
+            --nav-inactive: rgba(255, 255, 255, 0.05);
+            --nav-hover: rgba(255, 255, 255, 0.1);
+            --result-box-bg: rgba(0,0,0,0.2);
+            --shadow: rgba(0,0,0,0.5);
+        }
+
+        /* 亮色主题覆盖 (现在设为默认) */
+        body.light-theme {
+            --bg-color: #f0f2f5;
+            --header-bg: linear-gradient(90deg, #ffffff 0%, #e0e0e0 100%);
+            --text-main: #2c3e50;
+            --text-muted: #57606f;
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --input-bg: rgba(255, 255, 255, 1);
+            --border-color: rgba(0, 0, 0, 0.1);
+            --th-bg: rgba(0, 0, 0, 0.05);
+            --nav-inactive: rgba(0, 0, 0, 0.05);
+            --nav-hover: rgba(0, 0, 0, 0.1);
+            --result-box-bg: rgba(0, 0, 0, 0.03);
+            --shadow: rgba(0,0,0,0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* --- 通用 UI 组件 --- */
+        .ow-header {
+            background: var(--header-bg);
+            border-bottom: 4px solid var(--ow-orange);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 15px var(--shadow);
+            transition: background 0.3s;
+        }
+
+        .ow-title {
+            font-style: italic;
+            font-weight: 900;
+            font-size: 1.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-main); /* 适配主题 */
+            text-shadow: 2px 2px 0px var(--ow-orange);
+        }
+
+        /* 亮色模式下标题去掉阴影或改色，防止看不清 */
+        body.light-theme .ow-title {
+            color: #2c3e50;
+            text-shadow: 2px 2px 0px rgba(249, 158, 26, 0.4);
+        }
+
+        .container {
+            flex: 1;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* 导航栏 */
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            overflow-x: auto; /* 移动端防溢出 */
+        }
+
+        .nav-btn {
+            background: var(--nav-inactive);
+            border: none;
+            color: var(--text-muted);
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            font-style: italic;
+            text-transform: uppercase;
+            cursor: pointer;
+            transform: skewX(-20deg);
+            transition: all 0.2s ease;
+            border-left: 4px solid transparent;
+            white-space: nowrap;
+        }
+
+        .nav-btn span {
+            display: block;
+            transform: skewX(20deg); /* 反向倾斜文字 */
+        }
+
+        .nav-btn:hover {
+            background: var(--nav-hover);
+            color: var(--text-main);
+        }
+
+        .nav-btn.active {
+            background: var(--text-main); /* 亮色模式下变黑，暗色模式下变白 */
+            color: var(--bg-color); /* 反色 */
+            border-left: 6px solid var(--ow-orange);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+        }
+        
+        body.light-theme .nav-btn.active {
+            background: #fff;
+            color: #2c3e50;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        /* 内容区域 */
+        .tab-content {
+            display: none;
+            flex: 1;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px var(--shadow);
+            position: relative;
+            transition: background 0.3s;
+        }
+
+        /* 装饰性角落 */
+        .card::before {
+            content: '';
+            position: absolute;
+            top: -1px; left: -1px;
+            width: 20px; height: 20px;
+            border-top: 3px solid var(--ow-orange);
+            border-left: 3px solid var(--ow-orange);
+        }
+        .card::after {
+            content: '';
+            position: absolute;
+            bottom: -1px; right: -1px;
+            width: 20px; height: 20px;
+            border-bottom: 3px solid var(--ow-orange);
+            border-right: 3px solid var(--ow-orange);
+        }
+
+        /* 按钮风格 */
+        .btn {
+            background-color: var(--ow-orange);
+            color: #1a1c23; /* 按钮文字保持深色以保证对比度 */
+            border: none;
+            padding: 8px 24px;
+            font-weight: 700;
+            font-style: italic;
+            text-transform: uppercase;
+            cursor: pointer;
+            transform: skewX(-15deg);
+            transition: all 0.1s;
+            display: inline-block;
+            margin-right: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .btn span {
+            display: block;
+            transform: skewX(15deg);
+        }
+
+        .btn:hover {
+            background-color: var(--ow-orange-hover);
+            transform: skewX(-15deg) scale(1.05);
+            box-shadow: 0 0 10px var(--ow-orange);
+        }
+
+        .btn-secondary {
+            background-color: var(--ow-blue);
+            color: #fff;
+        }
+        .btn-secondary:hover {
+            background-color: #33d4ff;
+            box-shadow: 0 0 10px var(--ow-blue);
+        }
+        
+        .btn-theme {
+            padding: 8px 15px;
+            margin-right: 0;
+            background: rgba(255,255,255,0.1);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+        .btn-theme:hover {
+            background: rgba(255,255,255,0.2);
+            color: var(--ow-orange);
+            box-shadow: none;
+        }
+        body.light-theme .btn-theme {
+             background: rgba(0,0,0,0.05);
+        }
+
+        /* 输入框 */
+        textarea, input[type="text"], input[type="number"] {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 10px;
+            font-family: monospace;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s, background 0.3s, color 0.3s;
+            font-size: 1.1rem; /* 增大字体 */
+            /* 移除默认的 overflow: hidden，以便 JS 控制 */
+        }
+
+        textarea:focus, input:focus {
+            border-color: var(--ow-blue);
+        }
+
+        /* 特定输入框样式 */
+        #addrInput {
+            min-height: 150px; /* 初始高度 */
+            overflow-y: hidden; /* 默认隐藏垂直滚动条 */
+        }
+
+        #convertInput {
+            min-height: 100px; /* 初始较小高度 */
+            overflow-y: hidden;
+        }
+
+        /* 表格样式 */
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            min-width: 800px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            min-width: 100px;
+        }
+
+        th {
+            background: var(--th-bg);
+            color: var(--ow-orange);
+            text-transform: uppercase;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        /* 序号列宽度 */
+        th:first-child, td:first-child {
+            width: 60px;
+            min-width: 60px;
+            text-align: center;
+            color: var(--text-muted);
+            font-family: monospace;
+            user-select: none;
+        }
+
+        td[contenteditable="true"]:hover {
+            background: rgba(128, 128, 128, 0.1);
+            cursor: text;
+        }
+
+        td[contenteditable="true"]:focus {
+            background: rgba(0, 195, 255, 0.1);
+            outline: 1px solid var(--ow-blue);
+        }
+
+        /* --- 工具 2 & 3 的特定布局 --- */
+        .tool-layout {
+            display: flex;
+            gap: 20px;
+            height: 100%;
+        }
+        
+        .main-panel {
+            flex: 3;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .side-panel {
+            flex: 1;
+            background: var(--result-box-bg);
+            padding: 15px;
+            border-left: 2px solid var(--border-color);
+        }
+
+        .stat-item {
+            margin-bottom: 15px;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            color: var(--ow-blue);
+            font-size: 1.5rem;
+            font-weight: bold;
+            font-family: 'Impact', sans-serif;
+        }
+
+        .stat-list {
+            list-style: none;
+            font-size: 0.9rem;
+        }
+        .stat-list li {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            padding: 4px 0;
+        }
+
+        /* 比较工具布局 */
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .result-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+        }
+
+        .result-box {
+            background: var(--result-box-bg);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .result-header {
+            background: var(--nav-inactive);
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .result-title {
+            color: var(--ow-orange);
+            font-weight: bold;
+        }
+
+        .copy-btn {
+            font-size: 0.8rem;
+            padding: 2px 8px;
+            transform: none;
+            background: transparent;
+            border: 1px solid var(--text-muted);
+            color: var(--text-muted);
+        }
+        .copy-btn span { transform: none; }
+        .copy-btn:hover {
+            background: var(--ow-blue);
+            color: white;
+            border-color: var(--ow-blue);
+            transform: none;
+            box-shadow: none;
+        }
+
+        .result-content {
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 1.1rem; /* 增大结果框字号 */
+            white-space: pre-wrap;
+            color: var(--text-main);
+        }
+
+        .settings-group {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            color: var(--text-main);
+        }
+
+        /* --- 新增：拖拽上传区域样式 --- */
+        .drop-zone {
+            border: 2px dashed var(--border-color);
+            background: rgba(0,0,0,0.03);
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: var(--ow-blue);
+            background: rgba(0, 195, 255, 0.05);
+            transform: scale(1.01);
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            opacity: 0.7;
+        }
+        
+        /* 修复工具栏按钮遮挡问题 */
+        .toolbar-fix {
+            margin-bottom: 15px; 
+            display: flex; 
+            gap: 10px; 
+            flex-wrap: wrap; 
+            align-items: center;
+            padding-left: 10px; /* 增加左侧内边距防止倾斜按钮被切 */
+        }
+
+        /* 统计弹窗样式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none; /* 默认隐藏 */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            width: 600px;
+            max-width: 90%;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--border-color);
+            padding-top: 15px;
+        }
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .stats-table th, .stats-table td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            text-align: left;
+            color: var(--text-main);
+        }
+        .stats-table th { color: var(--ow-orange); font-weight: bold; }
+
+        /* 移动端适配微调 */
+        @media (max-width: 768px) {
+            .tool-layout { flex-direction: column; }
+            .compare-grid, .result-grid { grid-template-columns: 1fr; }
+            .nav-tabs { overflow-x: auto; }
+        }
+    </style>
+</head>
+<body class="light-theme">
+
+    <header class="ow-header">
+        <div class="ow-title">多功能处理工具</div>
+        <button class="btn btn-theme" onclick="toggleTheme()" id="themeBtn" title="切换亮/暗模式">
+            <span>🌓 切换主题</span>
+        </button>
+    </header>
+
+    <div class="container">
+        <!-- 导航 (重新排序) -->
+        <div class="nav-tabs">
+            <button class="nav-btn active" onclick="switchTab('tab1', this)"><span>📍 地址处理</span></button>
+            <button class="nav-btn" onclick="switchTab('tab2', this)"><span>📊 表格解析</span></button>
+            <button class="nav-btn" onclick="switchTab('tab3', this)"><span>⚖️ 单号比较</span></button>
+            <button class="nav-btn" onclick="switchTab('tab4', this)"><span>🔀 单号转换</span></button>
+        </div>
+
+        <!-- Tab 1: 地址处理 -->
+        <div id="tab1" class="tab-content active">
+            <div class="card">
+                <!-- 增加了 padding-left: 10px 防止按钮被遮挡 -->
+                <div class="toolbar-fix">
+                    <button class="btn btn-secondary" onclick="processAddress()"><span>⚡ 开始智能解析</span></button>
+                    <button class="btn btn-secondary" onclick="showProductStats()"><span>📊 商品统计</span></button>
+                    <button class="btn" onclick="copyAddressContent()"><span>📋 复制内容</span></button>
+                    <button class="btn" onclick="exportData('csv')"><span>📄 导出 CSV</span></button>
+                    <button class="btn" onclick="exportData('xlsx')"><span>📊 导出 Excel</span></button>
+                    <button class="btn" style="background: #e74c3c;" onclick="clearAddress()"><span>🗑️ 清空</span></button>
+                    <span style="margin-left: auto; color: var(--text-muted); font-style: italic;">
+                        共处理 <strong style="color: var(--ow-blue);" id="addrCount">0</strong> 条数据
+                    </span>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
+                    <div>
+                        <label style="color: var(--ow-orange); font-weight: bold;">原始数据输入：</label>
+                        <textarea id="addrInput" placeholder="支持多种格式：
+1. 标准三行
+2. 挤在一行 (邓华坤...19593...)
+3. 分开格式
+支持中文句号或双空格分隔商品"></textarea>
+                    </div>
+                    <div>
+                        <label style="color: var(--ow-orange); font-weight: bold;">解析结果 (可直接编辑)：</label>
+                        <div class="table-container">
+                            <table id="addrTable">
+                                <thead>
+                                    <tr>
+                                        <th>序号</th>
+                                        <th>收件人(必填)</th>
+                                        <th>手机号(必填)</th>
+                                        <th>收货地址(必填)</th>
+                                        <th>商品信息(非必填)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- 数据行将在这里生成 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: 表格解析 -->
+        <div id="tab2" class="tab-content">
+            <div class="card">
+                <!-- 上传区域 -->
+                <div id="dropZone" class="drop-zone" onclick="document.getElementById('fileInput').click()">
+                    <!-- 添加 multiple 属性支持多文件 -->
+                    <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" hidden multiple onchange="handleFileSelect(event)">
+                    <div class="upload-icon">📂</div>
+                    <p style="font-size: 1.2rem; font-weight: bold; color: var(--text-main);">点击或拖拽 Excel/CSV 文件至此</p>
+                    <p style="font-size: 0.9em; color: var(--text-muted);">支持多文件上传，自动合并数据</p>
+                </div>
+
+                <!-- 控制栏 (初始隐藏) -->
+                <div id="excelControls" style="display: none; margin-bottom: 15px; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <button class="btn" onclick="copyExcelContent()"><span>📋 复制表格内容</span></button>
+                    <button class="btn btn-secondary" onclick="copyReturnLogistics()"><span>📦 仅复制退货物流单号</span></button>
+                    <button class="btn" style="background: #e74c3c;" onclick="clearExcelData()"><span>🗑️ 清空</span></button>
+                    <span style="margin-left: auto; color: var(--text-muted);">
+                        共解析 <strong style="color: var(--ow-blue);" id="excelRowCount">0</strong> 行数据
+                    </span>
+                </div>
+
+                <!-- 表格展示区 -->
+                <div class="table-container" id="excelTableContainer" style="min-height: 200px;">
+                    <div id="excelPlaceholder" style="padding: 40px; text-align: center; color: var(--text-muted); font-style: italic;">
+                        暂无数据，请上传文件
+                    </div>
+                    <table id="excelTable" style="display: none;">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: 单号比较 -->
+        <div id="tab3" class="tab-content">
+            <div class="card">
+                <div class="compare-grid">
+                    <div>
+                        <label style="color: var(--ow-orange);">列表 A (基准)</label>
+                        <textarea id="compInputA" style="height: 150px;" placeholder="粘贴单号组 A"></textarea>
+                    </div>
+                    <div>
+                        <label style="color: var(--ow-blue);">列表 B (对比)</label>
+                        <textarea id="compInputB" style="height: 150px;" placeholder="粘贴单号组 B"></textarea>
+                    </div>
+                </div>
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <button class="btn" onclick="compareLists()" style="padding: 10px 50px; font-size: 1.2em;"><span>⚖️ 开始比较</span></button>
+                    <p style="margin-top: 5px; font-size: 0.9em; color: var(--text-muted);">*将自动应用“单号转换”中的最小长度过滤设置</p>
+                </div>
+
+                <div class="result-grid">
+                    <!-- 共有 -->
+                    <div class="result-box">
+                        <div class="result-header">
+                            <span class="result-title">共有单号 <span id="countCommon">(0)</span></span>
+                            <button class="btn copy-btn" onclick="copyText('resCommon')"><span>📋 复制</span></button>
+                        </div>
+                        <div id="resCommon" class="result-content"></div>
+                    </div>
+                    <!-- A 独有 -->
+                    <div class="result-box">
+                        <div class="result-header">
+                            <span class="result-title" style="color: var(--text-main);">A 独有 <span id="countAOnly">(0)</span></span>
+                            <button class="btn copy-btn" onclick="copyText('resAOnly')"><span>📋 复制</span></button>
+                        </div>
+                        <div id="resAOnly" class="result-content"></div>
+                    </div>
+                    <!-- B 独有 -->
+                    <div class="result-box">
+                        <div class="result-header">
+                            <span class="result-title" style="color: var(--text-main);">B 独有 <span id="countBOnly">(0)</span></span>
+                            <button class="btn copy-btn" onclick="copyText('resBOnly')"><span>📋 复制</span></button>
+                        </div>
+                        <div id="resBOnly" class="result-content"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: 单号转换 -->
+        <div id="tab4" class="tab-content">
+            <div class="card tool-layout">
+                <div class="main-panel">
+                    <!-- 高度控制在 CSS 和 JS 中 -->
+                    <textarea id="convertInput" placeholder="在此输入单号列表..."></textarea>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn" onclick="convertFormat('comma')"><span>🌭 转为逗号分隔</span></button>
+                        <button class="btn" onclick="convertFormat('newline')"><span>⬇️ 转为单行排列</span></button>
+                        <button class="btn btn-secondary" onclick="copyConvertResult()"><span>📋 复制结果</span></button>
+                    </div>
+                </div>
+                <div class="side-panel">
+                    <h4 style="color: var(--ow-orange); margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">实时数据分析</h4>
+                    
+                    <div class="stat-item">
+                        <div class="stat-label">总行数 / 有效单号</div>
+                        <div class="stat-value"><span id="totalLines">0</span> / <span id="validCount">0</span></div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">重复单号数</div>
+                        <div class="stat-value" style="color: #e74c3c;" id="dupCount">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">前缀分布 (Top 5)</div>
+                        <ul class="stat-list" id="prefixList">
+                            <!-- JS 填充 -->
+                        </ul>
+                    </div>
+
+                    <div class="settings-group">
+                        <label><input type="checkbox" id="autoRemoveDup" checked> 自动移除重复项</label>
+                        <label>最小长度过滤: <input type="number" id="minLength" value="10" style="width: 60px; padding: 2px;"> <small style="color:var(--text-muted)">(全局生效)</small></label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 商品统计弹窗 -->
+    <div id="statsModal" class="modal-overlay">
+        <div class="modal-content card">
+            <div class="modal-header">
+                <h3 class="ow-title" style="font-size: 1.5rem;">商品统计汇总</h3>
+                <button class="btn btn-theme" onclick="closeStats()" style="padding: 5px 12px;">✖</button>
+            </div>
+            <div class="modal-body">
+                <table class="stats-table">
+                    <thead><tr><th>商品信息 (款号/颜色/尺码)</th><th>数量</th></tr></thead>
+                    <tbody id="statsBody"></tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                 <div style="font-size: 1.1rem; font-weight: bold; color: var(--text-main);">总计: <span id="totalProductCount" style="color: var(--ow-blue)">0</span> 件</div>
+                 <button class="btn" onclick="copyStats()">📋 复制统计结果</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 主题切换 ---
+        function toggleTheme() {
+            document.body.classList.toggle('light-theme');
+            const btn = document.getElementById('themeBtn');
+            const isLight = document.body.classList.contains('light-theme');
+            localStorage.setItem('ow-theme', isLight ? 'light' : 'dark');
+        }
+
+        // 初始化主题
+        const savedTheme = localStorage.getItem('ow-theme');
+        if (savedTheme === 'dark') {
+            document.body.classList.remove('light-theme');
+        } else {
+            document.body.classList.add('light-theme');
+        }
+
+        // --- 标签页切换逻辑 ---
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+            
+            if(tabId === 'tab1') resizeAddrInput();
+            if(tabId === 'tab4') resizeConvertInput(); // 注意 ID 变了
+        }
+
+        // --- 自动高度调整函数 ---
+
+        function resizeAddrInput() {
+            const el = document.getElementById('addrInput');
+            if (!el || el.offsetParent === null) return; 
+
+            el.style.height = 'auto';
+            const rect = el.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            const paddingBottom = 20; 
+            const availableHeight = viewportHeight - rect.top - paddingBottom;
+            
+            if (el.scrollHeight > availableHeight) {
+                el.style.height = Math.max(availableHeight, 150) + 'px';
+                el.style.overflowY = 'auto';
+            } else {
+                el.style.height = Math.max(el.scrollHeight, 150) + 'px'; 
+                el.style.overflowY = 'hidden';
+            }
+        }
+
+        function resizeConvertInput() {
+            const el = document.getElementById('convertInput');
+            if (!el || el.offsetParent === null) return;
+
+            el.style.height = 'auto';
+            const rect = el.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            const paddingBottom = 20; 
+            const availableHeight = viewportHeight - rect.top - paddingBottom;
+            
+            if (el.scrollHeight > availableHeight) {
+                el.style.height = Math.max(availableHeight, 100) + 'px';
+                el.style.overflowY = 'auto';
+            } else {
+                el.style.height = Math.max(el.scrollHeight, 100) + 'px';
+                el.style.overflowY = 'hidden';
+            }
+        }
+
+        // --- 绑定事件监听 ---
+        const addrInput = document.getElementById('addrInput');
+        addrInput.addEventListener('input', resizeAddrInput);
+
+        const convertInputEl = document.getElementById('convertInput');
+        convertInputEl.addEventListener('input', resizeConvertInput);
+
+        window.addEventListener('resize', () => {
+            if (document.getElementById('tab1').classList.contains('active')) {
+                resizeAddrInput();
+            } else if (document.getElementById('tab4').classList.contains('active')) {
+                resizeConvertInput();
+            }
+        });
+
+
+        // =======================
+        // 工具一：地址处理逻辑
+        // =======================
+        function processAddress() {
+            const rawText = document.getElementById('addrInput').value;
+            const lines = rawText.split('\n').filter(line => line.trim() !== '');
+            const tbody = document.querySelector('#addrTable tbody');
+            tbody.innerHTML = ''; 
+
+            let recordCount = 0;
+
+            const addRecordToTable = (rec) => {
+                if (!rec) return;
+                recordCount++;
+                const tr = document.createElement('tr');
+                const tdIndex = document.createElement('td');
+                tdIndex.textContent = recordCount;
+                tr.appendChild(tdIndex);
+
+                const columns = [
+                    rec.name || '',
+                    rec.phone || '',
+                    rec.addr || '',
+                    rec.product || ''
+                ];
+
+                columns.forEach(text => {
+                    const td = document.createElement('td');
+                    td.contentEditable = "true";
+                    td.textContent = text;
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            };
+
+            const phoneRegex = /(1[3-9]\d{9})|(\d{3,4}-?\d{7,8})/;
+            let records = [];
+            let tempName = "";
+            
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim();
+                let phoneMatch = line.match(phoneRegex);
+
+                if (phoneMatch) {
+                    let phone = phoneMatch[0];
+                    let prePhone = line.substring(0, line.indexOf(phone)).trim();
+                    let postPhone = line.substring(line.indexOf(phone) + phone.length).trim();
+
+                    let name = "";
+                    if (prePhone) {
+                        name = prePhone;
+                    } else if (tempName) {
+                        name = tempName;
+                        tempName = "";
+                    }
+
+                    // 保留姓名中的虚拟号 [xxxx] 和 @...#，仅移除末尾纯数字
+                    name = name.replace(/\d+$/, '').trim(); 
+
+                    let addrFull = postPhone;
+                    if (!addrFull && i + 1 < lines.length && !lines[i+1].match(phoneRegex)) {
+                        addrFull = lines[i+1].trim();
+                        i++;
+                    }
+
+                    let address = addrFull;
+                    let product = "";
+                    
+                    address = address.trim();
+
+                    // 新增：检测地址中的 @...# 格式虚拟号（如 @DX-MLP...#），并添加到姓名中
+                    // 注意：该信息仍会保留在地址中
+                    const virtualMatches = address.match(/@[\w-]+#/g);
+                    if (virtualMatches) {
+                        virtualMatches.forEach(code => {
+                            // 避免重复添加
+                            if (!name.includes(code)) {
+                                name += code;
+                            }
+                        });
+                    }
+
+                    const periodSplit = address.split('。');
+                    const spaceSplit = address.split(/\s{2,}/); 
+
+                    if (periodSplit.length > 1) {
+                        address = periodSplit[0];
+                        product = periodSplit.slice(1).join('。');
+                    } else if (spaceSplit.length > 1) {
+                        address = spaceSplit[0];
+                        let remaining = spaceSplit.slice(1);
+                        
+                        let productStarted = false;
+                        let finalProductParts = [];
+                        
+                        for (let part of remaining) {
+                            // 检测是否为虚拟号格式：[xxx] 或 @xxx#
+                            // ^@.*?#$ 涵盖了 @DX-MLP...# 和 @DX...#
+                            if (!productStarted && /^(\[.*?\]|@.*?#)$/.test(part)) {
+                                address += " " + part;
+                            } else {
+                                productStarted = true;
+                                finalProductParts.push(part);
+                            }
+                        }
+                        product = finalProductParts.join(' ');
+                    }
+
+                    records.push({ name, phone, addr: address, product });
+                } else {
+                    tempName = line;
+                }
+            }
+
+            records.forEach(addRecordToTable);
+            document.getElementById('addrCount').innerText = recordCount;
+        }
+
+        function clearAddress() {
+            document.getElementById('addrInput').value = '';
+            document.querySelector('#addrTable tbody').innerHTML = '';
+            document.getElementById('addrCount').innerText = '0';
+            resizeAddrInput(); 
+        }
+
+        function getFileName() {
+            const now = new Date();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            const hour = now.getHours().toString().padStart(2, '0');
+            return `地址信息${month}${day}${hour}`;
+        }
+
+        function copyAddressContent() {
+            const rows = document.querySelectorAll('#addrTable tbody tr');
+            if (rows.length === 0) {
+                alert("没有内容可复制");
+                return;
+            }
+
+            let textContent = "";
+            rows.forEach(tr => {
+                const cells = tr.querySelectorAll('td');
+                const rowData = [
+                    cells[1].innerText, 
+                    cells[2].innerText, 
+                    cells[3].innerText, 
+                    cells[4].innerText
+                ];
+                textContent += rowData.join('\t') + '\n';
+            });
+
+            copyToClipboard(textContent);
+        }
+
+        // --- 商品统计相关逻辑 ---
+        function showProductStats() {
+            const rows = document.querySelectorAll('#addrTable tbody tr');
+            const counts = {};
+            let total = 0;
+
+            rows.forEach(tr => {
+                // 第5列是商品信息 (index 4)
+                const productText = tr.children[4].innerText.trim();
+                if (!productText) return;
+
+                // 拆分逻辑：按 句号、逗号、换行 拆分
+                const items = productText.split(/[。，,\n]+/).map(s => s.trim()).filter(s => s);
+
+                items.forEach(item => {
+                    counts[item] = (counts[item] || 0) + 1;
+                    total++;
+                });
+            });
+
+            // 排序逻辑：型号/颜色 -> 尺码(从小到大)
+            const sortedItems = Object.entries(counts).sort((a, b) => {
+                const parseKey = (key) => {
+                    // 尝试分离文本和末尾的数字尺码
+                    // 例如 "2355白深蓝43" -> base: "2355白深蓝", size: 43
+                    const match = key.match(/^(.*?)(\d+)$/);
+                    if (match) {
+                        return { base: match[1], size: parseInt(match[2], 10) };
+                    }
+                    // 如果没有数字后缀，视为纯文本，尺码设为-1
+                    return { base: key, size: -1 }; 
+                };
+
+                const pA = parseKey(a[0]);
+                const pB = parseKey(b[0]);
+
+                // 1. 先按前面的型号/颜色排序 (使用 localeCompare 支持中文自然排序)
+                const baseDiff = pA.base.localeCompare(pB.base, 'zh-CN', { numeric: true });
+                if (baseDiff !== 0) return baseDiff;
+
+                // 2. 如果型号颜色相同，按尺码从小到大排序
+                return pA.size - pB.size;
+            });
+
+            const tbody = document.getElementById('statsBody');
+            tbody.innerHTML = '';
+
+            sortedItems.forEach(([name, count]) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${name}</td><td style="font-family:Impact; color:var(--ow-blue); font-size:1.1em;">${count}</td>`;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('totalProductCount').innerText = total;
+            document.getElementById('statsModal').style.display = 'flex';
+        }
+
+        function closeStats() {
+            document.getElementById('statsModal').style.display = 'none';
+        }
+
+        function copyStats() {
+            const rows = document.querySelectorAll('#statsBody tr');
+            if (rows.length === 0) {
+                alert("无统计数据");
+                return;
+            }
+            let text = "商品信息\t数量\n";
+            rows.forEach(tr => {
+                text += `${tr.children[0].innerText}\t${tr.children[1].innerText}\n`;
+            });
+            text += `总计\t${document.getElementById('totalProductCount').innerText}`;
+            
+            copyToClipboard(text);
+        }
+
+        function exportData(type) {
+            const table = document.getElementById('addrTable');
+            const rows = table.querySelectorAll('tbody tr');
+            
+            if (rows.length === 0) {
+                alert("没有数据可导出！");
+                return;
+            }
+
+            const header = [
+                '收件人(必填)', 
+                '手机号(必填)', 
+                '收货地址(必填)', 
+                '平台订单号（非必填）', 
+                '商品信息(非必填)', 
+                '规格信息(非必填)', 
+                '商品数量(非必填)', 
+                '重量kg(非必填)', 
+                '备注(非必填)'
+            ];
+            
+            const data = [header];
+            
+            rows.forEach(tr => {
+                const cells = tr.querySelectorAll('td');
+                const rowData = [
+                    cells[1].innerText, 
+                    cells[2].innerText, 
+                    cells[3].innerText, 
+                    '',                 
+                    cells[4].innerText, 
+                    '', '', '', ''      
+                ];
+                data.push(rowData);
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+            
+            const fileName = getFileName() + (type === 'csv' ? '.csv' : '.xlsx');
+            XLSX.writeFile(wb, fileName);
+        }
+
+        // =======================
+        // 工具四：表格解析 (移动到 Tab 2)
+        // =======================
+        
+        // 拖拽相关
+        const dropZone = document.getElementById('dropZone');
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropZone.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('dragover');
+        }
+
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            if (files.length === 0) return;
+            
+            // 异步依次处理多个文件
+            let fileIndex = 0;
+            
+            function processNextFile() {
+                if (fileIndex >= files.length) {
+                    // 所有文件处理完毕，重置 input 防止无法选择同一文件
+                    document.getElementById('fileInput').value = '';
+                    return;
+                }
+
+                const file = files[fileIndex];
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    
+                    // 取第一个 sheet
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // 转为 JSON 数据 (header: 1 返回数组数组)
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+                    renderExcelTable(jsonData); // 渲染追加
+                    
+                    fileIndex++;
+                    processNextFile(); // 处理下一个
+                };
+                reader.readAsArrayBuffer(file);
+            }
+
+            processNextFile();
+        }
+
+        let currentHeaders = []; // 存储当前表头，用于多文件合并检查
+
+        function renderExcelTable(data) {
+            const thead = document.querySelector('#excelTable thead');
+            const tbody = document.querySelector('#excelTable tbody');
+
+            if (data.length === 0) return;
+
+            // 如果是第一次加载数据（表头为空），则初始化表头
+            let isFirstLoad = thead.innerHTML === '';
+            let dataStartIndex = 0;
+
+            if (isFirstLoad) {
+                // 显示控制栏和表格
+                document.getElementById('excelControls').style.display = 'flex';
+                document.getElementById('excelPlaceholder').style.display = 'none';
+                document.getElementById('excelTable').style.display = 'table';
+                
+                currentHeaders = data[0]; // 保存表头
+                dataStartIndex = 1; // 数据从第二行开始
+
+                const headerRow = document.createElement('tr');
+                const idxTh = document.createElement('th');
+                idxTh.textContent = "序号";
+                headerRow.appendChild(idxTh);
+
+                currentHeaders.forEach(h => {
+                    const th = document.createElement('th');
+                    th.textContent = h || ''; 
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+            } else {
+                // 如果是追加文件，假设第一行是表头，应该跳过
+                // 简单对比一下表头是否一致（可选），这里直接跳过第一行
+                dataStartIndex = 1; 
+                // 如果文件本身没表头？这里假设 Excel 都有表头
+            }
+
+            // 获取当前已有行数
+            let currentRowCount = tbody.rows.length;
+
+            // 处理数据行
+            for (let i = dataStartIndex; i < data.length; i++) {
+                const row = data[i];
+                if (row.length === 0) continue; 
+
+                const tr = document.createElement('tr');
+                currentRowCount++;
+
+                // 序号
+                const idxTd = document.createElement('td');
+                idxTd.textContent = currentRowCount;
+                tr.appendChild(idxTd);
+
+                // 按照表头列数填充数据
+                for(let j=0; j < currentHeaders.length; j++) {
+                    const td = document.createElement('td');
+                    td.textContent = row[j] || '';
+                    td.contentEditable = "true";
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+            
+            document.getElementById('excelRowCount').innerText = currentRowCount;
+        }
+
+        function copyExcelContent() {
+            const table = document.getElementById('excelTable');
+            if (table.style.display === 'none') {
+                alert("无数据可复制");
+                return;
+            }
+            let text = "";
+            const rows = table.querySelectorAll('tr');
+            rows.forEach((tr, index) => {
+                const cells = tr.querySelectorAll('th, td');
+                let rowText = [];
+                for(let i=1; i<cells.length; i++) {
+                    rowText.push(cells[i].innerText);
+                }
+                text += rowText.join('\t') + '\n';
+            });
+            copyToClipboard(text);
+        }
+
+        // 新增功能：仅复制退货物流单号
+        function copyReturnLogistics() {
+            const table = document.getElementById('excelTable');
+            if (table.style.display === 'none') {
+                alert("无数据");
+                return;
+            }
+
+            // 1. 查找列索引
+            const headers = table.querySelectorAll('thead th');
+            let targetIndex = -1;
+            
+            // 从索引 1 开始（0是序号）
+            for(let i=1; i < headers.length; i++) {
+                const txt = headers[i].innerText.trim();
+                if (txt.includes("退货物流单号") || txt.includes("物流单号") || txt === "单号") {
+                    targetIndex = i;
+                    break;
+                }
+            }
+
+            if (targetIndex === -1) {
+                alert("未找到包含“退货物流单号”或“物流单号”的列！");
+                return;
+            }
+
+            // 2. 提取数据
+            let text = "";
+            const rows = table.querySelectorAll('tbody tr');
+            let count = 0;
+            rows.forEach(tr => {
+                const cells = tr.querySelectorAll('td');
+                // cells 索引对应 headers 索引
+                if (cells[targetIndex]) {
+                    text += cells[targetIndex].innerText.trim() + '\n';
+                    count++;
+                }
+            });
+
+            if (count > 0) {
+                copyToClipboard(text);
+                alert(`已复制 ${count} 个单号`);
+            } else {
+                alert("未找到有效数据");
+            }
+        }
+
+        function clearExcelData() {
+            document.getElementById('fileInput').value = '';
+            document.getElementById('excelControls').style.display = 'none';
+            document.getElementById('excelTable').style.display = 'none';
+            document.getElementById('excelPlaceholder').style.display = 'block';
+            document.querySelector('#excelTable thead').innerHTML = '';
+            document.querySelector('#excelTable tbody').innerHTML = '';
+            document.getElementById('excelRowCount').innerText = '0';
+            currentHeaders = [];
+        }
+
+        // =======================
+        // 工具三：单号比较 (逻辑保持不变)
+        // =======================
+        function compareLists() {
+            const rawA = document.getElementById('compInputA').value;
+            const rawB = document.getElementById('compInputB').value;
+
+            const dataA = getCleanedData(rawA);
+            const dataB = getCleanedData(rawB);
+
+            const setA = new Set(dataA.uniqueList);
+            const setB = new Set(dataB.uniqueList);
+
+            const common = [...setA].filter(x => setB.has(x));
+            const aOnly = [...setA].filter(x => !setB.has(x));
+            const bOnly = [...setB].filter(x => !setA.has(x));
+
+            renderResult('resCommon', 'countCommon', common);
+            renderResult('resAOnly', 'countAOnly', aOnly);
+            renderResult('resBOnly', 'countBOnly', bOnly);
+        }
+
+        function renderResult(elemId, countId, list) {
+            document.getElementById(elemId).textContent = list.join('\n');
+            document.getElementById(countId).textContent = `(${list.length})`;
+        }
+
+        function copyText(elementId) {
+            const text = document.getElementById(elementId).textContent;
+            if (!text) return;
+            copyToClipboard(text, elementId);
+        }
+        
+        // =======================
+        // 工具四：单号转换 (原 Tab 2，现 Tab 4)
+        // =======================
+        const convertInput = document.getElementById('convertInput');
+        const autoRemoveDup = document.getElementById('autoRemoveDup');
+        const minLengthInput = document.getElementById('minLength');
+
+        [convertInput, autoRemoveDup, minLengthInput].forEach(el => {
+            el.addEventListener('input', () => {
+                analyzeData();
+                resizeConvertInput(); 
+            });
+        });
+
+        function getCleanedData(inputStr = null) {
+            const raw = inputStr !== null ? inputStr : convertInput.value;
+            let items = raw.split(/[\n,，\s]+/).map(s => s.trim()).filter(s => s !== '');
+            
+            const total = items.length;
+            const minLen = parseInt(minLengthInput.value) || 0;
+
+            items = items.map(s => s.replace(/[^a-zA-Z0-9]/g, '')).filter(s => s.length >= minLen);
+
+            const validCountWithDups = items.length;
+            const uniqueSet = new Set(items);
+            const uniqueItems = Array.from(uniqueSet);
+            const isRemove = autoRemoveDup.checked;
+
+            return {
+                rawList: items, 
+                uniqueList: uniqueItems,
+                totalLines: total,
+                dupCount: validCountWithDups - uniqueItems.length,
+                finalList: isRemove ? uniqueItems : items
+            };
+        }
+
+        function analyzeData() {
+            const data = getCleanedData();
+            
+            document.getElementById('totalLines').innerText = data.totalLines;
+            document.getElementById('validCount').innerText = data.finalList.length;
+            document.getElementById('dupCount').innerText = data.dupCount;
+
+            const prefixes = {};
+            data.finalList.forEach(item => {
+                if (item.length >= 2) {
+                    let pre = item.substring(0, 2).toUpperCase();
+                    if (/^\d+$/.test(pre)) pre = "数字开头";
+                    prefixes[pre] = (prefixes[pre] || 0) + 1;
+                }
+            });
+
+            const sortedPrefixes = Object.entries(prefixes).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            const listHtml = sortedPrefixes.map(([k, v]) => 
+                `<li><span>${k}</span> <span>${v}</span></li>`
+            ).join('');
+            document.getElementById('prefixList').innerHTML = listHtml || '<li>无数据</li>';
+        }
+
+        function convertFormat(type) {
+            const data = getCleanedData();
+            let result = "";
+            if (type === 'comma') {
+                result = data.finalList.join('，');
+            } else {
+                result = data.finalList.join('\n');
+            }
+            convertInput.value = result;
+            analyzeData();
+            resizeConvertInput();
+        }
+
+        function copyConvertResult() {
+            convertInput.select();
+            document.execCommand('copy');
+            alert("结果已复制到剪贴板");
+        }
+
+
+        // --- 通用剪贴板函数 ---
+        function copyToClipboard(text, btnId = null) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            
+            let btn;
+            if (btnId) {
+                // 针对比较工具的按钮寻找方式
+                btn = document.querySelector(`button[onclick="copyText('${btnId}')"]`);
+            } else {
+                // 简单查找当前激活 Tab 内的复制按钮
+                if (document.getElementById('tab2').classList.contains('active')) {
+                    // 表格解析
+                    btn = document.querySelector('#excelControls button');
+                } else if (document.getElementById('tab1').classList.contains('active')) {
+                    // 地址处理
+                    btn = document.querySelector('button[onclick="copyAddressContent()"]');
+                }
+            }
+
+            if (btn) {
+                const originalText = btn.innerHTML;
+                btn.innerHTML = "<span>✅ 已复制</span>";
+                setTimeout(() => btn.innerHTML = originalText, 1000);
+            } else {
+                // alert("已复制到剪贴板"); 
+                // 防止频繁弹窗，这里静默或小提示
+            }
+        }
+
+    </script>
+</body>
+</html>
