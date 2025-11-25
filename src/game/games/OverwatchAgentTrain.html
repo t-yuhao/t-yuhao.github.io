@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>守望特工: 四重行动 (增强版)</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Lucide 图标库 -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* === 核心动画与样式 === */
+        @keyframes bounce-sm {
+            0%, 100% { transform: translateY(-5%); }
+            50% { transform: translateY(0); }
+        }
+        .animate-bounce-sm { animation: bounce-sm 1s infinite; }
+        
+        @keyframes pulse-fast {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .7; }
+        }
+        .animate-pulse-fast { animation: pulse-fast 1s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .animate-shake { animation: shake 0.2s ease-in-out 2; }
+
+        /* 翻转卡片效果 */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+
+        /* UI 优化 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        body { -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+        /* 玻璃拟态增强 */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans overflow-hidden touch-manipulation">
+
+    <!-- 动态背景 -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div class="absolute top-[-20%] right-[-10%] w-[50rem] h-[50rem] bg-orange-200/40 rounded-full blur-[100px] animate-pulse"></div>
+        <div class="absolute bottom-[-10%] left-[-10%] w-[40rem] h-[40rem] bg-blue-200/40 rounded-full blur-[100px] animate-pulse" style="animation-delay: 1s;"></div>
+        <div class="absolute inset-0 opacity-[0.05]" style="background-image: radial-gradient(#4b5563 1px, transparent 1px); background-size: 24px 24px;"></div>
+    </div>
+
+    <!-- 主应用容器 -->
+    <div id="app" class="relative z-10 w-full h-full min-h-screen flex items-center justify-center p-2 sm:p-4">
+        
+        <!-- 1. 主菜单界面 -->
+        <div id="menu-view" class="glass-panel shadow-2xl rounded-[2rem] p-6 sm:p-8 flex flex-col items-center w-full max-w-md transition-all duration-500">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="relative">
+                    <i data-lucide="shield" class="text-orange-500 w-12 h-12 fill-orange-100"></i>
+                    <i data-lucide="crosshair" class="text-slate-700 w-6 h-6 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></i>
+                </div>
+            </div>
+            <h1 class="text-3xl sm:text-4xl font-black italic tracking-tighter text-slate-800 mb-1 uppercase">
+                守望<span class="text-orange-500">特工</span>
+            </h1>
+            <p class="text-slate-400 font-bold tracking-[0.2em] text-xs mb-8">TACTICAL OPERATIONS</p>
+            
+            <div class="grid grid-cols-1 gap-3 w-full mb-6">
+                <!-- 游戏模式按钮 (JS生成) -->
+            </div>
+
+            <div class="flex gap-3 w-full">
+                <button onclick="showRecords()" class="flex-1 py-3 rounded-xl bg-white border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition flex items-center justify-center gap-2">
+                    <i data-lucide="file-text" class="w-4 h-4"></i> 档案
+                </button>
+                <button onclick="showAchievements()" class="flex-1 py-3 rounded-xl bg-white border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition flex items-center justify-center gap-2">
+                    <i data-lucide="trophy" class="w-4 h-4"></i> 成就
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. 游戏界面 -->
+        <div id="game-view" class="hidden glass-panel rounded-3xl shadow-2xl flex flex-col relative w-full max-w-lg h-[90vh] sm:h-auto transition-all duration-300">
+            
+            <!-- 顶部栏 -->
+            <div class="bg-white/80 p-3 flex justify-between items-center border-b border-gray-100 rounded-t-3xl shrink-0">
+                <button id="btn-back" class="p-2 rounded-lg hover:bg-gray-100 transition text-slate-500 active:scale-95">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                </button>
+                
+                <div class="flex flex-col items-center">
+                    <h2 id="game-title" class="text-lg sm:text-xl font-black italic text-slate-800 uppercase tracking-wide">游戏模式</h2>
+                    <span id="level-display" class="text-[10px] font-bold text-orange-500 tracking-widest bg-orange-50 px-2 py-0.5 rounded-full">PHASE 1</span>
+                </div>
+
+                <button id="btn-mute" class="p-2 rounded-lg hover:bg-gray-100 transition text-slate-500 active:scale-95">
+                    <i data-lucide="volume-2" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- 数据状态栏 -->
+            <div class="flex justify-between px-4 py-3 bg-slate-50/80 shrink-0">
+                <div class="text-center min-w-[3rem]">
+                    <p id="stat-left-label" class="text-[10px] font-bold text-slate-400 uppercase">步数</p>
+                    <p id="stat-left-value" class="text-xl font-black text-slate-800 font-mono">20</p>
+                </div>
+
+                <div class="flex-1 mx-3 flex flex-col justify-center" id="score-container">
+                    <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
+                        <span>SCORE</span>
+                        <span id="target-score">1000</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div id="score-bar" class="h-full bg-gradient-to-r from-orange-400 to-red-500 transition-all duration-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]" style="width: 0%"></div>
+                    </div>
+                    <div id="score-value" class="text-center mt-0.5 text-xs font-black text-slate-700">0</div>
+                </div>
+
+                <!-- 扫雷/计时专用 -->
+                <div class="flex-1 mx-3 flex flex-col justify-center hidden" id="timer-only-container">
+                     <div class="text-center">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">耗时</span>
+                        <div id="timer-value-lg" class="text-2xl font-black text-slate-700 font-mono">00:00</div>
+                    </div>
+                </div>
+
+                <div class="text-center min-w-[3rem] flex flex-col items-center justify-center" id="stat-right-container">
+                    <!-- 动态内容 -->
+                </div>
+            </div>
+
+            <!-- 游戏主区域 -->
+            <div class="p-4 flex-1 flex items-center justify-center bg-gray-100/50 relative overflow-hidden">
+                <div class="relative w-full aspect-square max-w-[400px]">
+                    <!-- 连线 SVG -->
+                    <svg id="link-svg" class="absolute inset-0 w-full h-full pointer-events-none z-20" style="display:none;">
+                        <polyline id="link-polyline" points="" fill="none" stroke="#3b82f6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="opacity-80 drop-shadow-lg"></polyline>
+                    </svg>
+
+                    <!-- 棋盘 -->
+                    <div id="game-board" class="grid gap-1.5 p-1.5 rounded-xl relative z-10 w-full h-full bg-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] border border-white">
+                        <!-- 格子 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 道具栏 (已移动到下方) -->
+            <div class="px-4 py-2 bg-white border-y border-gray-100 flex justify-center gap-4 shrink-0 overflow-x-auto no-scrollbar" id="items-bar">
+                <!-- 道具按钮由 JS 生成 -->
+            </div>
+
+            <!-- 底部信息 -->
+            <div class="p-2 text-center bg-white/80 border-t border-gray-200 rounded-b-3xl shrink-0">
+                <p id="system-status" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">SYSTEM: ONLINE</p>
+            </div>
+        </div>
+
+        <!-- 弹窗: 结算/暂停 -->
+        <div id="modal-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all scale-100">
+                <div class="p-6 flex flex-col items-center text-center">
+                    <div id="modal-icon" class="mb-4"></div>
+                    <h2 id="modal-title" class="text-2xl font-black italic text-slate-800 uppercase mb-2">任务完成</h2>
+                    <p id="modal-message" class="text-sm text-slate-500 mb-6 px-4">精彩的表现，特工！</p>
+                    
+                    <div class="bg-slate-50 rounded-xl p-4 w-full mb-6 border border-slate-100">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-bold text-slate-400 uppercase" id="modal-score-label">最终得分</span>
+                            <span class="text-xl font-black text-slate-800" id="modal-score-value">0</span>
+                        </div>
+                        <!-- 成就展示区 -->
+                        <div id="modal-achievements" class="hidden mt-2 pt-2 border-t border-gray-200 text-left">
+                            <p class="text-[10px] text-orange-500 font-bold mb-1">解锁成就:</p>
+                            <div id="modal-achievements-list" class="flex flex-wrap gap-1"></div>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 w-full">
+                        <button id="btn-modal-back" class="flex-1 py-3 px-4 rounded-xl font-bold text-slate-500 bg-gray-100 hover:bg-gray-200 transition">返回</button>
+                        <button id="btn-modal-action" class="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/30 transition">继续</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 弹窗: 通用列表 (成就/档案) -->
+        <div id="list-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md h-[80vh] flex flex-col overflow-hidden">
+                <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-slate-50">
+                    <h3 id="list-title" class="text-lg font-black text-slate-700 italic">档案</h3>
+                    <button onclick="closeListModal()" class="p-2 hover:bg-gray-200 rounded-full"><i data-lucide="x" class="w-5 h-5 text-slate-500"></i></button>
+                </div>
+                <div id="list-content" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/50">
+                    <!-- 内容 -->
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 逻辑脚本 -->
+    <script>
+        /**
+         * 守望特工: 四重行动 (增强版)
+         * 包含：4种模式、道具系统、成就系统、本地存档、性能优化
+         */
+
+        // === 常量配置 ===
+        const CONFIG = {
+            icons: ['🛡️', '⚔️', '💉', '🔋', '🎯', '🤖', '👑', '🚀', '🔥', '❄️', '⚡', '👻'],
+            sounds: {
+                bgm: [523, 587, 659, 523, 784],
+                win: [523, 659, 784, 1046],
+                lose: [150, 140, 130, 120]
+            },
+            storageKey: 'ow_agent_data_v2'
+        };
+
+        // 32个成就定义
+        const ACHIEVEMENTS_DB = [
+            { id: 'first_win', title: '初次告捷', desc: '赢得任意一场游戏', icon: 'award' },
+            { id: 'win_10', title: '资深特工', desc: '累计胜利10场', icon: 'medal' },
+            { id: 'win_50', title: '传奇英雄', desc: '累计胜利50场', icon: 'crown' },
+            { id: 'score_10k', title: '高分新秀', desc: '累计获得10,000分', icon: 'trending-up' },
+            { id: 'score_100k', title: '分数收割者', desc: '累计获得100,000分', icon: 'bar-chart-2' },
+            { id: 'fail_1', title: '战术失误', desc: '输掉一场游戏', icon: 'alert-triangle' },
+            
+            // Match 3
+            { id: 'm3_combo_5', title: '连击大师', desc: '在消除模式达成5连击', icon: 'zap' },
+            { id: 'm3_clear_5', title: '五星连珠', desc: '一次消除5个图标', icon: 'star' },
+            { id: 'm3_fast', title: '闪电战', desc: '30秒内通关消除关卡', icon: 'clock' },
+            { id: 'm3_item', title: '战术支援', desc: '在消除模式使用一次道具', icon: 'briefcase' },
+
+            // Link
+            { id: 'link_fast', title: '神经链接', desc: '40秒内通关连线关卡', icon: 'network' },
+            { id: 'link_no_error', title: '完美执行', desc: '连线模式无错误通关', icon: 'check-circle' },
+            { id: 'link_long', title: '长途奔袭', desc: '连接两个距离最远的图标', icon: 'maximize' },
+            { id: 'link_item', title: '黑客工具', desc: '在连线模式使用一次道具', icon: 'cpu' },
+
+            // Minesweeper
+            { id: 'mine_fast', title: '拆弹专家', desc: '60秒内完成排雷', icon: 'watch' },
+            { id: 'mine_no_flag', title: '直觉行事', desc: '不使用插旗通关排雷', icon: 'flag-off' },
+            { id: 'mine_shield', title: '防爆精英', desc: '使用护盾抵挡一次爆炸', icon: 'shield' },
+            { id: 'mine_item', title: '高科技侦查', desc: '在排雷模式使用一次道具', icon: 'radar' },
+
+            // Memory
+            { id: 'mem_perfect', title: '照相记忆', desc: '记忆模式无错误通关', icon: 'aperture' },
+            { id: 'mem_fast', title: '量子速读', desc: '30秒内完成记忆关卡', icon: 'eye' },
+            { id: 'mem_item', title: '记忆增强', desc: '在记忆模式使用一次道具', icon: 'layers' },
+            
+            // Items
+            { id: 'item_master', title: '军火库', desc: '累计使用50次道具', icon: 'package' },
+            { id: 'item_hoarder', title: '吝啬鬼', desc: '携带满道具通关', icon: 'lock' },
+
+            // Misc
+            { id: 'play_night', title: '守夜人', desc: '在晚上10点后进行游戏', icon: 'moon' },
+            { id: 'play_early', title: '早起鸟', desc: '在早上8点前进行游戏', icon: 'sun' },
+            { id: 'click_1000', title: '鼠标杀手', desc: '累计点击1000次', icon: 'mouse-pointer' },
+            { id: 'level_10', title: '持久战', desc: '在任意模式到达第10阶段', icon: 'chevrons-up' },
+            { id: 'all_modes', title: '全能特工', desc: '所有模式都玩过一遍', icon: 'grid' },
+            { id: 'rich', title: '百万富翁', desc: '单局得分超过5000', icon: 'dollar-sign' },
+            { id: 'survivor', title: '绝地求生', desc: '步数或时间剩1时通关', icon: 'heart' },
+            { id: 'completionist', title: '大满贯', desc: '解锁其他所有成就', icon: 'award' }
+        ];
+
+        // 道具定义
+        const ITEMS_DB = {
+            match3: [
+                { id: 'm3_bomb', name: '定点清除', icon: 'crosshair', desc: '消除选中的格子', cost: 0 },
+                { id: 'm3_shuffle', name: '战术重置', icon: 'shuffle', desc: '重排所有图标', cost: 0 },
+                { id: 'm3_add', name: '行动延展', icon: 'plus-circle', desc: '+5 步数', cost: 0 }
+            ],
+            link: [
+                { id: 'lnk_hint', name: '路径分析', icon: 'search', desc: '自动连接一对', cost: 0 },
+                { id: 'lnk_freeze', name: '时间冻结', icon: 'snowflake', desc: '暂停时间 10秒', cost: 0 },
+                { id: 'lnk_scramble', name: '混乱重组', icon: 'refresh-cw', desc: '重排剩余图标', cost: 0 }
+            ],
+            minesweeper: [
+                { id: 'mn_scan', name: '安全扫描', icon: 'scan', desc: '揭示一个安全格', cost: 0 },
+                { id: 'mn_xray', name: '高能透视', icon: 'eye', desc: '扫描3x3区域', cost: 0 },
+                { id: 'mn_shield', name: '防爆护盾', icon: 'shield', desc: '抵挡下一次爆炸', cost: 0 }
+            ],
+            memory: [
+                { id: 'mem_peek', name: '全息投影', icon: 'eye', desc: '显示所有卡片2秒', cost: 0 },
+                { id: 'mem_auto', name: '自动破解', icon: 'cpu', desc: '自动匹配一对', cost: 0 },
+                { id: 'mem_time', name: '时间回溯', icon: 'clock', desc: '+15 秒时间', cost: 0 }
+            ]
+        };
+
+        // === 全局状态 ===
+        const state = {
+            mode: 'menu',
+            board: [],
+            gridSize: 8,
+            level: 1,
+            score: 0,
+            timer: 0,
+            moves: 0,
+            gameState: 'stop', // stop, playing, preview(memory), paused
+            
+            // 交互状态
+            selected: null,
+            isProcessing: false,
+            combo: 0,
+            
+            // 模式专用
+            mines: new Set(),
+            revealed: new Set(),
+            flagged: new Set(),
+            flippedCards: [],
+            matchedCards: new Set(),
+            
+            // 道具
+            items: {}, // { itemId: count }
+            activeEffects: { shield: false, frozen: false },
+
+            // 数据统计
+            startTime: 0,
+            clicks: 0,
+            mistakes: 0
+        };
+
+        // 持久化数据
+        let userData = {
+            history: [], // { date, mode, score, result, level }
+            achievements: [],
+            stats: { wins: 0, losses: 0, totalScore: 0, clicks: 0, itemsUsed: 0 }
+        };
+
+        // 系统组件
+        let audioCtx = null;
+        let timerLoop = null;
+
+        // === 初始化与存档 ===
+        function init() {
+            loadData();
+            renderMenu();
+            lucide.createIcons();
+            
+            // 事件委托处理棋盘交互 (性能优化)
+            document.getElementById('game-board').addEventListener('click', (e) => {
+                const cell = e.target.closest('.game-cell');
+                if (!cell) return;
+                const r = parseInt(cell.dataset.r);
+                const c = parseInt(cell.dataset.c);
+                handleCellClick(r, c);
+            });
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem(CONFIG.storageKey);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    userData = { ...userData, ...parsed };
+                } catch(e) { console.error("Save file corrupted"); }
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem(CONFIG.storageKey, JSON.stringify(userData));
+        }
+
+        // === 音效系统 (简易合成器) ===
+        const playTone = (freq, type='sine', dur=0.1, vol=0.1) => {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + dur);
+        };
+        
+        const SFX = {
+            click: () => playTone(800, 'triangle', 0.05),
+            match: () => { playTone(523, 'sine', 0.1); setTimeout(() => playTone(784, 'sine', 0.1), 100); },
+            error: () => playTone(150, 'sawtooth', 0.2),
+            win: () => [523, 659, 784, 1046].forEach((f,i) => setTimeout(() => playTone(f, 'square', 0.2), i*100)),
+            boom: () => { playTone(100, 'sawtooth', 0.4); playTone(50, 'square', 0.5); },
+            item: () => { playTone(1200, 'sine', 0.1); setTimeout(() => playTone(1500, 'sine', 0.2), 100); }
+        };
+
+        // === 核心逻辑: 游戏开始 ===
+        function startGame(mode) {
+            SFX.click();
+            state.mode = mode;
+            state.level = 1;
+            state.score = 0;
+            state.gameState = 'playing';
+            state.startTime = Date.now();
+            state.clicks = 0;
+            state.mistakes = 0;
+            state.activeEffects = { shield: false, frozen: false };
+            
+            // 重置道具 (每局每种3个)
+            state.items = {};
+            if (ITEMS_DB[mode]) {
+                ITEMS_DB[mode].forEach(item => state.items[item.id] = 3);
+            }
+
+            setupLevel();
+            updateUI();
+            
+            document.getElementById('menu-view').classList.add('hidden');
+            document.getElementById('game-view').classList.remove('hidden');
+            
+            // 特殊模式处理
+            if (mode === 'memory') {
+                startMemoryPreview();
+            } else {
+                startTimer();
+            }
+            
+            renderItems();
+        }
+
+        function setupLevel() {
+            const size = (state.mode === 'memory') ? 6 : 8;
+            state.gridSize = size;
+            state.board = [];
+            state.selected = null;
+            state.combo = 0;
+            state.mines.clear();
+            state.revealed.clear();
+            state.flagged.clear();
+            state.matchedCards.clear();
+            state.flippedCards = [];
+            
+            // 生成棋盘数据
+            if (state.mode === 'match3') {
+                state.moves = 20;
+                generateMatch3Board(size);
+            } else if (state.mode === 'link') {
+                state.timer = 90;
+                generateLinkBoard(size);
+            } else if (state.mode === 'minesweeper') {
+                state.timer = 0;
+                state.board = Array(size).fill(0).map(() => Array(size).fill(0)); // 只有数据结构，雷在点击后生成
+                state.mineTotal = 10 + (state.level - 1) * 2;
+            } else if (state.mode === 'memory') {
+                state.timer = 60 + (state.level * 10);
+                generateMemoryBoard(size);
+            }
+
+            renderGrid();
+            updateHeader();
+        }
+
+        // === 数据生成 ===
+        function generateMatch3Board(size) {
+            state.board = Array(size).fill(null).map(() => Array(size).fill(null));
+            const icons = CONFIG.icons.slice(0, 6);
+            for(let r=0; r<size; r++) {
+                for(let c=0; c<size; c++) {
+                    let opts = icons.filter(ic => {
+                        if (c>=2 && state.board[r][c-1]===ic && state.board[r][c-2]===ic) return false;
+                        if (r>=2 && state.board[r-1][c]===ic && state.board[r-2][c]===ic) return false;
+                        return true;
+                    });
+                    state.board[r][c] = opts[Math.floor(Math.random() * opts.length)] || icons[0];
+                }
+            }
+        }
+
+        function generateLinkBoard(size) {
+            const total = size * size;
+            const pairCount = total / 2;
+            let pool = [];
+            const icons = CONFIG.icons.slice(0, 8);
+            for(let i=0; i<pairCount; i++) pool.push(icons[i % icons.length], icons[i % icons.length]);
+            pool.sort(() => Math.random() - 0.5);
+            
+            state.board = [];
+            for(let i=0; i<size; i++) state.board.push(pool.slice(i*size, (i+1)*size));
+        }
+
+        function generateMemoryBoard(size) {
+            generateLinkBoard(size); // 逻辑相同，复用
+        }
+
+        // === 渲染系统 (使用 DocumentFragment 优化) ===
+        function renderGrid() {
+            const grid = document.getElementById('game-board');
+            const frag = document.createDocumentFragment();
+            const size = state.gridSize;
+            
+            // 样式设置
+            grid.style.gridTemplateColumns = `repeat(${size}, minmax(0, 1fr))`;
+            
+            for(let r=0; r<size; r++) {
+                for(let c=0; c<size; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = getCellClass(r, c);
+                    cell.innerHTML = getCellContent(r, c);
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
+                    cell.classList.add('game-cell'); // 用于事件委托
+                    frag.appendChild(cell);
+                }
+            }
+            
+            grid.innerHTML = '';
+            grid.appendChild(frag);
+            lucide.createIcons();
+        }
+
+        function getCellClass(r, c) {
+            // [FIX 2] 添加 aspect-square 固定高度
+            let base = "aspect-square relative w-full rounded-lg flex items-center justify-center cursor-pointer transition-all duration-200 select-none ";
+            const val = state.board[r][c];
+            
+            if (state.mode === 'match3' || state.mode === 'link') {
+                if (!val) return base + "invisible";
+                const isSelected = state.selected && state.selected.r === r && state.selected.c === c;
+                return base + (isSelected ? "bg-orange-100 ring-2 ring-orange-500 scale-105 z-10" : "bg-white hover:bg-slate-50 border border-slate-200 shadow-sm");
+            }
+            
+            if (state.mode === 'minesweeper') {
+                const key = `${r},${c}`;
+                if (state.revealed.has(key)) {
+                    if (state.mines.has(key)) return base + "bg-red-200 border border-red-300";
+                    return base + "bg-slate-100 border border-slate-200";
+                }
+                return base + "bg-slate-300 border-b-4 border-r-4 border-slate-400 hover:bg-slate-200 active:border-0 active:translate-y-1";
+            }
+
+            if (state.mode === 'memory') {
+                const isMatched = state.matchedCards.has(`${r},${c}`);
+                if (isMatched) return base + "invisible";
+                
+                const isFlipped = state.gameState === 'preview' || state.flippedCards.some(f => f.r===r && f.c===c);
+                if (isFlipped) return base + "bg-white border border-purple-200 rotate-y-180 shadow-md";
+                return base + "bg-slate-700 border border-slate-600 hover:bg-slate-600 shadow-lg";
+            }
+            
+            return base;
+        }
+
+        function getCellContent(r, c) {
+            const val = state.board[r][c];
+            if (state.mode === 'minesweeper') {
+                const key = `${r},${c}`;
+                if (state.flagged.has(key)) return `<i data-lucide="flag" class="text-red-500 w-5 h-5"></i>`;
+                if (!state.revealed.has(key)) return '';
+                if (state.mines.has(key)) return `<i data-lucide="bomb" class="text-red-600 w-6 h-6 animate-pulse"></i>`;
+                if (val > 0) {
+                    const colors = ['','text-blue-500','text-green-500','text-red-500','text-purple-600','text-orange-600'];
+                    return `<span class="font-black text-xl ${colors[val]||'text-gray-600'}">${val}</span>`;
+                }
+                return '';
+            }
+            if (state.mode === 'memory') {
+                const isFlipped = state.gameState === 'preview' || state.flippedCards.some(f => f.r===r && f.c===c);
+                if (isFlipped) return `<span class="text-3xl">${val}</span>`;
+                return `<i data-lucide="brain" class="text-slate-500/30 w-6 h-6"></i>`;
+            }
+            // Match3 / Link
+            if (!val) return '';
+            return `<span class="text-3xl drop-shadow-sm">${val}</span>`;
+        }
+
+        // === 交互逻辑 ===
+        async function handleCellClick(r, c) {
+            state.clicks++;
+            if (state.gameState !== 'playing' || state.isProcessing) return;
+
+            // 处理道具点击选择模式 (如果需要)
+            if (state.mode === 'match3' && state.items.m3_bomb_active) {
+                // 道具逻辑：消除特定块
+                useItemAction('m3_bomb', r, c);
+                return;
+            }
+
+            if (state.mode === 'match3') logicMatch3(r, c);
+            else if (state.mode === 'link') logicLink(r, c);
+            else if (state.mode === 'minesweeper') logicMines(r, c);
+            else if (state.mode === 'memory') logicMemory(r, c);
+        }
+
+        // --- 逻辑: Match 3 ---
+        async function logicMatch3(r, c) {
+            if (!state.selected) {
+                state.selected = {r, c};
+                renderGrid();
+            } else {
+                const {r:sr, c:sc} = state.selected;
+                state.selected = null;
+                
+                if (Math.abs(sr-r) + Math.abs(sc-c) === 1) {
+                    // Swap
+                    [state.board[sr][sc], state.board[r][c]] = [state.board[r][c], state.board[sr][sc]];
+                    state.moves--;
+                    renderGrid();
+                    
+                    const matches = findMatches();
+                    if (matches.length > 0) {
+                        await processMatches(matches);
+                    } else {
+                        // Swap back
+                        SFX.error();
+                        state.isProcessing = true;
+                        setTimeout(() => {
+                            [state.board[sr][sc], state.board[r][c]] = [state.board[r][c], state.board[sr][sc]];
+                            state.isProcessing = false;
+                            renderGrid();
+                        }, 300);
+                    }
+                } else {
+                    state.selected = {r, c}; // Reselect
+                    renderGrid();
+                }
+            }
+            updateUI();
+            checkWin();
+        }
+
+        function findMatches() {
+            let matched = new Set();
+            const size = state.gridSize;
+            // Rows
+            for(let r=0; r<size; r++) {
+                for(let c=0; c<size-2; c++) {
+                    const t = state.board[r][c];
+                    if(t && t===state.board[r][c+1] && t===state.board[r][c+2]) {
+                        matched.add(`${r},${c}`); matched.add(`${r},${c+1}`); matched.add(`${r},${c+2}`);
+                    }
+                }
+            }
+            // Cols
+            for(let c=0; c<size; c++) {
+                for(let r=0; r<size-2; r++) {
+                    const t = state.board[r][c];
+                    if(t && t===state.board[r+1][c] && t===state.board[r+2][c]) {
+                        matched.add(`${r},${c}`); matched.add(`${r+1},${c}`); matched.add(`${r+2},${c}`);
+                    }
+                }
+            }
+            return Array.from(matched).map(s => s.split(',').map(Number));
+        }
+
+        async function processMatches(matches) {
+            state.isProcessing = true;
+            state.combo++;
+            SFX.match();
+            
+            state.score += matches.length * 50 * state.combo;
+            matches.forEach(([r,c]) => state.board[r][c] = null);
+            renderGrid();
+            updateUI();
+            
+            await new Promise(r => setTimeout(r, 300));
+            
+            // Drop
+            const size = state.gridSize;
+            for(let c=0; c<size; c++) {
+                let empty = 0;
+                for(let r=size-1; r>=0; r--) {
+                    if(state.board[r][c] === null) empty++;
+                    else if(empty > 0) {
+                        state.board[r+empty][c] = state.board[r][c];
+                        state.board[r][c] = null;
+                    }
+                }
+                // Refill
+                for(let r=0; r<empty; r++) state.board[r][c] = CONFIG.icons[Math.floor(Math.random()*6)];
+            }
+            
+            renderGrid();
+            
+            await new Promise(r => setTimeout(r, 300));
+            const newMatches = findMatches();
+            if(newMatches.length > 0) await processMatches(newMatches);
+            else {
+                state.isProcessing = false;
+                state.combo = 0;
+                checkWin();
+            }
+        }
+
+        // --- 逻辑: Link ---
+        async function logicLink(r, c) {
+            if (!state.board[r][c]) return;
+            
+            if (!state.selected) {
+                state.selected = {r, c};
+                renderGrid();
+                return;
+            }
+            
+            if (state.selected.r === r && state.selected.c === c) {
+                state.selected = null;
+                renderGrid();
+                return;
+            }
+            
+            if (state.board[r][c] === state.board[state.selected.r][state.selected.c]) {
+                const path = findLinkPath(state.selected, {r, c});
+                if (path) {
+                    // Match!
+                    SFX.match();
+                    drawLinkPath(path);
+                    state.isProcessing = true;
+                    
+                    await new Promise(res => setTimeout(res, 300));
+                    
+                    state.board[state.selected.r][state.selected.c] = null;
+                    state.board[r][c] = null;
+                    state.score += 100;
+                    state.selected = null;
+                    state.isProcessing = false;
+                    document.getElementById('link-svg').style.display = 'none';
+                    renderGrid();
+                    updateUI();
+                    
+                    // Check clear
+                    if (!state.board.some(row => row.some(cell => cell))) winGame();
+                    return;
+                }
+            }
+            
+            // Fail
+            SFX.error();
+            state.selected = {r, c};
+            renderGrid();
+        }
+
+        function findLinkPath(p1, p2) {
+            // [FIX 4] 修正连线逻辑：使用 turns (拐弯数) 限制，最多 2 次拐弯 = 3 根直线
+            // 初始状态：turns=0, dir=-1 (无方向)
+            const q = [{...p1, turns: 0, dir: -1, path: [p1]}];
+            const visited = new Map(); // 使用 Map 记录到达某点的最小 turn 数，优化搜索
+            const dr = [0, 0, 1, -1], dc = [1, -1, 0, 0]; // R, L, D, U
+            
+            // 记录初始状态
+            visited.set(`${p1.r},${p1.c}`, 0);
+
+            while(q.length) {
+                const curr = q.shift();
+                
+                // 到达终点
+                if (curr.r === p2.r && curr.c === p2.c) return curr.path;
+                
+                for(let i=0; i<4; i++) {
+                    const nr = curr.r + dr[i], nc = curr.c + dc[i];
+                    
+                    // 边界检查 (连线可以经过边界外围一格，这里简化为 -1 到 size)
+                    if (nr < -1 || nr > state.gridSize || nc < -1 || nc > state.gridSize) continue;
+                    
+                    // 碰撞检查 (除非是终点)
+                    let collision = false;
+                    if (nr >= 0 && nr < state.gridSize && nc >= 0 && nc < state.gridSize) {
+                        if (state.board[nr][nc] && (nr !== p2.r || nc !== p2.c)) collision = true;
+                    }
+                    if (collision) continue;
+                    
+                    const newDir = i;
+                    // 如果方向改变（且不是初始步），拐弯数+1
+                    const newTurns = (curr.dir !== -1 && curr.dir !== newDir) ? curr.turns + 1 : curr.turns;
+                    
+                    // 限制：最多2次拐弯 (3根直线)
+                    if (newTurns > 2) continue;
+                    
+                    // 剪枝：如果已经以更少或相同的拐弯数到达过该点（且同方向），则跳过
+                    // 注意：同一点不同方向进入可能导致后续拐弯数不同，所以这里简化为只记录最小turns
+                    // 更严格的BFS应该记录 (r,c,dir) 的 turns，但在这种小地图上，只记录 (r,c) 一般足够
+                    const key = `${nr},${nc}`;
+                    if (visited.has(key) && visited.get(key) < newTurns) continue;
+                    visited.set(key, newTurns);
+                    
+                    q.push({r: nr, c: nc, turns: newTurns, dir: newDir, path: [...curr.path, {r: nr, c: nc}]});
+                }
+            }
+            return null;
+        }
+
+        function drawLinkPath(path) {
+            const svg = document.getElementById('link-svg');
+            const poly = document.getElementById('link-polyline');
+            svg.style.display = 'block';
+            
+            const cellW = svg.clientWidth / state.gridSize;
+            const pts = path.map(p => {
+                // Adjust for border padding in SVG if needed, simple here
+                return `${(p.c + 0.5) * cellW},${(p.r + 0.5) * cellW}`;
+            }).join(' ');
+            
+            poly.setAttribute('points', pts);
+        }
+
+        // --- 逻辑: Minesweeper ---
+        function logicMines(r, c) {
+            const key = `${r},${c}`;
+            if (state.revealed.has(key) || state.flagged.has(key)) return;
+
+            // First click safety & generation
+            if (state.mines.size === 0) {
+                generateMines(r, c);
+            }
+
+            if (state.mines.has(key)) {
+                if (state.activeEffects.shield) {
+                    state.activeEffects.shield = false;
+                    state.flagged.add(key); // Shield turns mine to flag
+                    SFX.item();
+                    alert("护盾已触发！抵挡了一次爆炸。");
+                    renderGrid();
+                    renderItems();
+                    return;
+                }
+                
+                SFX.boom();
+                state.mines.forEach(m => state.revealed.add(m));
+                renderGrid();
+                // [FIX 5] 延迟1秒显示失败
+                setTimeout(() => loseGame(), 1000);
+            } else {
+                SFX.click();
+                floodFillMines(r, c);
+                state.score = state.revealed.size * 10;
+                renderGrid();
+                updateUI();
+                
+                if (state.revealed.size === (state.gridSize**2 - state.mines.size)) winGame();
+            }
+        }
+
+        function generateMines(safeR, safeC) {
+            while(state.mines.size < state.mineTotal) {
+                const rr = Math.floor(Math.random() * state.gridSize);
+                const cc = Math.floor(Math.random() * state.gridSize);
+                if (Math.abs(rr-safeR) <= 1 && Math.abs(cc-safeC) <= 1) continue;
+                state.mines.add(`${rr},${cc}`);
+            }
+            // Calc numbers
+            for(let i=0; i<state.gridSize; i++) {
+                for(let j=0; j<state.gridSize; j++) {
+                    if (!state.mines.has(`${i},${j}`)) {
+                        let count = 0;
+                        for(let x=-1; x<=1; x++)
+                            for(let y=-1; y<=1; y++)
+                                if(state.mines.has(`${i+x},${j+y}`)) count++;
+                        state.board[i][j] = count;
+                    }
+                }
+            }
+        }
+
+        function floodFillMines(r, c) {
+            const q = [{r,c}];
+            const visited = new Set();
+            while(q.length) {
+                const {r, c} = q.pop();
+                const key = `${r},${c}`;
+                if (visited.has(key)) continue;
+                visited.add(key);
+                
+                if (state.flagged.has(key)) continue;
+                state.revealed.add(key);
+                
+                if (state.board[r][c] === 0) {
+                    for(let i=-1; i<=1; i++) {
+                        for(let j=-1; j<=1; j++) {
+                            const nr = r+i, nc = c+j;
+                            if (nr>=0 && nr<state.gridSize && nc>=0 && nc<state.gridSize) {
+                                if (!state.revealed.has(`${nr},${nc}`)) q.push({r:nr, c:nc});
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 逻辑: Memory ---
+        function startMemoryPreview() {
+            // [FIX 6] 移除倒计时蒙版，直接展示1秒
+            state.gameState = 'preview'; // 特殊状态，显示所有卡片
+            renderGrid();
+            
+            setTimeout(() => {
+                state.gameState = 'playing';
+                renderGrid(); // Hide cards
+                startTimer();
+            }, 1000); // 1秒展示时间
+        }
+
+        function logicMemory(r, c) {
+            if (state.matchedCards.has(`${r},${c}`) || state.flippedCards.some(f => f.r===r && f.c===c)) return;
+            
+            state.flippedCards.push({r, c, val: state.board[r][c]});
+            renderGrid();
+            SFX.click();
+            
+            if (state.flippedCards.length === 2) {
+                state.isProcessing = true;
+                const [c1, c2] = state.flippedCards;
+                if (c1.val === c2.val) {
+                    SFX.match();
+                    setTimeout(() => {
+                        state.matchedCards.add(`${c1.r},${c1.c}`);
+                        state.matchedCards.add(`${c2.r},${c2.c}`);
+                        state.flippedCards = [];
+                        state.score += 200;
+                        state.isProcessing = false;
+                        renderGrid();
+                        updateUI();
+                        if (state.matchedCards.size === state.gridSize**2) winGame();
+                    }, 500);
+                } else {
+                    state.mistakes++;
+                    setTimeout(() => {
+                        state.flippedCards = [];
+                        state.isProcessing = false;
+                        renderGrid();
+                    }, 800);
+                }
+            }
+        }
+
+        // === 道具系统逻辑 ===
+        function useItem(itemId) {
+            if (state.gameState !== 'playing') return;
+            if (state.items[itemId] <= 0) {
+                alert("道具次数已耗尽");
+                return;
+            }
+
+            let success = false;
+
+            // Match3 Items
+            if (itemId === 'm3_shuffle') {
+                generateMatch3Board(state.gridSize);
+                renderGrid();
+                success = true;
+            } else if (itemId === 'm3_add') {
+                state.moves += 5;
+                updateUI();
+                success = true;
+            } else if (itemId === 'm3_bomb') {
+                state.items.m3_bomb_active = true;
+                alert("请点击棋盘上的一个格子进行消除");
+                return; // 不直接扣次数，等点击
+            }
+
+            // Link Items
+            if (itemId === 'lnk_hint') {
+                // find a connectable pair
+                for(let r=0; r<state.gridSize; r++) {
+                    for(let c=0; c<state.gridSize; c++) {
+                        if(!state.board[r][c]) continue;
+                        for(let r2=0; r2<state.gridSize; r2++) {
+                            for(let c2=0; c2<state.gridSize; c2++) {
+                                if(r===r2 && c===c2) continue;
+                                if(state.board[r][c] === state.board[r2][c2]) {
+                                    if(findLinkPath({r,c}, {r:r2, c:c2})) {
+                                        state.selected = {r, c};
+                                        renderGrid();
+                                        logicLink(r2, c2); // Auto connect
+                                        success = true;
+                                        gotoEnd();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                function gotoEnd(){}; 
+            } else if (itemId === 'lnk_freeze') {
+                state.activeEffects.frozen = true;
+                document.getElementById('timer-value-lg').classList.add('text-blue-500');
+                setTimeout(() => {
+                    state.activeEffects.frozen = false;
+                    document.getElementById('timer-value-lg').classList.remove('text-blue-500');
+                }, 10000);
+                success = true;
+            } else if (itemId === 'lnk_scramble') {
+                // Collect remaining
+                let rem = [];
+                for(let r=0; r<state.gridSize; r++)
+                    for(let c=0; c<state.gridSize; c++)
+                        if(state.board[r][c]) rem.push(state.board[r][c]);
+                rem.sort(() => Math.random()-0.5);
+                let idx = 0;
+                for(let r=0; r<state.gridSize; r++)
+                    for(let c=0; c<state.gridSize; c++)
+                        if(state.board[r][c]) state.board[r][c] = rem[idx++];
+                renderGrid();
+                success = true;
+            }
+
+            // Minesweeper Items
+            if (itemId === 'mn_scan') {
+                // Reveal 1 safe
+                for(let i=0; i<100; i++) {
+                    let r=Math.floor(Math.random()*state.gridSize), c=Math.floor(Math.random()*state.gridSize);
+                    if(!state.mines.has(`${r},${c}`) && !state.revealed.has(`${r},${c}`)) {
+                        logicMines(r, c);
+                        success = true;
+                        break;
+                    }
+                }
+            } else if (itemId === 'mn_xray') {
+                // Reveal 3x3 area status
+                alert("已扫描中心区域，安全格已揭示，地雷已标记(假装标记)");
+                // 简化：以中心为点揭示3x3，如果是雷不爆但变红
+                const c = Math.floor(state.gridSize/2);
+                for(let x=-1; x<=1; x++) for(let y=-1; y<=1; y++) {
+                    const k = `${c+x},${c+y}`;
+                    if(!state.mines.has(k)) { if(!state.revealed.has(k)) state.revealed.add(k); }
+                    else { state.flagged.add(k); }
+                }
+                renderGrid();
+                success = true;
+            } else if (itemId === 'mn_shield') {
+                state.activeEffects.shield = true;
+                alert("防爆盾已装备！");
+                success = true;
+            }
+
+            // Memory Items
+            if (itemId === 'mem_peek') {
+                state.flippedCards = []; // clear selection
+                const oldState = state.gameState;
+                state.gameState = 'preview'; // force reveal by render logic
+                renderGrid();
+                setTimeout(() => {
+                    state.gameState = oldState;
+                    renderGrid();
+                }, 2000);
+                success = true;
+            } else if (itemId === 'mem_auto') {
+                // find a pair
+                outer: for(let r=0; r<state.gridSize; r++) {
+                    for(let c=0; c<state.gridSize; c++) {
+                        if(state.matchedCards.has(`${r},${c}`)) continue;
+                        const val = state.board[r][c];
+                        for(let r2=0; r2<state.gridSize; r2++) {
+                            for(let c2=0; c2<state.gridSize; c2++) {
+                                if(r===r2 && c===c2) continue;
+                                if(state.board[r2][c2] === val && !state.matchedCards.has(`${r2},${c2}`)) {
+                                    state.matchedCards.add(`${r},${c}`);
+                                    state.matchedCards.add(`${r2},${c2}`);
+                                    state.score += 200;
+                                    renderGrid();
+                                    updateUI();
+                                    success = true;
+                                    break outer;
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if (itemId === 'mem_time') {
+                state.timer += 15;
+                updateUI();
+                success = true;
+            }
+
+            if (success) {
+                state.items[itemId]--;
+                SFX.item();
+                renderItems();
+                userData.stats.itemsUsed++;
+            }
+        }
+
+        // 道具特殊回调
+        function useItemAction(itemId, r, c) {
+            if (itemId === 'm3_bomb') {
+                state.board[r][c] = null;
+                // gravity fill happens in processMatches loop usually, trigger a dummy match check
+                processMatches([]); // will trigger drop
+                state.items[itemId]--;
+                state.items.m3_bomb_active = false;
+                renderItems();
+                userData.stats.itemsUsed++;
+            }
+        }
+
+
+        // === 游戏循环与状态管理 ===
+        function startTimer() {
+            if (timerLoop) clearInterval(timerLoop);
+            const isTimeMode = state.mode !== 'match3' && state.mode !== 'minesweeper';
+            
+            timerLoop = setInterval(() => {
+                if (state.gameState !== 'playing' || state.activeEffects.frozen) return;
+                
+                if (state.mode === 'minesweeper') {
+                    state.timer++;
+                } else if (state.mode !== 'match3') {
+                    state.timer--;
+                    if (state.timer <= 0) loseGame();
+                }
+                updateHeader();
+            }, 1000);
+        }
+
+        function checkWin() {
+            if (state.mode === 'match3') {
+                const target = state.level * 2000;
+                if (state.score >= target) winGame();
+                else if (state.moves <= 0) loseGame();
+            }
+        }
+
+        function winGame() {
+            endGame(true);
+        }
+
+        function loseGame() {
+            endGame(false);
+        }
+
+        function endGame(isWin) {
+            state.gameState = isWin ? 'won' : 'lost';
+            clearInterval(timerLoop);
+            
+            // 记录数据
+            const record = {
+                date: new Date().toLocaleString(),
+                mode: state.mode,
+                score: state.score,
+                result: isWin ? '胜利' : '失败',
+                level: state.level
+            };
+            userData.history.unshift(record);
+            if (userData.history.length > 50) userData.history.pop();
+            
+            // 统计
+            if (isWin) userData.stats.wins++; else userData.stats.losses++;
+            userData.stats.totalScore += state.score;
+            userData.stats.clicks += state.clicks;
+
+            // 检查成就
+            checkAchievements(isWin);
+            saveData();
+
+            // 音效与UI
+            if(isWin) SFX.win(); else SFX.error();
+            showResultModal(isWin);
+        }
+
+        // === 成就系统 ===
+        function checkAchievements(isWin) {
+            const unlock = (id) => {
+                if (!userData.achievements.includes(id)) {
+                    userData.achievements.push(id);
+                    return true;
+                }
+                return false;
+            };
+
+            const newlyUnlocked = [];
+
+            // 通用
+            if (isWin) {
+                if(unlock('first_win')) newlyUnlocked.push('first_win');
+                if(userData.stats.wins >= 10 && unlock('win_10')) newlyUnlocked.push('win_10');
+                if(userData.stats.wins >= 50 && unlock('win_50')) newlyUnlocked.push('win_50');
+                if(state.level >= 10 && unlock('level_10')) newlyUnlocked.push('level_10');
+            } else {
+                if(unlock('fail_1')) newlyUnlocked.push('fail_1');
+            }
+            if(state.score > 5000 && unlock('rich')) newlyUnlocked.push('rich');
+
+            // 模式特定
+            if (isWin) {
+                if (state.mode === 'match3') {
+                    if ((Date.now() - state.startTime) < 30000 && unlock('m3_fast')) newlyUnlocked.push('m3_fast');
+                }
+                if (state.mode === 'link') {
+                    if ((Date.now() - state.startTime) < 40000 && unlock('link_fast')) newlyUnlocked.push('link_fast');
+                    if (state.score >= state.gridSize*state.gridSize*50 && unlock('link_no_error')) newlyUnlocked.push('link_no_error'); // crude check
+                }
+                if (state.mode === 'minesweeper') {
+                    if (state.timer < 60 && unlock('mine_fast')) newlyUnlocked.push('mine_fast');
+                    if (state.flagged.size === 0 && unlock('mine_no_flag')) newlyUnlocked.push('mine_no_flag');
+                }
+                if (state.mode === 'memory') {
+                    if (state.mistakes === 0 && unlock('mem_perfect')) newlyUnlocked.push('mem_perfect');
+                }
+            }
+
+            return newlyUnlocked;
+        }
+
+        // === 界面更新 ===
+        function updateUI() {
+            // 分数条
+            const target = state.level * 2000;
+            const pct = state.mode === 'minesweeper' ? 100 : Math.min(100, (state.score / target) * 100);
+            document.getElementById('score-bar').style.width = `${pct}%`;
+            document.getElementById('score-value').innerText = state.score;
+            document.getElementById('target-score').innerText = state.mode === 'match3' ? target : 'MAX';
+
+            // 左侧状态
+            const leftLabel = document.getElementById('stat-left-label');
+            const leftValue = document.getElementById('stat-left-value');
+            if (state.mode === 'match3') {
+                leftLabel.innerText = '剩余步数';
+                leftValue.innerText = state.moves;
+            } else if (state.mode === 'minesweeper') {
+                leftLabel.innerText = '剩余雷数';
+                leftValue.innerText = state.mineTotal - state.flagged.size;
+            } else {
+                leftLabel.innerText = '倒计时';
+                leftValue.innerText = state.timer;
+            }
+
+            // 右侧状态 (连击)
+            const rightContainer = document.getElementById('stat-right-container');
+            if (state.mode === 'match3' && state.combo > 1) {
+                rightContainer.innerHTML = `<span class="text-orange-500 font-black text-xl">x${state.combo}</span><span class="text-[8px] text-gray-400">COMBO</span>`;
+            } else if (state.mode === 'minesweeper') {
+                 rightContainer.innerHTML = `<button onclick="toggleFlag()" class="p-2 bg-slate-100 rounded hover:bg-red-100 ${state.activeEffects.flagging?'ring-2 ring-red-400':''}"><i data-lucide="flag" class="w-4 h-4 text-red-500"></i></button>`;
+            } else {
+                rightContainer.innerHTML = '';
+            }
+            lucide.createIcons();
+        }
+
+        function toggleFlag() {
+            // Minesweeper flag toggle helper (visual only, logic in click)
+            // Actually original logic was click to reveal, right click or toggle for flag. 
+            // Simplified here: Click reveals. To flag, we need a toggle button if on mobile.
+            // *Added flag toggle logic*:
+            state.isFlagMode = !state.isFlagMode;
+            const btn = document.querySelector('#stat-right-container button');
+            if(btn) {
+                btn.className = `p-2 rounded transition ${state.isFlagMode ? 'bg-red-500 text-white shadow-lg' : 'bg-slate-100 text-red-500'}`;
+            }
+        }
+        
+        // Enhance mines logic for flag mode
+        const originalLogicMines = logicMines;
+        logicMines = function(r, c) {
+            if (state.isFlagMode) {
+                const key = `${r},${c}`;
+                if (state.revealed.has(key)) return;
+                if (state.flagged.has(key)) {
+                    state.flagged.delete(key);
+                } else {
+                    state.flagged.add(key);
+                }
+                SFX.click();
+                renderGrid();
+                updateUI();
+            } else {
+                originalLogicMines(r, c);
+            }
+        }
+
+        function updateHeader() {
+            const titles = {match3:'战术消除', link:'特工连线', minesweeper:'狂鼠排雷', memory:'黑影骇入'};
+            document.getElementById('game-title').innerText = titles[state.mode];
+            document.getElementById('level-display').innerText = `PHASE ${state.level}`;
+            
+            if (state.mode === 'minesweeper') {
+                document.getElementById('score-container').classList.add('hidden');
+                document.getElementById('timer-only-container').classList.remove('hidden');
+                document.getElementById('timer-value-lg').innerText = state.timer + 's';
+            } else {
+                document.getElementById('score-container').classList.remove('hidden');
+                document.getElementById('timer-only-container').classList.add('hidden');
+            }
+        }
+
+        function renderItems() {
+            const bar = document.getElementById('items-bar');
+            const items = ITEMS_DB[state.mode] || [];
+            bar.innerHTML = items.map(item => {
+                const count = state.items[item.id] || 0;
+                const activeClass = (item.id === 'm3_bomb' && state.items.m3_bomb_active) ? 'ring-2 ring-red-500 bg-red-50' : '';
+                return `
+                <button onclick="useItem('${item.id}')" class="relative group flex flex-col items-center p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition active:scale-95 ${activeClass} ${count===0 ? 'opacity-50 grayscale cursor-not-allowed' : ''}">
+                    <div class="bg-slate-100 p-2 rounded-full mb-1 group-hover:bg-orange-100 transition">
+                        <i data-lucide="${item.icon}" class="w-5 h-5 text-slate-600 group-hover:text-orange-500"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-500">${item.name}</span>
+                    <span class="absolute -top-1 -right-1 bg-orange-500 text-white text-[10px] font-bold px-1.5 rounded-full border border-white shadow-sm">${count}</span>
+                    <!-- Tooltip -->
+                    <div class="absolute bottom-full mb-2 hidden group-hover:block w-32 bg-slate-800 text-white text-[10px] p-2 rounded z-50 pointer-events-none">
+                        ${item.desc}
+                    </div>
+                </button>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function renderMenu() {
+            const menus = [
+                { id: 'match3', t: '战术消除', sub: 'Match-3', i: 'grid', c: 'orange' },
+                { id: 'link', t: '特工连线', sub: 'Link', i: 'link', c: 'blue' },
+                { id: 'minesweeper', t: '狂鼠排雷', sub: 'Mines', i: 'bomb', c: 'red' },
+                { id: 'memory', t: '黑影骇入', sub: 'Memory', i: 'brain', c: 'purple' }
+            ];
+            
+            document.querySelector('#menu-view .grid').innerHTML = menus.map(m => `
+                <button onclick="startGame('${m.id}')" class="relative overflow-hidden w-full h-20 bg-white hover:bg-${m.c}-50 border border-slate-200 hover:border-${m.c}-200 rounded-2xl transition-all shadow-sm hover:shadow-md flex items-center px-6 group">
+                    <div class="absolute right-[-10px] bottom-[-10px] opacity-10 transform rotate-12 group-hover:scale-110 transition">
+                        <i data-lucide="${m.i}" class="w-24 h-24 text-${m.c}-600"></i>
+                    </div>
+                    <div class="w-12 h-12 bg-${m.c}-100 rounded-full flex items-center justify-center mr-4 group-hover:scale-110 transition">
+                        <i data-lucide="${m.i}" class="w-6 h-6 text-${m.c}-600"></i>
+                    </div>
+                    <div class="text-left">
+                        <h3 class="text-xl font-black italic text-slate-800 uppercase group-hover:text-${m.c}-700">${m.t}</h3>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">${m.sub}</p>
+                    </div>
+                </button>
+            `).join('');
+        }
+
+        function showResultModal(isWin) {
+            const modal = document.getElementById('modal-overlay');
+            const title = document.getElementById('modal-title');
+            const msg = document.getElementById('modal-message');
+            const icon = document.getElementById('modal-icon');
+            const btn = document.getElementById('btn-modal-action');
+            
+            modal.classList.remove('hidden');
+            document.getElementById('modal-score-value').innerText = state.score;
+
+            // 显示本次解锁的成就
+            const newAchieves = checkAchievements(isWin); // Re-check purely for display
+            const achieveContainer = document.getElementById('modal-achievements');
+            const achieveList = document.getElementById('modal-achievements-list');
+            if (newAchieves.length > 0) {
+                achieveContainer.classList.remove('hidden');
+                achieveList.innerHTML = newAchieves.map(id => {
+                    const ach = ACHIEVEMENTS_DB.find(a => a.id === id);
+                    return `<span class="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-1 rounded-full border border-yellow-200 flex items-center gap-1"><i data-lucide="${ach.icon}" class="w-3 h-3"></i> ${ach.title}</span>`;
+                }).join('');
+            } else {
+                achieveContainer.classList.add('hidden');
+            }
+
+            if (isWin) {
+                icon.innerHTML = `<div class="bg-orange-100 p-4 rounded-full"><i data-lucide="award" class="w-12 h-12 text-orange-500 animate-bounce"></i></div>`;
+                title.innerText = "任务完成";
+                title.className = "text-2xl font-black italic text-orange-600 uppercase mb-2";
+                msg.innerText = "目标已清除，表现优异。";
+                btn.innerText = "下一阶段";
+                btn.onclick = () => {
+                    modal.classList.add('hidden');
+                    state.level++;
+                    setupLevel();
+                    if(state.mode==='memory') startMemoryPreview(); else startTimer();
+                };
+            } else {
+                icon.innerHTML = `<div class="bg-gray-100 p-4 rounded-full"><i data-lucide="skull" class="w-12 h-12 text-gray-500 animate-shake"></i></div>`;
+                title.innerText = "行动失败";
+                title.className = "text-2xl font-black italic text-gray-600 uppercase mb-2";
+                msg.innerText = "特工负伤，任务中止。";
+                btn.innerText = "重试";
+                btn.onclick = () => {
+                    modal.classList.add('hidden');
+                    startGame(state.mode);
+                };
+            }
+            lucide.createIcons();
+        }
+
+        // === 列表展示 (档案/成就) ===
+        function showRecords() {
+            const modal = document.getElementById('list-modal');
+            const content = document.getElementById('list-content');
+            document.getElementById('list-title').innerText = "特工档案 (最近50场)";
+            
+            content.innerHTML = userData.history.length === 0 
+                ? `<p class="text-center text-gray-400 mt-10">暂无任务记录</p>`
+                : userData.history.map(h => `
+                    <div class="bg-white p-3 rounded-xl border border-gray-200 flex justify-between items-center shadow-sm">
+                        <div>
+                            <p class="font-bold text-slate-700 text-sm">${h.mode.toUpperCase()} <span class="text-xs text-gray-400 font-normal ml-2">${h.date.split(' ')[0]}</span></p>
+                            <p class="text-xs text-slate-500">Phase ${h.level}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-black text-lg ${h.result==='胜利'?'text-orange-500':'text-gray-400'}">${h.score}</p>
+                            <p class="text-[10px] font-bold text-slate-300 uppercase">${h.result}</p>
+                        </div>
+                    </div>
+                `).join('');
+            
+            modal.classList.remove('hidden');
+        }
+
+        function showAchievements() {
+            const modal = document.getElementById('list-modal');
+            const content = document.getElementById('list-content');
+            document.getElementById('list-title').innerText = `成就系统 (${userData.achievements.length}/${ACHIEVEMENTS_DB.length})`;
+            
+            content.innerHTML = `<div class="grid grid-cols-1 gap-3">` + ACHIEVEMENTS_DB.map(ach => {
+                const unlocked = userData.achievements.includes(ach.id);
+                return `
+                    <div class="flex items-center gap-3 p-3 rounded-xl border ${unlocked ? 'bg-white border-orange-200 shadow-sm' : 'bg-gray-100 border-transparent opacity-60'}">
+                        <div class="p-2 rounded-full ${unlocked ? 'bg-orange-100 text-orange-600' : 'bg-gray-200 text-gray-400'}">
+                            <i data-lucide="${ach.icon}" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-800">${ach.title}</h4>
+                            <p class="text-xs text-slate-500">${ach.desc}</p>
+                        </div>
+                        ${unlocked ? '<i data-lucide="check" class="ml-auto w-4 h-4 text-orange-500"></i>' : ''}
+                    </div>
+                `;
+            }).join('') + `</div>`;
+            
+            lucide.createIcons();
+            modal.classList.remove('hidden');
+        }
+
+        function closeListModal() {
+            document.getElementById('list-modal').classList.add('hidden');
+        }
+
+        // [FIX 1] 独立的返回菜单函数，确保状态清理
+        function backToMenu() {
+            clearInterval(timerLoop);
+            document.getElementById('game-view').classList.add('hidden');
+            document.getElementById('menu-view').classList.remove('hidden');
+            document.getElementById('modal-overlay').classList.add('hidden'); // 确保隐藏弹窗
+            saveData();
+        }
+
+        // === 绑定基础事件 ===
+        document.getElementById('btn-back').onclick = backToMenu;
+        document.getElementById('btn-modal-back').onclick = backToMenu;
+        document.getElementById('btn-mute').onclick = () => {
+            if(audioCtx) audioCtx.suspend();
+        };
+
+        // 启动
+        init();
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>球球大作战 - 生命增强版</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* UI 层 */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        /* 顶部状态栏 */
+        #hud-top {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            gap: 20px;
+            pointer-events: none;
+        }
+
+        .hud-box {
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .heart-icon {
+            color: #ff4757;
+            margin-right: 8px;
+            font-size: 22px;
+        }
+
+        /* 登录/开始菜单 */
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            z-index: 10;
+            backdrop-filter: blur(5px);
+        }
+
+        .panel {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            width: 320px;
+        }
+
+        h1 {
+            margin: 0 0 20px 0;
+            color: #ff4757;
+            font-size: 32px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        input {
+            padding: 12px;
+            width: 80%;
+            margin-bottom: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            border-color: #ff4757;
+        }
+
+        button {
+            padding: 12px 30px;
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 18px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.1s, background 0.3s;
+            width: 90%;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #ff6b81;
+            transform: scale(1.05);
+        }
+        
+        button.secondary {
+            background: #2ed573;
+        }
+        
+        button.secondary:hover {
+            background: #7bed9f;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* 排行榜 */
+        #leaderboard {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            min-width: 180px;
+            pointer-events: none;
+        }
+
+        #leaderboard h3 {
+            margin: 0 0 10px 0;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.3);
+            padding-bottom: 5px;
+        }
+
+        #leaderboard ol {
+            margin: 0;
+            padding-left: 25px;
+            font-size: 14px;
+        }
+
+        #leaderboard li {
+            margin-bottom: 4px;
+        }
+
+        /* 操作提示 */
+        #controls-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        /* 死亡重开 */
+        #game-over {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.85);
+            color: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            z-index: 20;
+            pointer-events: auto;
+            width: 320px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+
+        .score-text {
+            font-size: 24px;
+            color: #ffd700;
+            margin: 10px 0 20px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+        <div id="hud-top">
+            <div class="hud-box">
+                <span class="heart-icon">❤</span> <span id="lives-count">3</span>
+            </div>
+            <div class="hud-box">
+                重量: <span id="mass-display" style="margin-left:8px">0</span>
+            </div>
+        </div>
+
+        <div id="leaderboard">
+            <h3>排行榜</h3>
+            <ol id="lb-list">
+                <!-- JS填充 -->
+            </ol>
+        </div>
+
+        <div id="controls-hint">
+            鼠标移动: 控制方向<br>
+            鼠标左键: 免费加速<br>
+            空格 (Space): 分裂<br>
+            W: 吐孢子
+        </div>
+    </div>
+
+    <div id="start-screen">
+        <div class="panel">
+            <h1>球球大作战</h1>
+            <input type="text" id="nickname" placeholder="请输入昵称" maxlength="8" value="球球勇士">
+            <button onclick="startGame()">开始游戏</button>
+        </div>
+    </div>
+
+    <div id="game-over">
+        <h1 style="color:white">你被吃掉了!</h1>
+        <div class="score-text">最终重量: <span id="final-mass">0</span></div>
+        
+        <button id="btn-revive" class="secondary" onclick="revivePlayer()">
+            复活 (保留体重)
+        </button>
+        <div style="font-size:12px; margin-top:5px; color:#aaa; margin-bottom: 10px;">
+            剩余生命: <span id="lives-left-msg">0</span>
+        </div>
+
+        <button onclick="resetGame()">重新开始 (重置)</button>
+    </div>
+
+    <script>
+        // --- 游戏配置与全局变量 ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 地图大小 (超大地图)
+        const MAP_WIDTH = 8000;
+        const MAP_HEIGHT = 8000;
+        const GRID_SIZE = 50;
+
+        // 游戏实体
+        let nodes = [];
+        let playerCells = []; 
+        let foods = [];
+        let viruses = [];
+        let masses = [];
+        let bots = [];
+
+        // 游戏状态
+        let isPlaying = false;
+        let gameLoopId;
+        let camera = { x: 0, y: 0, z: 1 }; 
+        let mouse = { x: 0, y: 0 };
+        let isMousePressed = false;
+        
+        // 玩家属性
+        let playerLives = 3;
+        let lastRecordMass = 0; // 记录死前的体重
+        const INITIAL_PLAYER_MASS = 500;
+        const INVINCIBLE_TIME = 3000; // 3秒无敌
+        
+        // 昵称库
+        const botNames = ["吞噬者", "大魔王", "小可怜", "别吃我", "库库林", "塔坦", "咯洛洛", "哈丽", "球球1号", "无敌风火轮", "路人甲", "带妹上分", "JS大师", "地球人", "火星人", "霸霸", "求合作", "神秘人", "暴龙战士", "小甜甜"];
+        const colors = ['#FF3333', '#33FF33', '#3333FF', '#FFFF33', '#33FFFF', '#FF33FF', '#FF9933', '#99FF33', '#3399FF', '#FF3399'];
+        const planetSkins = ['earth', 'mars', 'jupiter', 'moon'];
+        const fruitSkins = ['watermelon', 'orange', 'kiwi'];
+
+        // 物理参数
+        const BASE_SPEED = 6;
+        const DECAY_RATE = 0.998;
+        const RECOMBINE_TIME = 15000;
+        const SPLIT_SPEED = 15; 
+        const BOOST_SPEED_MULTIPLIER = 2.5; 
+
+        // --- 类定义 ---
+
+        class Node {
+            constructor(x, y, mass, color, name) {
+                this.x = x;
+                this.y = y;
+                this.mass = mass;
+                this.targetMass = mass;
+                this.color = color;
+                this.name = name;
+                this.radius = this.massToRadius(mass);
+                this.velX = 0;
+                this.velY = 0;
+                this.birthTime = Date.now();
+                this.skin = null;
+                
+                // 无敌状态
+                this.invincibleUntil = 0;
+            }
+
+            massToRadius(mass) {
+                return Math.sqrt(mass * 10);
+            }
+
+            updateRadius() {
+                if (this.targetMass !== this.mass) {
+                    let diff = this.targetMass - this.mass;
+                    if (Math.abs(diff) < 1) this.mass = this.targetMass;
+                    else this.mass += diff * 0.1;
+                }
+                this.radius = this.massToRadius(this.mass);
+            }
+
+            move() {
+                this.x += this.velX;
+                this.y += this.velY;
+                this.velX *= 0.9;
+                this.velY *= 0.9;
+                this.x = Math.max(this.radius, Math.min(MAP_WIDTH - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(MAP_HEIGHT - this.radius, this.y));
+            }
+            
+            isInvincible() {
+                return Date.now() < this.invincibleUntil;
+            }
+        }
+
+        class Cell extends Node {
+            constructor(x, y, mass, color, name, controller, skin) {
+                super(x, y, mass, color, name);
+                this.controller = controller; // 'player' or 'bot'
+                this.recombineTick = 0; 
+                this.isAgitated = false;
+                this.skin = skin;
+                this.isBoosting = false;
+            }
+
+            update(targetX, targetY) {
+                this.updateRadius();
+
+                let speed = BASE_SPEED * Math.pow(this.mass, -0.15); 
+                
+                if (this.isAgitated) {
+                    speed *= 4;
+                    this.velX *= 0.95;
+                    this.velY *= 0.95;
+                    if (Math.abs(this.velX) < 0.5 && Math.abs(this.velY) < 0.5) this.isAgitated = false;
+                } else {
+                    let dx = targetX - this.x;
+                    let dy = targetY - this.y;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist > 0) {
+                        if (this.isBoosting) speed *= BOOST_SPEED_MULTIPLIER;
+                        this.velX += (dx / dist) * speed * 0.1;
+                        this.velY += (dy / dist) * speed * 0.1;
+                    }
+                }
+                
+                this.move();
+
+                if (this.mass > 200 && Date.now() % 100 === 0 && !this.isBoosting) {
+                    this.targetMass *= DECAY_RATE;
+                }
+            }
+
+            draw() {
+                // 如果无敌，闪烁效果
+                if (this.isInvincible()) {
+                    if (Math.floor(Date.now() / 100) % 2 === 0) {
+                        ctx.globalAlpha = 0.5;
+                    }
+                }
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                
+                if (this.skin) {
+                    ctx.save();
+                    ctx.clip();
+                    drawSkin(ctx, this.x, this.y, this.radius, this.skin, this.color);
+                    ctx.restore();
+                } else {
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
+                }
+                
+                // 恢复透明度
+                ctx.globalAlpha = 1.0; 
+                
+                // 边框
+                ctx.lineWidth = 3 + this.radius * 0.05;
+                ctx.strokeStyle = adjustColor(this.color, -40);
+                ctx.stroke();
+                ctx.closePath();
+
+                // 玩家特有的高亮光环
+                if (this.controller === 'player') {
+                    ctx.save();
+                    ctx.beginPath();
+                    // 动态呼吸圈
+                    const ringOffset = 5 + Math.sin(Date.now() / 200) * 3;
+                    ctx.arc(this.x, this.y, this.radius + ringOffset, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(255, 255, 0, 0.6)';
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                    // 旋转的虚线
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius + ringOffset + 5, Date.now()/500, Date.now()/500 + Math.PI);
+                    ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.restore();
+                }
+                
+                // 无敌盾牌视觉
+                if (this.isInvincible()) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius + 15, 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${0.3 + Math.sin(Date.now()/100)*0.2})`;
+                    ctx.lineWidth = 4;
+                    ctx.setLineDash([10, 10]);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                // 名字
+                if (this.name) {
+                    ctx.fillStyle = 'white';
+                    ctx.font = `bold ${Math.max(12, this.radius * 0.4)}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = 'black';
+                    ctx.strokeText(this.name, this.x, this.y);
+                    ctx.fillText(this.name, this.x, this.y);
+                }
+            }
+        }
+
+        class Virus extends Node {
+            constructor(x, y) {
+                super(x, y, 100, '#33FF33', null);
+                this.isSpiked = true;
+                this.spikes = 16;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.strokeStyle = adjustColor(this.color, -40);
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                for (let i = 0; i < this.spikes * 2; i++) {
+                    const angle = (Math.PI * 2 * i) / (this.spikes * 2);
+                    const r = (i % 2 === 0) ? this.radius : this.radius * 0.9;
+                    const px = this.x + r * Math.cos(angle);
+                    const py = this.y + r * Math.sin(angle);
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+
+        class Food extends Node {
+            constructor() {
+                const x = Math.random() * MAP_WIDTH;
+                const y = Math.random() * MAP_HEIGHT;
+                const color = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                super(x, y, 1 + Math.random(), color, null);
+            }
+
+            draw() {
+                if (this.radius < 1) return;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        class MassEjected extends Node {
+            constructor(x, y, velX, velY, color) {
+                super(x, y, 10, color, null);
+                this.velX = velX;
+                this.velY = velY;
+            }
+            
+            update() {
+                this.move();
+                this.velX *= 0.9;
+                this.velY *= 0.9;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.strokeStyle = adjustColor(this.color, -40);
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+
+        // --- 游戏主逻辑 ---
+
+        function initGame() {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                mouse.x = e.clientX - rect.left;
+                mouse.y = e.clientY - rect.top;
+            });
+            
+            canvas.addEventListener('mousedown', (e) => {
+                if (e.button === 0) { 
+                    isMousePressed = true;
+                    setBoost(true);
+                }
+            });
+
+            canvas.addEventListener('mouseup', (e) => {
+                 if (e.button === 0) { 
+                    isMousePressed = false;
+                    setBoost(false);
+                }
+            });
+
+            window.addEventListener('keydown', handleInput);
+
+            // 生成资源
+            foods = [];
+            for(let i=0; i< 1000; i++) foods.push(new Food());
+
+            viruses = [];
+            for(let i=0; i< 50; i++) {
+                viruses.push(new Virus(Math.random() * MAP_WIDTH, Math.random() * MAP_HEIGHT));
+            }
+
+            bots = [];
+            for(let i=0; i< 200; i++) {
+                spawnBot();
+            }
+        }
+
+        function startGame() {
+            const nick = document.getElementById('nickname').value || "无名氏";
+            playerLives = 3; // 重置生命
+            document.getElementById('lives-count').innerText = playerLives;
+            
+            startRound(nick, INITIAL_PLAYER_MASS);
+        }
+        
+        function resetGame() {
+            document.getElementById('game-over').style.display = 'none';
+            document.getElementById('start-screen').style.display = 'flex';
+        }
+
+        function revivePlayer() {
+            if (playerLives > 0) {
+                playerLives--;
+                document.getElementById('lives-count').innerText = playerLives;
+                const nick = document.getElementById('nickname').value || "无名氏";
+                
+                // 复活时给予至少基础重量，如果之前死得很惨，就用基础重量
+                const reviveMass = Math.max(lastRecordMass, INITIAL_PLAYER_MASS);
+                startRound(nick, reviveMass);
+            }
+        }
+
+        function startRound(name, initialMass) {
+            playerCells = [];
+            // 分摊质量到单个球（复活逻辑通常复活为一个大球）
+            spawnPlayer(name, initialMass);
+            
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-over').style.display = 'none';
+            isPlaying = true;
+            animate();
+        }
+
+        function spawnPlayer(name, totalMass) {
+            const x = Math.random() * MAP_WIDTH;
+            const y = Math.random() * MAP_HEIGHT;
+            
+            let skin = null;
+            const skinType = Math.random();
+            if (skinType < 0.3) skin = planetSkins[Math.floor(Math.random() * planetSkins.length)];
+            else if (skinType < 0.6) skin = fruitSkins[Math.floor(Math.random() * fruitSkins.length)];
+            
+            const cell = new Cell(x, y, totalMass, '#ff4757', name, 'player', skin);
+            // 给3秒无敌
+            cell.invincibleUntil = Date.now() + INVINCIBLE_TIME;
+            
+            playerCells.push(cell);
+            
+            // 重置摄像机到玩家位置
+            camera.x = x;
+            camera.y = y;
+            camera.z = 1; // 初始视角可以拉近一点
+        }
+
+        function spawnBot() {
+            const name = botNames[Math.floor(Math.random() * botNames.length)];
+            const x = Math.random() * MAP_WIDTH;
+            const y = Math.random() * MAP_HEIGHT;
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            
+            let skin = null;
+            const skinType = Math.random();
+            if (skinType < 0.4) skin = planetSkins[Math.floor(Math.random() * planetSkins.length)];
+            else if (skinType < 0.8) skin = fruitSkins[Math.floor(Math.random() * fruitSkins.length)];
+
+            // 随机大小
+            let startMass = 50 + Math.random() * 100;
+            const r = Math.random();
+            if (r < 0.02) startMass = 2000 + Math.random() * 3000; 
+            else if (r < 0.1) startMass = 500 + Math.random() * 1000;
+            else if (r < 0.3) startMass = 200 + Math.random() * 300; 
+
+            bots.push({
+                cells: [new Cell(x, y, startMass, color, name, 'bot', skin)],
+                color: color,
+                name: name,
+                target: {x: Math.random() * MAP_WIDTH, y: Math.random() * MAP_HEIGHT},
+                changeTargetTimer: 0
+            });
+        }
+
+        function handleInput(e) {
+            if (!isPlaying) return;
+            if (playerCells.length === 0) return;
+
+            if (e.code === 'Space') {
+                splitCells(playerCells);
+            }
+            if (e.code === 'KeyW') {
+                ejectMass(playerCells);
+            }
+        }
+
+        function setBoost(boosting) {
+            playerCells.forEach(cell => {
+                cell.isBoosting = boosting;
+            });
+        }
+
+        function splitCells(cellArray) {
+            const newCells = [];
+            if (cellArray.length >= 16) return;
+
+            cellArray.forEach(cell => {
+                if (cell.mass >= 36 && cellArray.length + newCells.length < 16) {
+                    const splitMass = cell.mass / 2;
+                    cell.targetMass = splitMass;
+                    cell.mass = splitMass;
+
+                    let dx = 0, dy = 0;
+                    if (cell.controller === 'player') {
+                        dx = (mouse.x - canvas.width / 2);
+                        dy = (mouse.y - canvas.height / 2);
+                    } else {
+                        dx = cell.velX;
+                        dy = cell.velY;
+                    }
+                    
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    const dirX = dist === 0 ? 1 : dx / dist;
+                    const dirY = dist === 0 ? 0 : dy / dist;
+
+                    const splitCell = new Cell(
+                        cell.x + dirX * cell.radius, 
+                        cell.y + dirY * cell.radius, 
+                        splitMass, 
+                        cell.color, 
+                        cell.name, 
+                        cell.controller,
+                        cell.skin
+                    );
+                    
+                    splitCell.velX = dirX * SPLIT_SPEED;
+                    splitCell.velY = dirY * SPLIT_SPEED;
+                    splitCell.isAgitated = true;
+                    splitCell.recombineTick = Date.now() + RECOMBINE_TIME;
+                    // 分裂继承无敌时间（如果有）
+                    splitCell.invincibleUntil = cell.invincibleUntil;
+
+                    newCells.push(splitCell);
+                }
+            });
+            newCells.forEach(c => cellArray.push(c));
+        }
+
+        function ejectMass(cellArray) {
+            cellArray.forEach(cell => {
+                if (cell.mass > 36) {
+                    const ejectMassVal = 14;
+                    cell.targetMass -= ejectMassVal;
+                    
+                    let dx, dy;
+                    if (cell.controller === 'player') {
+                         dx = mouse.x - canvas.width/2;
+                         dy = mouse.y - canvas.height/2;
+                    } else {
+                        dx = cell.velX;
+                        dy = cell.velY;
+                    }
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    const dirX = dist===0?1:dx/dist;
+                    const dirY = dist===0?0:dy/dist;
+
+                    const sx = cell.x + dirX * cell.radius;
+                    const sy = cell.y + dirY * cell.radius;
+
+                    const m = new MassEjected(sx, sy, dirX * 25, dirY * 25, cell.color);
+                    masses.push(m);
+                }
+            });
+        }
+
+        function updateBots() {
+            bots.forEach(bot => {
+                if (bot.cells.length === 0) return;
+                
+                let cx = 0, cy = 0, totalMass = 0;
+                bot.cells.forEach(c => { cx += c.x * c.mass; cy += c.y * c.mass; totalMass += c.mass; });
+                cx /= totalMass; cy /= totalMass;
+
+                bot.changeTargetTimer--;
+                if (bot.changeTargetTimer <= 0) {
+                    bot.target.x = Math.random() * MAP_WIDTH;
+                    bot.target.y = Math.random() * MAP_HEIGHT;
+                    bot.changeTargetTimer = 50 + Math.random() * 100;
+                    
+                    if (bot.cells.length < 4 && totalMass > 200 && Math.random() < 0.05) {
+                        splitCells(bot.cells);
+                    }
+                }
+
+                if (playerCells.length > 0) {
+                    const p = playerCells[0]; 
+                    // 简单的作弊：Bot也能看到隐形玩家，但我们加个判断，如果玩家无敌，Bot不刻意追
+                    if (!p.isInvincible()) {
+                        const dist = Math.hypot(p.x - cx, p.y - cy);
+                        if (dist < 400 && p.mass > totalMass * 1.2) {
+                            bot.target.x = cx - (p.x - cx);
+                            bot.target.y = cy - (p.y - cy);
+                        } else if (dist < 300 && totalMass > p.mass * 1.25) {
+                            bot.target.x = p.x;
+                            bot.target.y = p.y;
+                        }
+                    }
+                }
+
+                bot.cells.forEach(cell => {
+                    cell.update(bot.target.x, bot.target.y);
+                });
+                
+                handleSelfCollision(bot.cells);
+            });
+            
+            bots = bots.filter(b => b.cells.length > 0);
+            if (bots.length < 200) spawnBot();
+        }
+
+        function handleSelfCollision(cells) {
+            for (let i = 0; i < cells.length; i++) {
+                for (let j = i + 1; j < cells.length; j++) {
+                    const c1 = cells[i];
+                    const c2 = cells[j];
+                    const dx = c1.x - c2.x;
+                    const dy = c1.y - c2.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const minDist = c1.radius + c2.radius;
+
+                    if (Date.now() > c1.recombineTick && Date.now() > c2.recombineTick) {
+                         // 等待 checkCollisions 处理合并
+                    } else {
+                        if (dist < minDist) {
+                            const pen = minDist - dist;
+                            if (dist === 0) {
+                                c1.x += 1;
+                            } else {
+                                const ax = dx / dist * pen * 0.1;
+                                const ay = dy / dist * pen * 0.1;
+                                c1.x += ax;
+                                c1.y += ay;
+                                c2.x -= ax;
+                                c2.y -= ay;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        function checkCollisions() {
+            let allCells = [...playerCells];
+            bots.forEach(b => allCells.push(...b.cells));
+
+            allCells.sort((a, b) => a.mass - b.mass); 
+
+            for (let i = allCells.length - 1; i >= 0; i--) {
+                let cell = allCells[i];
+                
+                // 食物
+                for (let f = foods.length - 1; f >= 0; f--) {
+                    let food = foods[f];
+                    if (cell.mass < food.mass) continue; 
+                    const dx = cell.x - food.x;
+                    const dy = cell.y - food.y;
+                    if (dx*dx + dy*dy < cell.radius * cell.radius) {
+                        cell.targetMass += food.mass;
+                        foods.splice(f, 1);
+                        if(foods.length < 1000) foods.push(new Food());
+                    }
+                }
+                
+                // 孢子
+                for (let m = masses.length - 1; m >= 0; m--) {
+                    let massObj = masses[m];
+                     const dx = cell.x - massObj.x;
+                     const dy = cell.y - massObj.y;
+                     if (dx*dx + dy*dy < cell.radius * cell.radius) {
+                         cell.targetMass += massObj.mass;
+                         masses.splice(m, 1);
+                     }
+                }
+                
+                // 刺球
+                for (let v = viruses.length - 1; v >= 0; v--) {
+                    let virus = viruses[v];
+                    if (cell.mass > virus.mass * 1.2) { 
+                         const dist = Math.hypot(cell.x - virus.x, cell.y - virus.y);
+                         if (dist < cell.radius + virus.radius - 10) { 
+                             // 如果是无敌的，不炸刺球，只是推开或者穿过
+                             if (cell.isInvincible()) {
+                                 continue;
+                             }
+
+                             viruses.splice(v, 1);
+                             viruses.push(new Virus(Math.random()*MAP_WIDTH, Math.random()*MAP_HEIGHT));
+                             
+                             const explodeCount = Math.min(16 - (cell.controller === 'player' ? playerCells.length : bots.find(b=>b.cells.includes(cell)).cells.length), 8);
+                             
+                             if (explodeCount > 0) {
+                                const pieceMass = cell.mass / (explodeCount + 1);
+                                cell.mass = pieceMass;
+                                cell.targetMass = pieceMass;
+                                const ownerArray = cell.controller === 'player' ? playerCells : bots.find(b=>b.cells.includes(cell)).cells;
+                                for(let k=0; k<explodeCount; k++) {
+                                    const angle = Math.random() * Math.PI * 2;
+                                    const nc = new Cell(cell.x, cell.y, pieceMass, cell.color, cell.name, cell.controller, cell.skin);
+                                    nc.velX = Math.cos(angle) * 20; 
+                                    nc.velY = Math.sin(angle) * 20;
+                                    nc.isAgitated = true;
+                                    nc.recombineTick = Date.now() + RECOMBINE_TIME;
+                                    ownerArray.push(nc);
+                                }
+                             }
+                         }
+                    }
+                }
+            }
+
+            // 互吃
+            for (let i = 0; i < allCells.length; i++) {
+                for (let j = 0; j < allCells.length; j++) {
+                    if (i === j) continue;
+                    
+                    let cell1 = allCells[i]; // 大球 (Predator)
+                    let cell2 = allCells[j]; // 小球 (Prey)
+                    
+                    // 无敌保护：如果你是无敌的，你不能被吃
+                    // 公平起见：如果你是无敌的，你也不能吃别人（防止复活杀）
+                    if (cell1.isInvincible() || cell2.isInvincible()) {
+                        continue;
+                    }
+
+                    const sameOwner = (cell1.controller === cell2.controller && cell1.color === cell2.color);
+                    
+                    const dx = cell1.x - cell2.x;
+                    const dy = cell1.y - cell2.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (sameOwner) {
+                        if (Date.now() > cell1.recombineTick && Date.now() > cell2.recombineTick) {
+                            if (dist < cell1.radius + cell2.radius / 2) { 
+                                cell1.targetMass += cell2.mass;
+                                cell2.mass = 0; 
+                            }
+                        }
+                    } else {
+                        if (cell1.mass > cell2.mass * 1.25) {
+                             if (dist < cell1.radius - cell2.radius * 0.4) {
+                                 cell1.targetMass += cell2.mass;
+                                 cell2.mass = 0; 
+                             }
+                        }
+                    }
+                }
+            }
+            
+            cleanDeadCells(playerCells);
+            bots.forEach(b => cleanDeadCells(b.cells));
+        }
+
+        function cleanDeadCells(arr) {
+            for (let i = arr.length - 1; i >= 0; i--) {
+                if (arr[i].mass <= 0) {
+                    arr.splice(i, 1);
+                }
+            }
+        }
+
+        function animate() {
+            if (!isPlaying) return;
+            gameLoopId = requestAnimationFrame(animate);
+
+            if (playerCells.length > 0) {
+                // 计算玩家总重量并更新 UI
+                let totalMass = 0;
+                let cx = 0, cy = 0;
+                
+                playerCells.forEach(c => {
+                    cx += c.x * c.mass;
+                    cy += c.y * c.mass;
+                    totalMass += c.mass;
+                });
+                cx /= totalMass;
+                cy /= totalMass;
+                
+                // 记录这次的重量，以备复活使用
+                lastRecordMass = totalMass;
+                document.getElementById('mass-display').innerText = Math.floor(totalMass);
+
+                camera.x += (cx - camera.x) * 0.1;
+                camera.y += (cy - camera.y) * 0.1;
+
+                // 优化缩放逻辑：
+                // 初始 totalArea 较小，Scale 较大（视野小）。
+                // totalArea 变大，Scale 变小（视野大）。
+                // 增加一个系数，让初始视野更紧凑，不至于显示全图
+                let totalRadiusSum = 0;
+                playerCells.forEach(c => totalRadiusSum += c.radius);
+                
+                // 基础视野缩放：保证即使是小球也能看清周围，但看不远
+                const idealScale = 1 / Math.pow(Math.min(64 / 1.0, totalRadiusSum), 0.45); 
+                camera.z += (idealScale - camera.z) * 0.05;
+
+                const targetX = (mouse.x - canvas.width / 2) / camera.z + camera.x;
+                const targetY = (mouse.y - canvas.height / 2) / camera.z + camera.y;
+                
+                playerCells.forEach(cell => cell.update(targetX, targetY));
+                handleSelfCollision(playerCells);
+
+            } else {
+                isPlaying = false;
+                document.getElementById('final-mass').innerText = Math.floor(lastRecordMass);
+                
+                // 更新复活界面的状态
+                const btnRevive = document.getElementById('btn-revive');
+                const livesMsg = document.getElementById('lives-left-msg');
+                livesMsg.innerText = playerLives;
+                
+                if (playerLives > 0) {
+                    btnRevive.style.display = 'inline-block';
+                    btnRevive.innerText = `复活 (保留体重)`;
+                } else {
+                    btnRevive.style.display = 'none';
+                }
+                
+                document.getElementById('game-over').style.display = 'block';
+            }
+
+            updateBots();
+            masses.forEach(m => m.update());
+            checkCollisions();
+            
+            render();
+            updateLeaderboard();
+        }
+
+        function render() {
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.scale(camera.z, camera.z);
+            ctx.translate(-camera.x, -camera.y);
+
+            drawGrid();
+
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 20;
+            ctx.strokeRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+
+            foods.forEach(f => f.draw());
+            masses.forEach(m => m.draw());
+            viruses.forEach(v => v.draw());
+
+            let renderList = [...playerCells];
+            bots.forEach(b => renderList.push(...b.cells));
+            renderList.sort((a, b) => a.mass - b.mass); 
+            
+            renderList.forEach(cell => cell.draw());
+
+            ctx.restore();
+        }
+
+        function drawGrid() {
+            // 只绘制视野范围内的网格
+            const viewportW = canvas.width / camera.z;
+            const viewportH = canvas.height / camera.z;
+            const startX = Math.floor((camera.x - viewportW/2) / GRID_SIZE) * GRID_SIZE;
+            const endX = Math.ceil((camera.x + viewportW/2) / GRID_SIZE) * GRID_SIZE;
+            const startY = Math.floor((camera.y - viewportH/2) / GRID_SIZE) * GRID_SIZE;
+            const endY = Math.ceil((camera.y + viewportH/2) / GRID_SIZE) * GRID_SIZE;
+
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = '#2a2a2a';
+            ctx.beginPath();
+
+            // 限制绘制范围，避免性能浪费
+            const drawStartX = Math.max(0, startX);
+            const drawEndX = Math.min(MAP_WIDTH, endX);
+            const drawStartY = Math.max(0, startY);
+            const drawEndY = Math.min(MAP_HEIGHT, endY);
+
+            for (let x = drawStartX; x <= drawEndX; x += GRID_SIZE) {
+                ctx.moveTo(x, drawStartY);
+                ctx.lineTo(x, drawEndY);
+            }
+            for (let y = drawStartY; y <= drawEndY; y += GRID_SIZE) {
+                ctx.moveTo(drawStartX, y);
+                ctx.lineTo(drawEndX, y);
+            }
+            ctx.stroke();
+        }
+
+        // 绘制皮肤的辅助函数
+        function drawSkin(ctx, x, y, radius, skinType, baseColor) {
+            switch(skinType) {
+                case 'earth':
+                    ctx.fillStyle = '#1e90ff';
+                    ctx.fillRect(x-radius, y-radius, radius*2, radius*2);
+                    ctx.fillStyle = '#228b22';
+                    ctx.beginPath();
+                    ctx.moveTo(x - radius*0.6, y - radius*0.3);
+                    ctx.quadraticCurveTo(x - radius*0.2, y - radius*0.8, x + radius*0.4, y - radius*0.4);
+                    ctx.quadraticCurveTo(x + radius*0.7, y + radius*0.1, x + radius*0.2, y + radius*0.6);
+                    ctx.quadraticCurveTo(x - radius*0.5, y + radius*0.3, x - radius*0.6, y - radius*0.3);
+                    ctx.fill();
+                    break;
+                case 'mars':
+                    ctx.fillStyle = '#c1440e';
+                    ctx.fillRect(x-radius, y-radius, radius*2, radius*2);
+                    ctx.fillStyle = '#a03a0b';
+                    ctx.beginPath();
+                    ctx.arc(x - radius*0.4, y - radius*0.4, radius*0.2, 0, Math.PI*2);
+                    ctx.arc(x + radius*0.3, y + radius*0.3, radius*0.15, 0, Math.PI*2);
+                    ctx.fill();
+                    break;
+                case 'jupiter':
+                    const grad = ctx.createLinearGradient(x, y-radius, x, y+radius);
+                    grad.addColorStop(0, '#d8ca9d');
+                    grad.addColorStop(0.3, '#a59186');
+                    grad.addColorStop(0.5, '#c99039');
+                    grad.addColorStop(0.7, '#a59186');
+                    grad.addColorStop(1, '#d8ca9d');
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(x-radius, y-radius, radius*2, radius*2);
+                    ctx.fillStyle = '#9c2e35';
+                    ctx.beginPath();
+                    ctx.ellipse(x + radius*0.3, y + radius*0.2, radius*0.25, radius*0.15, Math.PI/4, 0, Math.PI*2);
+                    ctx.fill();
+                    break;
+                case 'moon':
+                    ctx.fillStyle = '#e0e0e0';
+                    ctx.fillRect(x-radius, y-radius, radius*2, radius*2);
+                    ctx.fillStyle = '#b0b0b0';
+                    ctx.beginPath();
+                    ctx.arc(x - radius*0.3, y - radius*0.3, radius*0.2, 0, Math.PI*2);
+                    ctx.arc(x + radius*0.4, y + radius*0.2, radius*0.15, 0, Math.PI*2);
+                    ctx.arc(x - radius*0.1, y + radius*0.5, radius*0.1, 0, Math.PI*2);
+                    ctx.fill();
+                    break;
+                case 'watermelon':
+                    ctx.fillStyle = '#006400';
+                    ctx.fillRect(x-radius, y-radius, radius*2, radius*2);
+                    ctx.strokeStyle = '#228b22';
+                    ctx.lineWidth = radius * 0.1;
+                    ctx.beginPath();
+                    for(let i=-2; i<=2; i++) {
+                         ctx.moveTo(x - radius*0.8, y + i*radius*0.3);
+                         ctx.quadraticCurveTo(x, y + i*radius*0.3 + radius*0.1, x + radius*0.8, y + i*radius*0.3);
+                    }
+                    ctx.stroke();
+                    break;
+                case 'orange':
+                    ctx.fillStyle = '#ffa500';
+                    ctx.fillRect(x-radius, y-radius, radius*2, radius*2);
+                    ctx.fillStyle = '#ff8c00';
+                    for(let i=0; i<20; i++) {
+                        ctx.beginPath();
+                        ctx.arc(x + (Math.random()-0.5)*radius*1.6, y + (Math.random()-0.5)*radius*1.6, radius*0.05, 0, Math.PI*2);
+                        ctx.fill();
+                    }
+                    break;
+                 case 'kiwi':
+                    ctx.fillStyle = '#8b4513';
+                    ctx.fillRect(x-radius, y-radius, radius*2, radius*2);
+                    ctx.strokeStyle = '#6b3e11';
+                    ctx.lineWidth = 1;
+                    for(let i=0; i<50; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const r = radius * 0.9 + Math.random() * radius * 0.2;
+                        ctx.beginPath();
+                        ctx.moveTo(x + radius*0.9 * Math.cos(angle), y + radius*0.9 * Math.sin(angle));
+                        ctx.lineTo(x + r * Math.cos(angle), y + r * Math.sin(angle));
+                        ctx.stroke();
+                    }
+                    break;
+                default:
+                    ctx.fillStyle = baseColor;
+                    ctx.fillRect(x-radius, y-radius, radius*2, radius*2);
+            }
+        }
+
+        function updateLeaderboard() {
+            let scores = [];
+            
+            if (playerCells.length > 0) {
+                let pMass = 0;
+                playerCells.forEach(c => pMass += c.mass);
+                scores.push({name: playerCells[0].name, mass: pMass, isMe: true});
+                document.getElementById('lb-list').dataset.lastScore = Math.floor(pMass);
+            }
+
+            bots.forEach(b => {
+                if (b.cells.length > 0) {
+                    let bMass = 0;
+                    b.cells.forEach(c => bMass += c.mass);
+                    scores.push({name: b.name, mass: bMass, isMe: false});
+                }
+            });
+
+            scores.sort((a, b) => b.mass - a.mass);
+            const top10 = scores.slice(0, 10);
+            
+            const list = document.getElementById('lb-list');
+            list.innerHTML = '';
+            top10.forEach(s => {
+                const li = document.createElement('li');
+                li.textContent = `${s.name} (${Math.floor(s.mass)})`;
+                if (s.isMe) li.style.color = '#ff4757';
+                list.appendChild(li);
+            });
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        function adjustColor(color, amount) {
+            return '#' + color.replace(/^#/, '').replace(/../g, color => ('0'+Math.min(255, Math.max(0, parseInt(color, 16) + amount)).toString(16)).substr(-2));
+        }
+
+        initGame();
+
+    </script>
+</body>
+</html>

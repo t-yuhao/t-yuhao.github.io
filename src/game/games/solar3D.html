@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Solar System (Restored Colors)</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: rgb(34, 39, 56); }
+        #canvas-container { width: 100vw; height: 100vh; }
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: white; font-family: sans-serif; pointer-events: none;
+        }
+        .controls-info {
+            position: absolute; bottom: 20px; left: 20px;
+            color: rgba(255,255,255,0.4); font-family: sans-serif; font-size: 14px; pointer-events: none;
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="loading">正在加载星系...</div>
+    <div id="canvas-container"></div>
+    <div class="controls-info">左键旋转 | 右键平移 | 滚轮缩放</div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- 1. 场景设置 ---
+        const scene = new THREE.Scene();
+        // [还原点] 背景颜色设置为原始 CSS 的 rgb(34, 39, 56)
+        scene.background = new THREE.Color('rgb(34, 39, 56)');
+        // 添加雾效让远处物体柔和地融入背景
+        scene.fog = new THREE.FogExp2(0x222738, 0.0015);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 4000);
+        camera.position.set(0, 200, 400);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // --- 2. 辅助函数：生成辉光贴图 (模拟 box-shadow) ---
+        function createGlowTexture(colorStr) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const context = canvas.getContext('2d');
+            const gradient = context.createRadialGradient(32, 32, 0, 32, 32, 32);
+            // 核心亮，边缘透明
+            gradient.addColorStop(0, colorStr); 
+            gradient.addColorStop(0.4, colorStr);
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 64, 64);
+            const texture = new THREE.CanvasTexture(canvas);
+            return texture;
+        }
+
+        // --- 3. 灯光系统 ---
+        // 太阳点光源 (照亮行星)
+        const sunLight = new THREE.PointLight(0xffffff, 2.5, 800, 0);
+        scene.add(sunLight);
+        
+        // 环境光 (提高整体亮度，防止背光面死黑，还原 CSS 的明亮感)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); 
+        scene.add(ambientLight);
+
+        // --- 4. 创建天体函数 ---
+        function createPlanet(size, colorHex, distance, speed, name) {
+            const orbitGroup = new THREE.Group();
+            scene.add(orbitGroup);
+
+            // [还原点] 轨道使用虚线 (Dashed) 且颜色更淡
+            const orbitGeo = new THREE.RingGeometry(distance - 0.1, distance + 0.1, 128);
+            const orbitMat = new THREE.MeshBasicMaterial({ 
+                color: 0xffffff, 
+                side: THREE.DoubleSide, 
+                transparent: true, 
+                opacity: 0.15 // 稍微亮一点，模仿 border dashed
+            });
+            const orbitMesh = new THREE.Mesh(orbitGeo, orbitMat);
+            orbitMesh.rotation.x = -Math.PI / 2;
+            scene.add(orbitMesh);
+
+            // [还原点] 材质调整
+            // 使用 Lambert 材质并增加 emissive (自发光)，使颜色更接近 CSS 的 radial-gradient
+            const geometry = new THREE.SphereGeometry(size, 32, 32);
+            const material = new THREE.MeshLambertMaterial({ 
+                color: colorHex,
+                emissive: colorHex,      // 自发光颜色
+                emissiveIntensity: 0.4   // 自发光强度，保证暗部也有颜色
+            });
+            const planet = new THREE.Mesh(geometry, material);
+            
+            planet.position.set(distance, 0, 0);
+            orbitGroup.add(planet);
+
+            return { mesh: planet, group: orbitGroup, speed: speed };
+        }
+
+        // --- 5. 太阳 (还原 Goldenrod 颜色和辉光) ---
+        // CSS: radial-gradient(goldenrod...) box-shadow: #da9800
+        const sunGeo = new THREE.SphereGeometry(14, 32, 32);
+        const sunMat = new THREE.MeshBasicMaterial({ color: 0xDAA520 }); // Goldenrod
+        const sun = new THREE.Mesh(sunGeo, sunMat);
+        scene.add(sun);
+
+        // 使用 Sprite 模拟 CSS 的 box-shadow 光晕
+        const spriteMaterial = new THREE.SpriteMaterial({ 
+            map: createGlowTexture('rgba(218, 165, 32, 1)'), // Goldenrod color
+            color: 0xDAA520, 
+            transparent: true, 
+            blending: THREE.AdditiveBlending, // 叠加混合模式，看起来更亮
+            opacity: 0.8
+        });
+        const sunGlow = new THREE.Sprite(spriteMaterial);
+        sunGlow.scale.set(70, 70, 1.0); // 光晕大小
+        sun.add(sunGlow);
+
+        // --- 6. 行星数据 (颜色直接取自 CSS 原始代码) ---
+        const planetsData = [
+            // 水星: deepskyblue -> 0x00BFFF
+            { name: "Mercury", size: 2, color: 0x00BFFF, distance: 30, speed: 0.025 },
+            // 金星: gold -> 0xFFD700
+            { name: "Venus", size: 3.5, color: 0xFFD700, distance: 45, speed: 0.018 },
+            // 地球: royalblue -> 0x4169E1
+            { name: "Earth", size: 4, color: 0x4169E1, distance: 65, speed: 0.012 },
+            // 火星: orangered -> 0xFF4500
+            { name: "Mars", size: 3, color: 0xFF4500, distance: 85, speed: 0.009 },
+            // 木星: CSS是复杂的褐色/灰色渐变，取中间色 #918e85 附近的卡其色增强对比 -> 0xC3B091
+            { name: "Jupiter", size: 10, color: 0xC3B091, distance: 125, speed: 0.005 },
+            // 土星: palegoldenrod -> 0xEEE8AA
+            { name: "Saturn", size: 8, color: 0xEEE8AA, distance: 165, speed: 0.003 },
+            // 天王星: lightblue -> 0xADD8E6
+            { name: "Uranus", size: 6, color: 0xADD8E6, distance: 205, speed: 0.002 },
+            // 海王星: steelblue -> 0x4682B4
+            { name: "Neptune", size: 5.5, color: 0x4682B4, distance: 235, speed: 0.001 }
+        ];
+
+        const planets = planetsData.map(data => createPlanet(data.size, data.color, data.distance, data.speed, data.name));
+
+        // --- 特殊天体处理 ---
+
+        // 月球 (LightGrey -> 0xD3D3D3)
+        const earthObj = planets[2].mesh;
+        const moonGeo = new THREE.SphereGeometry(1, 16, 16);
+        const moonMat = new THREE.MeshLambertMaterial({ color: 0xD3D3D3, emissive: 0x333333 });
+        const moon = new THREE.Mesh(moonGeo, moonMat);
+        moon.position.set(7, 0, 0);
+        const moonGroup = new THREE.Group();
+        moonGroup.add(moon);
+        earthObj.add(moonGroup);
+
+        // 土星环 (CSS gradient -> approximate color)
+        const saturnObj = planets[5].mesh;
+        const ringGeo = new THREE.RingGeometry(11, 16, 64);
+        const ringMat = new THREE.MeshBasicMaterial({ 
+            color: 0xBF9B4F, // 对应 CSS ring 颜色
+            side: THREE.DoubleSide, 
+            transparent: true, 
+            opacity: 0.6 
+        });
+        const saturnRing = new THREE.Mesh(ringGeo, ringMat);
+        saturnRing.rotation.x = Math.PI / 2.3; // 倾斜
+        saturnObj.add(saturnRing);
+
+        // --- 7. 小行星带 (保留原始效果) ---
+        const asteroidPositions = [];
+        for (let i = 0; i < 2000; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const r = 95 + Math.random() * 20; // 位于火木之间
+            const x = Math.cos(angle) * r;
+            const z = Math.sin(angle) * r;
+            const y = (Math.random() - 0.5) * 5;
+            asteroidPositions.push(x, y, z);
+        }
+        const asteroidGeo = new THREE.BufferGeometry();
+        asteroidGeo.setAttribute('position', new THREE.Float32BufferAttribute(asteroidPositions, 3));
+        // 使用白色微透明，模仿 CSS rgba(255,255,255, alpha)
+        const asteroidMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.6, transparent: true, opacity: 0.6 });
+        const asteroidBelt = new THREE.Points(asteroidGeo, asteroidMat);
+        scene.add(asteroidBelt);
+
+        // --- 8. 背景粒子 (模仿 .xingxing) ---
+        // 原始 CSS 中星星是白色的点
+        const starsGeo = new THREE.BufferGeometry();
+        const starsPos = [];
+        for(let i=0; i<3000; i++) {
+            const x = (Math.random() - 0.5) * 1500;
+            const y = (Math.random() - 0.5) * 1500;
+            const z = (Math.random() - 0.5) * 1500;
+            starsPos.push(x, y, z);
+        }
+        starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(starsPos, 3));
+        const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0.7 });
+        const starField = new THREE.Points(starsGeo, starsMat);
+        scene.add(starField);
+
+        document.getElementById('loading').style.display = 'none';
+
+        // --- 动画循环 ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            planets.forEach(p => {
+                p.group.rotation.y -= p.speed; // 公转
+                p.mesh.rotation.y += 0.01;     // 自转
+            });
+
+            moonGroup.rotation.y -= 0.05;
+            asteroidBelt.rotation.y -= 0.001;
+            
+            // 太阳轻微脉动
+            const time = Date.now() * 0.001;
+            sunGlow.scale.set(70 + Math.sin(time)*2, 70 + Math.sin(time)*2, 1);
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

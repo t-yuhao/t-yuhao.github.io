@@ -27,4 +27,6 @@
 
 >[太阳系](./solar.html)
 
+>[太阳系模拟](../game/games/solar3D.html)
+
 >[魔方](./cube/index.html)
