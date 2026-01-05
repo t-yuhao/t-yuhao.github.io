@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SW-GSE-YOLO 论文答辩演示</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Lucide 图标库 -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- 引入 Chart.js (用于更丰富的数据展示) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        /* --- 自定义字体与动画 --- */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            overflow: hidden;
+        }
+
+        /* 守望先锋风格颜色变量 */
+        :root {
+            --color-orange: #f99e1a;
+            --color-blue: #00c3ff;
+            --color-dark: #2f3640;
+            --color-success: #22c55e;
+        }
+
+        /* 斜切与形状 */
+        .skew-box {
+            transform: skewX(-15deg);
+        }
+        .unskew-text {
+            transform: skewX(15deg);
+            display: inline-block;
+        }
+        
+        /* 导航按钮激活状态 */
+        .nav-btn.active {
+            background-color: var(--color-dark);
+            color: white;
+            border-bottom-color: var(--color-orange);
+            transform: skewX(-15deg) scale(1.05);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 六边形裁剪 */
+        .hexagon-clip {
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+        }
+
+        /* 卡片裁剪 */
+        .tech-card-clip {
+            clip-path: polygon(0 0, 100% 0, 100% 90%, 92% 100%, 0 100%);
+        }
+
+        .animate-bar {
+            transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        /* 背景网格 */
+        .bg-grid {
+            background-image: 
+                linear-gradient(rgba(203, 213, 225, 0.5) 1px, transparent 1px), 
+                linear-gradient(90deg, rgba(203, 213, 225, 0.5) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+
+        /* 选中文字颜色 */
+        ::selection {
+            background-color: #fed7aa; 
+            color: #7c2d12;
+        }
+        
+        /* 进场动画 */
+        .fade-in-up {
+            animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+        }
+        
+        .delay-100 { animation-delay: 100ms; }
+        .delay-200 { animation-delay: 200ms; }
+        .delay-300 { animation-delay: 300ms; }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 脉冲光圈 */
+        .pulse-ring::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; right: 0; bottom: 0;
+            border-radius: 50%;
+            border: 2px solid var(--color-orange);
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+
+        /* 城市卡片样式 */
+        .city-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .city-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--color-blue);
+        }
+        .city-card.active {
+            background-color: #f0f9ff;
+            border-color: var(--color-blue);
+        }
+        
+        /* 表格样式优化 */
+        .table-header th {
+            position: sticky;
+            top: 0;
+            background-color: #f8fafc;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="h-screen w-full flex flex-col relative text-slate-700 bg-slate-50">
+
+    <!-- 动态背景层 -->
+    <div class="absolute inset-0 z-0 opacity-30 bg-grid pointer-events-none"></div>
+    <div class="absolute -top-40 -right-40 w-[800px] h-[800px] bg-blue-100 rounded-full blur-3xl opacity-40 animate-pulse pointer-events-none"></div>
+    <div class="absolute bottom-0 left-0 w-full h-1/3 bg-gradient-to-t from-white via-white/80 to-transparent z-0 pointer-events-none"></div>
+
+    <!-- HUD 头部导航 -->
+    <header class="relative z-50 px-6 md:px-12 py-4 flex justify-between items-center bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
+        <div class="flex items-center gap-4">
+            <div class="bg-slate-800 text-white font-black italic text-2xl px-5 py-2 skew-box shadow-lg border-b-4 border-orange-500">
+                <span class="inline-block unskew-text tracking-tighter">SW-GSE-YOLO</span>
+            </div>
+            <div class="hidden lg:flex flex-col leading-tight">
+                <span class="text-slate-800 font-bold uppercase text-xs tracking-widest">VHR 遥感图像道路交叉口检测系统</span>
+                <span class="text-slate-400 text-[10px] font-mono">EAST CHINA UNIVERSITY OF TECHNOLOGY</span>
+            </div>
+        </div>
+
+        <nav class="flex gap-2">
+            <button onclick="goToSlide(0)" class="nav-btn group px-5 py-2 bg-slate-100 skew-box transition-all duration-300 border-b-2 border-transparent hover:bg-slate-200">
+                <span class="unskew-text text-xs font-bold uppercase text-slate-500 group-hover:text-slate-700">01 概览</span>
+            </button>
+            <button onclick="goToSlide(1)" class="nav-btn group px-5 py-2 bg-slate-100 skew-box transition-all duration-300 border-b-2 border-transparent hover:bg-slate-200">
+                <span class="unskew-text text-xs font-bold uppercase text-slate-500 group-hover:text-slate-700">02 挑战</span>
+            </button>
+            <button onclick="goToSlide(2)" class="nav-btn group px-5 py-2 bg-slate-100 skew-box transition-all duration-300 border-b-2 border-transparent hover:bg-slate-200">
+                <span class="unskew-text text-xs font-bold uppercase text-slate-500 group-hover:text-slate-700">03 方法</span>
+            </button>
+            <button onclick="goToSlide(3)" class="nav-btn group px-5 py-2 bg-slate-100 skew-box transition-all duration-300 border-b-2 border-transparent hover:bg-slate-200">
+                <span class="unskew-text text-xs font-bold uppercase text-slate-500 group-hover:text-slate-700">04 结果</span>
+            </button>
+            <button onclick="goToSlide(4)" class="nav-btn group px-5 py-2 bg-slate-100 skew-box transition-all duration-300 border-b-2 border-transparent hover:bg-slate-200">
+                <span class="unskew-text text-xs font-bold uppercase text-slate-500 group-hover:text-slate-700">05 总结</span>
+            </button>
+        </nav>
+    </header>
+
+    <!-- 主要内容区域 -->
+    <main class="flex-1 relative z-10 w-full overflow-hidden flex flex-col justify-center">
+        
+        <!-- Slide 01: Intro -->
+        <section id="slide-0" class="slide w-full px-8 md:px-20 max-w-[1600px] mx-auto h-full flex flex-col lg:flex-row items-center gap-16 fade-in-up">
+            <div class="flex-1 space-y-8 z-10">
+                <div class="inline-flex items-center gap-2 px-3 py-1 bg-orange-100 border border-orange-200 text-orange-700 font-mono text-xs font-bold rounded">
+                    <span class="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+                    PAPER ID: 1105 // SCHOOL OF SURVEYING & GEOINFO
+                </div>
+                
+                <h1 class="text-5xl lg:text-7xl font-black italic text-slate-800 leading-tight tracking-tight">
+                    平衡精度与效率<br/>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-600">遥感交叉口检测</span>
+                </h1>
+                
+                <p class="text-lg text-slate-600 max-w-xl border-l-4 border-slate-800 pl-6 font-medium leading-relaxed">
+                    提出 <strong class="text-slate-900">SW-GSE-YOLO</strong> 模型，融合移位窗口自注意力与轻量化设计。在 RIS-42k 数据集上，相比 YOLO11n 实现 
+                    <span class="bg-green-100 text-green-700 px-1 font-bold">mAP@0.5 +3.8%</span> 且参数量降低 
+                    <span class="bg-blue-100 text-blue-700 px-1 font-bold">30%</span>。
+                </p>
+
+                <div class="flex flex-wrap gap-4 pt-2">
+                    <div class="flex items-center gap-3 bg-white px-4 py-3 rounded-lg shadow-sm border border-slate-200">
+                        <div class="p-2 bg-blue-50 text-blue-500 rounded"><i data-lucide="layers" class="w-5 h-5"></i></div>
+                        <div>
+                            <div class="text-xs text-slate-400 font-bold uppercase">Params</div>
+                            <div class="text-xl font-black text-slate-800 font-mono">1.8M</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 bg-white px-4 py-3 rounded-lg shadow-sm border border-slate-200">
+                        <div class="p-2 bg-green-50 text-green-500 rounded"><i data-lucide="target" class="w-5 h-5"></i></div>
+                        <div>
+                            <div class="text-xs text-slate-400 font-bold uppercase">mAP@0.5</div>
+                            <div class="text-xl font-black text-slate-800 font-mono">94.1%</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button onclick="nextSlide()" class="group relative px-8 py-4 bg-slate-800 text-white font-black uppercase tracking-wider overflow-hidden skew-box hover:bg-slate-700 transition-all shadow-xl hover:shadow-2xl translate-y-2 hover:translate-y-1">
+                    <span class="relative z-10 flex items-center gap-3 unskew-text">
+                        开始演示 <i data-lucide="arrow-right" class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
+                    </span>
+                </button>
+            </div>
+            
+            <!-- Hero Visual: Radar Chart -->
+            <div class="flex-1 relative w-full flex items-center justify-center lg:justify-end">
+                <div class="relative w-[500px] h-[500px] bg-white rounded-full shadow-2xl border-4 border-slate-100 flex items-center justify-center p-8 pulse-ring">
+                    <canvas id="radarChart"></canvas>
+                    
+                    <!-- Floating Badges -->
+                    <div class="absolute -top-4 -right-4 bg-orange-500 text-white px-4 py-2 skew-box shadow-lg">
+                        <span class="unskew-text font-bold text-sm">SOTA Performance</span>
+                    </div>
+                    <div class="absolute bottom-10 -left-8 bg-white border-l-4 border-blue-500 p-4 shadow-lg max-w-[200px]">
+                        <div class="text-xs text-slate-400 font-bold uppercase mb-1">Dataset</div>
+                        <div class="font-black text-slate-800">RIS-42k</div>
+                        <div class="text-xs text-slate-500">42,372 样本</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 02: Challenges -->
+        <section id="slide-1" class="slide hidden w-full px-8 md:px-20 h-full flex flex-col justify-center">
+            <div class="max-w-6xl mx-auto w-full">
+                <div class="mb-12 border-b-2 border-slate-200 pb-4 flex justify-between items-end fade-in-up">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="alert-triangle" class="text-orange-500"></i>
+                            <span class="text-orange-500 font-mono text-sm font-bold">PROBLEM STATEMENT</span>
+                        </div>
+                        <h2 class="text-4xl font-black italic text-slate-800 uppercase">核心挑战</h2>
+                    </div>
+                    <div class="text-6xl text-slate-100 font-black italic select-none">02</div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- Card 1 -->
+                    <div class="fade-in-up delay-100 relative group bg-white border-t-4 border-slate-200 hover:border-orange-500 tech-card-clip transition-all duration-300 hover:-translate-y-2 p-8 shadow-sm hover:shadow-xl">
+                        <div class="mb-6 p-4 bg-orange-50 rounded-lg inline-block group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                            <i data-lucide="maximize" class="w-8 h-8"></i>
+                        </div>
+                        <h3 class="text-xl font-black italic uppercase text-slate-800 mb-3">大范围影像处理难</h3>
+                        <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 font-mono">Large-Scale Processing</div>
+                        <p class="text-slate-600 text-sm leading-relaxed">
+                            YOLO11 的 C2PSA 模块自注意力计算复杂度随特征图尺寸呈<strong>二次方增长</strong> ($O(H^2W^2)$)，难以直接高效处理大尺寸遥感影像。
+                        </p>
+                    </div>
+                    <!-- Card 2 -->
+                    <div class="fade-in-up delay-200 relative group bg-white border-t-4 border-slate-200 hover:border-blue-500 tech-card-clip transition-all duration-300 hover:-translate-y-2 p-8 shadow-sm hover:shadow-xl">
+                        <div class="mb-6 p-4 bg-blue-50 rounded-lg inline-block group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                            <i data-lucide="git-branch" class="w-8 h-8"></i>
+                        </div>
+                        <h3 class="text-xl font-black italic uppercase text-slate-800 mb-3">形态结构多样</h3>
+                        <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 font-mono">Structural Diversity</div>
+                        <p class="text-slate-600 text-sm leading-relaxed">
+                            交叉口涵盖 T 型、十字型、Y 型、环岛等多种拓扑结构，且城乡尺寸差异巨大，单一感受野难以兼顾局部细节与全局路网。
+                        </p>
+                    </div>
+                    <!-- Card 3 -->
+                    <div class="fade-in-up delay-300 relative group bg-white border-t-4 border-slate-200 hover:border-green-500 tech-card-clip transition-all duration-300 hover:-translate-y-2 p-8 shadow-sm hover:shadow-xl">
+                        <div class="mb-6 p-4 bg-green-50 rounded-lg inline-block group-hover:bg-green-500 group-hover:text-white transition-colors">
+                            <i data-lucide="scale" class="w-8 h-8"></i>
+                        </div>
+                        <h3 class="text-xl font-black italic uppercase text-slate-800 mb-3">效率与精度矛盾</h3>
+                        <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 font-mono">Trade-off Dilemma</div>
+                        <p class="text-slate-600 text-sm leading-relaxed">
+                            现有通用模型参数量大（如 YOLOv8s 达 28.6M），难以适应星载/机载平台的实时处理需求；且传统 CIoU 损失定位精度不足。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 03: Methodology -->
+        <section id="slide-2" class="slide hidden w-full px-4 md:px-20 h-full flex flex-col justify-center bg-slate-50">
+            <div class="w-full h-full flex flex-col justify-center max-w-7xl mx-auto">
+                <div class="mb-8 flex items-center justify-between fade-in-up">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="cpu" class="text-blue-500"></i>
+                            <span class="text-blue-500 font-mono text-sm font-bold">PROPOSED METHOD</span>
+                        </div>
+                        <h2 class="text-4xl font-black italic text-slate-800 uppercase">SW-GSE-YOLO 架构</h2>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 h-auto fade-in-up delay-100">
+                    <!-- Left: Module Details (Accordion style) -->
+                    <div class="lg:col-span-5 flex flex-col gap-4">
+                        <!-- Module 1 -->
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all hover:border-blue-400 group cursor-default">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-bold text-lg text-slate-800 group-hover:text-blue-600 transition-colors">Swin-C2PSA 模块</h3>
+                                <span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded font-mono">ATTENTION</span>
+                            </div>
+                            <p class="text-sm text-slate-600 leading-relaxed">
+                                融合 Swin Transformer 的移位窗口机制 (SW-MSA)。将复杂度从 <span class="font-mono bg-slate-100 px-1 rounded">O(H²W²)</span> 降低至线性 <span class="font-mono bg-slate-100 px-1 rounded">O(M²HW)</span>。
+                                <br/><span class="text-xs text-slate-400 mt-2 block">优势：直接处理大尺寸影像，捕捉全局与局部特征。</span>
+                            </p>
+                        </div>
+
+                        <!-- Module 2 -->
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all hover:border-orange-400 group cursor-default">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-bold text-lg text-slate-800 group-hover:text-orange-600 transition-colors">GSConv & GS3k2</h3>
+                                <span class="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-1 rounded font-mono">LIGHTWEIGHT</span>
+                            </div>
+                            <p class="text-sm text-slate-600 leading-relaxed">
+                                在 Backbone 和 Neck 中引入 GSConv（深度可分离卷积 + Shuffle）。设计 <strong>GS3k2</strong> 替代 C3k2，参数量减少 30%。
+                                <br/><span class="text-xs text-slate-400 mt-2 block">优势：保持特征提取能力的同时极致轻量化。</span>
+                            </p>
+                        </div>
+
+                        <!-- Module 3 -->
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all hover:border-green-400 group cursor-default">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-bold text-lg text-slate-800 group-hover:text-green-600 transition-colors">EIoU Loss</h3>
+                                <span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded font-mono">LOCALIZATION</span>
+                            </div>
+                            <p class="text-sm text-slate-600 leading-relaxed">
+                                引入 Efficient IoU 损失，综合考虑重叠度、中心点距离和长宽差异。
+                                <br/><span class="text-xs text-slate-400 mt-2 block">优势：加速收敛，显著提升交叉口中心点定位精度。</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Right: Visual Diagram -->
+                    <div class="lg:col-span-7 bg-white rounded-2xl border-2 border-slate-200 p-8 relative overflow-hidden flex flex-col items-center justify-center">
+                        <div class="absolute inset-0 bg-grid opacity-30"></div>
+                        
+                        <!-- Visualization of Flow -->
+                        <div class="relative z-10 w-full max-w-lg space-y-6">
+                            <!-- Input -->
+                            <div class="flex justify-center">
+                                <div class="bg-slate-800 text-white px-6 py-2 rounded-lg font-mono text-sm shadow-lg">Input: 400x400 VHR Image</div>
+                            </div>
+                            
+                            <!-- Arrow Down -->
+                            <div class="flex justify-center"><i data-lucide="arrow-down" class="text-slate-300"></i></div>
+
+                            <!-- Backbone Box -->
+                            <div class="bg-orange-50 border-2 border-orange-200 p-4 rounded-xl relative">
+                                <div class="absolute -top-3 left-4 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">Backbone</div>
+                                <div class="flex justify-around items-center">
+                                    <div class="text-center">
+                                        <div class="font-bold text-slate-700">GSConv</div>
+                                        <div class="text-[10px] text-slate-400">特征降维</div>
+                                    </div>
+                                    <i data-lucide="chevron-right" class="text-orange-300"></i>
+                                    <div class="text-center">
+                                        <div class="font-bold text-slate-700">GS3k2</div>
+                                        <div class="text-[10px] text-slate-400">轻量特征提取</div>
+                                    </div>
+                                    <i data-lucide="chevron-right" class="text-orange-300"></i>
+                                    <div class="text-center bg-white p-2 rounded shadow-sm border border-orange-200">
+                                        <div class="font-bold text-blue-600">Swin-C2PSA</div>
+                                        <div class="text-[10px] text-slate-400">全局自注意力</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Arrow Down -->
+                            <div class="flex justify-center"><i data-lucide="arrow-down" class="text-slate-300"></i></div>
+
+                            <!-- Neck Box -->
+                            <div class="bg-blue-50 border-2 border-blue-200 p-4 rounded-xl relative">
+                                <div class="absolute -top-3 left-4 bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded">Neck (Slim-neck)</div>
+                                <div class="text-center text-sm text-slate-600">
+                                    多尺度特征融合 (PANet) <br/>
+                                    <span class="font-mono text-xs text-blue-400">Uses GSConv & GS3k2 for efficiency</span>
+                                </div>
+                            </div>
+
+                             <!-- Arrow Down -->
+                             <div class="flex justify-center"><i data-lucide="arrow-down" class="text-slate-300"></i></div>
+
+                             <!-- Head -->
+                             <div class="flex justify-center">
+                                <div class="bg-green-50 border-2 border-green-400 px-8 py-3 rounded-xl shadow-lg text-center">
+                                    <div class="font-black text-green-700">Prediction Head</div>
+                                    <div class="text-xs font-bold text-green-600 mt-1">Optimized by EIoU Loss</div>
+                                </div>
+                             </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 04: Results (Updated) -->
+        <section id="slide-3" class="slide hidden w-full px-4 md:px-20 h-full flex flex-col justify-center">
+            <div class="w-full max-w-7xl mx-auto h-[85vh] flex flex-col">
+                <div class="mb-6 fade-in-up flex justify-between items-end">
+                    <div>
+                        <h2 class="text-4xl font-black italic text-slate-800 uppercase tracking-tighter">实验结果验证</h2>
+                        <div class="h-1 w-24 bg-orange-500 mt-2 skew-box"></div>
+                    </div>
+                    <!-- Tabs for switching results -->
+                    <div class="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
+                        <button onclick="switchResultTab('main')" id="tab-main" class="px-4 py-2 text-xs font-bold rounded-md bg-slate-800 text-white shadow transition-all">主要对比</button>
+                        <button onclick="switchResultTab('ablation')" id="tab-ablation" class="px-4 py-2 text-xs font-bold rounded-md text-slate-500 hover:bg-slate-100 transition-all">消融实验</button>
+                        <button onclick="switchResultTab('general')" id="tab-general" class="px-4 py-2 text-xs font-bold rounded-md text-slate-500 hover:bg-slate-100 transition-all">跨区域泛化</button>
+                    </div>
+                </div>
+
+                <!-- Tab Content: Main Results -->
+                <div id="content-main" class="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center bg-white p-8 rounded-2xl shadow-sm border border-slate-200 fade-in-up delay-100">
+                    <div>
+                         <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <i data-lucide="bar-chart-2" class="text-blue-500"></i> 不同模型在 RIS-42k 上的对比
+                         </h3>
+                         <div class="grid grid-cols-2 gap-4 mb-6">
+                             <div class="bg-slate-50 p-3 rounded-xl border-l-4 border-orange-500">
+                                 <div class="text-xs text-slate-400 font-bold uppercase">GSEYOLO Precision</div>
+                                 <div class="text-2xl font-black text-slate-800">0.886</div>
+                                 <div class="text-xs text-orange-600 font-bold mt-1">最高精确率</div>
+                             </div>
+                             <div class="bg-slate-50 p-3 rounded-xl border-l-4 border-green-500">
+                                <div class="text-xs text-slate-400 font-bold uppercase">GSEYOLO Recall</div>
+                                <div class="text-2xl font-black text-slate-800">0.853</div>
+                                <div class="text-xs text-green-600 font-bold mt-1">最高召回率</div>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-xl border-l-4 border-blue-500">
+                                <div class="text-xs text-slate-400 font-bold uppercase">Parameters</div>
+                                <div class="text-2xl font-black text-slate-800">1.8M</div>
+                                <div class="text-xs text-blue-600 font-bold mt-1">极致轻量</div>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-xl border-l-4 border-indigo-500">
+                                <div class="text-xs text-slate-400 font-bold uppercase">mAP@0.5</div>
+                                <div class="text-2xl font-black text-slate-800">0.941</div>
+                                <div class="text-xs text-indigo-600 font-bold mt-1">SOTA 性能</div>
+                            </div>
+                         </div>
+                         <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                            <h4 class="font-bold text-sm text-slate-700 mb-1">结论分析</h4>
+                            <p class="text-sm text-slate-500 leading-relaxed text-justify">
+                                "GSEYOLO 模型的检测精度和效率优于现有的 YOLOv8n, YOLOv8s, YOLO11n, RT-DETR-l 等模型。其 <strong>1.8M</strong> 的参数量大幅低于 YOLOv8s (28.6M) 和 RT-DETR-l (32.8M)，同时在精确率 (0.886) 和召回率 (0.853) 上均表现最佳，有效解决了大范围遥感影像中道路交叉口的提取精度与效率矛盾。"
+                            </p>
+                         </div>
+                    </div>
+                    <div class="h-full flex items-center justify-center p-2">
+                        <canvas id="comparisonChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Tab Content: Ablation (Updated) -->
+                <div id="content-ablation" class="hidden flex-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 fade-in-up overflow-hidden flex flex-col">
+                    <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <i data-lucide="layers" class="text-orange-500"></i> 不同模块组合消融实验 (RIS-42k)
+                    </h3>
+                    <div class="flex-1 overflow-auto">
+                        <table class="w-full text-xs text-left border-collapse">
+                            <thead class="table-header bg-slate-100 text-slate-600 font-bold uppercase">
+                                <tr>
+                                    <th class="px-2 py-2">SwinC2PSA</th>
+                                    <th class="px-2 py-2">GSConv+GS3k2</th>
+                                    <th class="px-2 py-2">EIoU</th>
+                                    <th class="px-2 py-2">Precision</th>
+                                    <th class="px-2 py-2">Recall</th>
+                                    <th class="px-2 py-2">mAP0.5</th>
+                                    <th class="px-2 py-2">mAP@[.5:.95]</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-2 py-2 text-green-600 text-center">✓</td>
+                                    <td class="px-2 py-2 text-center">-</td>
+                                    <td class="px-2 py-2 text-center">-</td>
+                                    <td class="px-2 py-2">0.856</td>
+                                    <td class="px-2 py-2">0.845</td>
+                                    <td class="px-2 py-2">0.919</td>
+                                    <td class="px-2 py-2">0.515</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-2 py-2 text-center">-</td>
+                                    <td class="px-2 py-2 text-green-600 text-center">✓</td>
+                                    <td class="px-2 py-2 text-center">-</td>
+                                    <td class="px-2 py-2">0.880</td>
+                                    <td class="px-2 py-2">0.865</td>
+                                    <td class="px-2 py-2">0.940</td>
+                                    <td class="px-2 py-2">0.576</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-2 py-2 text-center">-</td>
+                                    <td class="px-2 py-2 text-center">-</td>
+                                    <td class="px-2 py-2 text-green-600 text-center">✓</td>
+                                    <td class="px-2 py-2">0.871</td>
+                                    <td class="px-2 py-2">0.853</td>
+                                    <td class="px-2 py-2">0.935</td>
+                                    <td class="px-2 py-2">0.538</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-2 py-2 text-green-600 text-center">✓</td>
+                                    <td class="px-2 py-2 text-green-600 text-center">✓</td>
+                                    <td class="px-2 py-2 text-center">-</td>
+                                    <td class="px-2 py-2">0.844</td>
+                                    <td class="px-2 py-2">0.815</td>
+                                    <td class="px-2 py-2">0.906</td>
+                                    <td class="px-2 py-2">0.533</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-2 py-2 text-green-600 text-center">✓</td>
+                                    <td class="px-2 py-2 text-center">-</td>
+                                    <td class="px-2 py-2 text-green-600 text-center">✓</td>
+                                    <td class="px-2 py-2">0.859</td>
+                                    <td class="px-2 py-2">0.850</td>
+                                    <td class="px-2 py-2">0.925</td>
+                                    <td class="px-2 py-2">0.565</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-2 py-2 text-center">-</td>
+                                    <td class="px-2 py-2 text-green-600 text-center">✓</td>
+                                    <td class="px-2 py-2 text-green-600 text-center">✓</td>
+                                    <td class="px-2 py-2">0.884</td>
+                                    <td class="px-2 py-2">0.859</td>
+                                    <td class="px-2 py-2">0.941</td>
+                                    <td class="px-2 py-2">0.588</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50 bg-orange-50 font-bold">
+                                    <td class="px-2 py-2 text-green-600 text-center">✓</td>
+                                    <td class="px-2 py-2 text-green-600 text-center">✓</td>
+                                    <td class="px-2 py-2 text-green-600 text-center">✓</td>
+                                    <td class="px-2 py-2 text-orange-700">0.886</td>
+                                    <td class="px-2 py-2 text-orange-700">0.853</td>
+                                    <td class="px-2 py-2 text-orange-700">0.941</td>
+                                    <td class="px-2 py-2 text-orange-700">0.593</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <p class="text-xs text-slate-500 leading-relaxed text-justify">
+                            <strong>结论：</strong> SwinC2PSA 模块克服了特征提取的图像大小限制，提高了感知能力；GSConv+GS3k2 显著降低了参数量并提升了提取精度；EIoU 有效提高了中心点定位精度。三个模块间的低耦合性，共同提升了模型的鲁棒性和适用性。
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Tab Content: Generalization (Updated) -->
+                <div id="content-general" class="hidden flex-1 flex-col justify-center fade-in-up">
+                    <div class="grid grid-cols-4 gap-4 mb-6">
+                        <div class="city-card bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center active" onclick="showCityData('bj', this)">
+                            <div class="text-3xl mb-2">🇨🇳</div>
+                            <div class="font-bold text-slate-800">北京</div>
+                            <div class="text-xs text-slate-400">规整路网</div>
+                        </div>
+                        <div class="city-card bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center" onclick="showCityData('ld', this)">
+                            <div class="text-3xl mb-2">🇬🇧</div>
+                            <div class="font-bold text-slate-800">伦敦</div>
+                            <div class="text-xs text-slate-400">放射状路网</div>
+                        </div>
+                        <div class="city-card bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center" onclick="showCityData('ny', this)">
+                            <div class="text-3xl mb-2">🇺🇸</div>
+                            <div class="font-bold text-slate-800">纽约</div>
+                            <div class="text-xs text-slate-400">高密度路网</div>
+                        </div>
+                        <div class="city-card bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center" onclick="showCityData('pr', this)">
+                            <div class="text-3xl mb-2">🇫🇷</div>
+                            <div class="font-bold text-slate-800">巴黎</div>
+                            <div class="text-xs text-slate-400">复杂不规则</div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-12">
+                        <div class="flex-1">
+                            <h3 id="city-name" class="text-2xl font-black italic text-slate-800 mb-2">北京 (Beijing)</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold uppercase text-slate-500 mb-1">
+                                        <span>Precision</span>
+                                        <span id="city-p-val">0.98</span>
+                                    </div>
+                                    <div class="h-3 bg-slate-100 rounded-full overflow-hidden">
+                                        <div id="city-p-bar" class="h-full bg-orange-500 rounded-full transition-all duration-500" style="width: 98%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold uppercase text-slate-500 mb-1">
+                                        <span>Recall</span>
+                                        <span id="city-r-val">0.82</span>
+                                    </div>
+                                    <div class="h-3 bg-slate-100 rounded-full overflow-hidden">
+                                        <div id="city-r-bar" class="h-full bg-blue-500 rounded-full transition-all duration-500" style="width: 82%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-6 p-4 bg-slate-50 rounded border border-slate-200">
+                                <p id="city-desc" class="text-sm text-slate-500 italic">GSEYOLO 模型在面对不同城市风格的路网时，依然保持了较高的精确率，证明其有一定的泛化能力。</p>
+                            </div>
+                        </div>
+                        <div class="flex-1 h-48 bg-slate-100 rounded-lg flex items-center justify-center border-2 border-dashed border-slate-300 relative overflow-hidden">
+                            <div class="absolute inset-0 bg-slate-200 opacity-50 flex items-center justify-center">
+                                <span class="text-slate-400 font-mono text-xs">VHR Imagery Placeholder</span>
+                            </div>
+                            <!-- 这里可以通过JS动态切换模拟的地图图片 -->
+                            <i data-lucide="map" class="text-slate-300 w-16 h-16 relative z-10"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 05: Summary -->
+        <section id="slide-4" class="slide hidden w-full px-8 md:px-20 h-full flex flex-col justify-center items-center text-center space-y-12 bg-slate-50">
+            <div class="relative fade-in-up">
+                <div class="absolute inset-0 bg-orange-400 blur-3xl opacity-20 rounded-full"></div>
+                <div class="flex items-center justify-center gap-4 mb-4">
+                     <i data-lucide="check-circle" class="w-12 h-12 text-green-500"></i>
+                </div>
+                <h1 class="relative text-6xl md:text-8xl font-black italic text-slate-800 uppercase tracking-tighter mb-4">
+                    总结与展望
+                </h1>
+                <div class="text-xl font-bold text-orange-500 uppercase tracking-widest font-mono">CONCLUSION</div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl fade-in-up delay-100">
+                <div class="bg-white p-6 rounded-xl border-t-4 border-orange-500 shadow-sm text-left">
+                    <div class="text-4xl mb-4 font-black text-slate-100">01</div>
+                    <h3 class="font-bold text-slate-800 mb-2">数据集贡献</h3>
+                    <p class="text-sm text-slate-500">构建了 <strong class="text-slate-800">RIS-42k</strong> (42,372张)，填补了高分辨率遥感交叉口检测数据的空白。</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl border-t-4 border-blue-500 shadow-sm text-left">
+                    <div class="text-4xl mb-4 font-black text-slate-100">02</div>
+                    <h3 class="font-bold text-slate-800 mb-2">算法创新</h3>
+                    <p class="text-sm text-slate-500">Swin-C2PSA + GSConv 架构，成功解决了 <strong class="text-slate-800">大范围影像处理效率</strong> 与 <strong class="text-slate-800">定位精度</strong> 的矛盾。</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl border-t-4 border-green-500 shadow-sm text-left">
+                    <div class="text-4xl mb-4 font-black text-slate-100">03</div>
+                    <h3 class="font-bold text-slate-800 mb-2">性能验证</h3>
+                    <p class="text-sm text-slate-500">参数量仅 1.8M，泛化能力强，在多国城市影像中均表现出色，适合星载应用。</p>
+                </div>
+            </div>
+
+            <div class="fade-in-up delay-200">
+                <button class="px-8 py-3 bg-slate-800 text-white font-bold rounded-full shadow-lg hover:scale-105 transition-transform">
+                    Q & A 环节
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer Status Bar -->
+    <footer class="bg-white border-t border-slate-200 px-8 py-3 flex justify-between items-center text-xs font-mono text-slate-400 relative z-50">
+        <div class="flex items-center gap-4">
+            <span class="flex items-center gap-1.5">
+                <div id="system-status-dot" class="w-2 h-2 rounded-full bg-slate-300"></div> 
+                <span class="font-bold text-slate-600">SYSTEM READY</span>
+            </span>
+            <span class="hidden md:inline text-slate-300">|</span>
+            <span class="hidden md:inline">EAST CHINA UNIVERSITY OF TECH</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <span id="slide-indicator" class="font-bold text-slate-600">01 / 05</span>
+            <div class="w-32 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div id="progress-bar" class="h-full bg-orange-500 transition-all duration-500 ease-out" style="width: 20%;"></div>
+            </div>
+            
+            <div class="flex gap-1">
+                <button onclick="prevSlide()" class="p-1.5 hover:bg-slate-100 rounded text-slate-600 hover:text-orange-500 transition-colors"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                <button onclick="nextSlide()" class="p-1.5 hover:bg-slate-100 rounded text-slate-600 hover:text-orange-500 transition-colors"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // --- 初始化 Lucide 图标 ---
+        lucide.createIcons();
+
+        // --- 状态管理 ---
+        let currentSlide = 0;
+        const totalSlides = 5;
+        const slides = document.querySelectorAll('.slide');
+        const navBtns = document.querySelectorAll('.nav-btn');
+        const progressBar = document.getElementById('progress-bar');
+        const slideIndicator = document.getElementById('slide-indicator');
+        const statusDot = document.getElementById('system-status-dot');
+
+        // 初始化状态动画
+        setTimeout(() => {
+            statusDot.classList.remove('bg-slate-300');
+            statusDot.classList.add('bg-green-500', 'animate-pulse');
+        }, 800);
+
+        // --- Chart.js 初始化 ---
+        let radarChart = null;
+        let comparisonChart = null;
+
+        function initCharts() {
+            // 1. Radar Chart for Intro Slide
+            const ctxRadar = document.getElementById('radarChart').getContext('2d');
+            radarChart = new Chart(ctxRadar, {
+                type: 'radar',
+                data: {
+                    labels: ['Precision', 'Recall', 'mAP@0.5', 'mAP@0.5:0.95', 'Efficiency (1/Params)'],
+                    datasets: [{
+                        label: 'SW-GSE-YOLO',
+                        data: [88.6, 85.3, 94.1, 59.3, 90], 
+                        backgroundColor: 'rgba(249, 158, 26, 0.2)',
+                        borderColor: '#f99e1a',
+                        pointBackgroundColor: '#f99e1a',
+                        borderWidth: 2
+                    }, {
+                        label: 'YOLO11n',
+                        data: [82.7, 84.0, 90.2, 44.7, 70],
+                        backgroundColor: 'rgba(148, 163, 184, 0.2)',
+                        borderColor: '#94a3b8',
+                        pointBackgroundColor: '#94a3b8',
+                        borderWidth: 2,
+                        borderDash: [5, 5]
+                    }]
+                },
+                options: {
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(0,0,0,0.1)' },
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            pointLabels: {
+                                font: { size: 10, family: 'Inter', weight: 'bold' },
+                                color: '#475569'
+                            },
+                            suggestedMin: 40,
+                            suggestedMax: 100
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }
+                    },
+                    animation: { duration: 2000, easing: 'easeOutQuart' }
+                }
+            });
+
+            // 2. Comparison Bar Chart for Results Slide (Updated with new models)
+            const ctxComp = document.getElementById('comparisonChart').getContext('2d');
+            comparisonChart = new Chart(ctxComp, {
+                type: 'bar',
+                data: {
+                    labels: ['GSEYOLO', 'YOLO11n', 'YOLO11s', 'YOLOv8s', 'RT-DETR-l'],
+                    datasets: [
+                        {
+                            label: 'mAP@0.5',
+                            data: [94.1, 90.2, 93.0, 93.2, 92.2],
+                            backgroundColor: '#f99e1a',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'mAP@0.5:0.95',
+                            data: [59.3, 44.7, 54.9, 54.8, 53.7],
+                            backgroundColor: '#22c55e',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: true, text: '主流模型性能对比 (RIS-42k)' }
+                    },
+                    scales: {
+                        y: { beginAtZero: false, min: 40, max: 100 }
+                    },
+                    animation: { duration: 1500 }
+                }
+            });
+        }
+
+        // --- 页面控制逻辑 ---
+        function updateUI() {
+            slides.forEach((slide, index) => {
+                if (index === currentSlide) {
+                    slide.classList.remove('hidden');
+                    slide.classList.add('flex');
+                    
+                    // 特殊处理：如果是首页或结果页，重新触发图表动画
+                    if (index === 0 && radarChart) { radarChart.reset(); radarChart.update(); }
+                    if (index === 3 && comparisonChart) { comparisonChart.reset(); comparisonChart.update(); }
+                } else {
+                    slide.classList.add('hidden');
+                    slide.classList.remove('flex');
+                }
+            });
+
+            navBtns.forEach((btn, index) => {
+                if (index === currentSlide) {
+                    btn.classList.add('active');
+                    btn.classList.remove('bg-slate-100');
+                    btn.querySelector('span').classList.replace('text-slate-500', 'text-white');
+                    btn.querySelector('span').classList.remove('group-hover:text-slate-700');
+                } else {
+                    btn.classList.remove('active');
+                    btn.classList.add('bg-slate-100');
+                    btn.querySelector('span').classList.replace('text-white', 'text-slate-500');
+                    btn.querySelector('span').classList.add('group-hover:text-slate-700');
+                }
+            });
+
+            const progress = ((currentSlide + 1) / totalSlides) * 100;
+            progressBar.style.width = `${progress}%`;
+            slideIndicator.innerText = `0${currentSlide + 1} / 0${totalSlides}`;
+        }
+
+        function goToSlide(index) {
+            if (index >= 0 && index < totalSlides) {
+                currentSlide = index;
+                updateUI();
+            }
+        }
+
+        function nextSlide() { goToSlide(currentSlide + 1); }
+        function prevSlide() { goToSlide(currentSlide - 1); }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') nextSlide();
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') prevSlide();
+        });
+
+        // --- 结果页 Tab 切换逻辑 ---
+        function switchResultTab(tabName) {
+            // 隐藏所有内容
+            document.getElementById('content-main').classList.add('hidden');
+            document.getElementById('content-ablation').classList.add('hidden');
+            document.getElementById('content-general').classList.add('hidden');
+            document.getElementById('content-general').classList.remove('flex'); // remove flex for general tab
+
+            // 重置按钮样式
+            const tabs = ['main', 'ablation', 'general'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                btn.classList.remove('bg-slate-800', 'text-white');
+                btn.classList.add('text-slate-500', 'hover:bg-slate-100');
+            });
+
+            // 激活选中内容
+            const activeContent = document.getElementById(`content-${tabName}`);
+            activeContent.classList.remove('hidden');
+            if(tabName === 'general') activeContent.classList.add('flex'); // add flex for general tab layout
+
+            // 激活按钮样式
+            const activeBtn = document.getElementById(`tab-${tabName}`);
+            activeBtn.classList.remove('text-slate-500', 'hover:bg-slate-100');
+            activeBtn.classList.add('bg-slate-800', 'text-white');
+        }
+
+        // --- 城市泛化数据逻辑 (Updated with new data) ---
+        const cityData = {
+            'bj': { name: '北京 (Beijing)', desc: 'GSEYOLO 模型在面对北京规整路网时表现优异，召回率为 0.82。', p: 0.98, r: 0.82 },
+            'ny': { name: '纽约 (New York)', desc: '面对高密度路网，模型精确率达到 1.0，但召回率略有下降 (0.75)。', p: 1.0, r: 0.75 },
+            'ld': { name: '伦敦 (London)', desc: '伦敦的放射状路网测试了模型的旋转适应性，整体表现均衡。', p: 0.97, r: 0.85 },
+            'pr': { name: '巴黎 (Paris)', desc: '复杂不规则的路网结构最具挑战性，模型仍保持了高精确率。', p: 1.0, r: 0.64 }
+        };
+
+        function showCityData(cityKey, element) {
+            // 更新 UI 激活状态
+            document.querySelectorAll('.city-card').forEach(c => c.classList.remove('active'));
+            element.classList.add('active');
+
+            // 更新数据
+            const data = cityData[cityKey];
+            document.getElementById('city-name').innerText = data.name;
+            document.getElementById('city-desc').innerText = data.desc;
+            
+            // 更新进度条动画
+            document.getElementById('city-p-val').innerText = data.p;
+            document.getElementById('city-r-val').innerText = data.r;
+            
+            document.getElementById('city-p-bar').style.width = '0%';
+            document.getElementById('city-r-bar').style.width = '0%';
+            
+            setTimeout(() => {
+                document.getElementById('city-p-bar').style.width = (data.p * 100) + '%';
+                document.getElementById('city-r-bar').style.width = (data.r * 100) + '%';
+            }, 50);
+        }
+
+        // --- 启动 ---
+        window.onload = function() {
+            initCharts();
+            updateUI();
+        };
+
+    </script>
+</body>
+</html>
