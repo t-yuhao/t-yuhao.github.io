@@ -24,3 +24,5 @@
 >[合成大西瓜emoji](./game/games/suika-emoji.html)
 
 >[GTA](./game/games/GTA_Demo.html)
+
+>[GTA](./game/games/五子棋简易版.html)
