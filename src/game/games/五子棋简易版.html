@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>五子棋 AI - 高亮落子 & 稳定思考</title>
+    <style>
+        * {
+            user-select: none;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #2b5a3a;
+            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+        }
+        .container {
+            background: #deb887;
+            padding: 30px 30px 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            text-align: center;
+            max-width: 720px;
+            width: 100%;
+        }
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 620px;
+            margin: 0 auto;
+            aspect-ratio: 1 / 1;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: #f0d9b5;
+            border-radius: 8px;
+            box-shadow: inset 0 0 10px #6b4f2e;
+            cursor: pointer;
+            touch-action: none;
+        }
+        .info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 14px;
+            padding: 0 8px;
+            font-size: 17px;
+            font-weight: bold;
+            color: #3b2a12;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .status {
+            background: #fcf8e8;
+            padding: 6px 18px;
+            border-radius: 30px;
+            box-shadow: inset 0 0 4px #b8956a;
+            white-space: nowrap;
+        }
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .btn {
+            background: #5a3e1b;
+            color: #f0e6d3;
+            border: none;
+            padding: 6px 18px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn:hover {
+            background: #7a5530;
+            transform: scale(1.03);
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #5a3e1b;
+            color: #5a3e1b;
+        }
+        .btn-outline:hover {
+            background: #5a3e1b;
+            color: #f0e6d3;
+        }
+        .btn-outline.active {
+            background: #5a3e1b;
+            color: #f0e6d3;
+        }
+        .turn-indicator {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            margin-left: 6px;
+            vertical-align: middle;
+            border: 2px solid #333;
+        }
+        .turn-black {
+            background: radial-gradient(circle at 35% 35%, #666, #111);
+        }
+        .turn-white {
+            background: radial-gradient(circle at 35% 35%, #fff, #aaa);
+        }
+
+        /* 思考过程详情区域 - 固定高度防跳动 */
+        .think-detail {
+            margin-top: 12px;
+            padding: 8px 14px;
+            background: #fcf8e8;
+            border-radius: 12px;
+            box-shadow: inset 0 0 6px #b8956a;
+            font-size: 14px;
+            text-align: left;
+            color: #3b2a12;
+            line-height: 1.6;
+            min-height: 70px;          /* 固定最小高度，防止内容变化跳动 */
+            max-height: 150px;
+            overflow-y: auto;
+            transition: none;          /* 禁用过渡，避免动画抖动 */
+        }
+        .think-detail .label {
+            font-weight: bold;
+            color: #5a3e1b;
+        }
+        .think-detail .candidate-item {
+            font-size: 13px;
+            padding: 2px 0;
+            border-bottom: 1px dashed #ddd;
+        }
+        .think-detail .candidate-item:last-child {
+            border-bottom: none;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 15px;
+            font-weight: normal;
+            color: #3b2a12;
+            cursor: pointer;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #5a3e1b;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 15px;
+            }
+            .info {
+                font-size: 15px;
+            }
+            .btn {
+                font-size: 14px;
+                padding: 4px 12px;
+            }
+            .think-detail {
+                font-size: 13px;
+                padding: 6px 10px;
+                min-height: 60px;
+                max-height: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="canvas-wrapper">
+        <canvas id="boardCanvas"></canvas>
+    </div>
+    <div class="info">
+        <span class="status" id="statusMsg">黑棋回合</span>
+        <div class="btn-group">
+            <button class="btn btn-outline active" id="btnBlack">玩家执黑</button>
+            <button class="btn btn-outline" id="btnWhite">玩家执白</button>
+            <button class="btn" id="undoBtn">↩ 悔棋</button>
+            <button class="btn" id="restartBtn">⟳ 重来</button>
+        </div>
+    </div>
+    <div style="display: flex; justify-content: flex-start; margin: 8px 8px 0; gap: 16px;">
+        <label class="checkbox-group">
+            <input type="checkbox" id="showThinkCheck" checked> 显示思考过程
+        </label>
+    </div>
+    <div class="think-detail" id="thinkDetail">
+        <!-- 由 JavaScript 动态填充，始终保持占位 -->
+    </div>
+</div>
+
+<script>
+    // =============================================================
+    //  常量与全局变量
+    // =============================================================
+    const SIZE = 15;
+    const EMPTY = 0;
+    const BLACK = 1;
+    const WHITE = 2;
+
+    const LOGIC_WIDTH = 620;
+    const LOGIC_HEIGHT = 620;
+    const MARGIN = 30;
+    const CELL_SIZE = (LOGIC_WIDTH - 2 * MARGIN) / (SIZE - 1);
+    const PIECE_RADIUS = CELL_SIZE * 0.43;
+
+    let board = [];
+    let history = [];
+    let currentPlayer = BLACK;
+    let gameOver = false;
+    let isAIThinking = false;
+    let humanPlayer = BLACK;
+    let aiPlayer = WHITE;
+    let lastMove = null;          // 记录最后落子 { row, col }
+
+    const canvas = document.getElementById('boardCanvas');
+    const ctx = canvas.getContext('2d');
+    const statusMsg = document.getElementById('statusMsg');
+    const thinkDetail = document.getElementById('thinkDetail');
+    const showThinkCheck = document.getElementById('showThinkCheck');
+
+    // 高 DPI 适配
+    let dpr = 1;
+    let scale = 1;
+
+    function setupCanvas() {
+        dpr = window.devicePixelRatio || 1;
+        const rect = canvas.parentElement.getBoundingClientRect();
+        const cssWidth = Math.min(rect.width, LOGIC_WIDTH);
+        const cssHeight = cssWidth;
+        canvas.width = cssWidth * dpr;
+        canvas.height = cssHeight * dpr;
+        canvas.style.width = cssWidth + 'px';
+        canvas.style.height = cssHeight + 'px';
+        scale = dpr;
+        ctx.scale(scale, scale);
+        ctx.imageSmoothingEnabled = true;
+        return { width: cssWidth, height: cssHeight };
+    }
+
+    function resizeAndRedraw() {
+        setupCanvas();
+        drawBoard();
+    }
+
+    // =============================================================
+    //  AI 核心评分函数
+    // =============================================================
+    function getScore(count, openEnds) {
+        if (count >= 5) return 1000000;
+        if (openEnds === 0) return 0;
+        if (count === 4) return (openEnds === 2) ? 100000 : 10000;
+        if (count === 3) return (openEnds === 2) ? 5000 : 1000;
+        if (count === 2) return (openEnds === 2) ? 500 : 100;
+        if (count === 1) return (openEnds === 2) ? 10 : 0;
+        return 0;
+    }
+
+    function evaluatePoint(board, row, col, player) {
+        if (board[row][col] !== EMPTY) return 0;
+        let totalScore = 0;
+        board[row][col] = player;
+        const dirs = [
+            [1, 0],
+            [0, 1],
+            [1, 1],
+            [1, -1]
+        ];
+        for (let dir of dirs) {
+            const [dx, dy] = dir;
+            let count = 1;
+            let openEnds = 0;
+            let r = row + dx,
+                c = col + dy;
+            while (r >= 0 && r < SIZE && c >= 0 && c < SIZE && board[r][c] === player) {
+                count++;
+                r += dx;
+                c += dy;
+            }
+            if (r >= 0 && r < SIZE && c >= 0 && c < SIZE && board[r][c] === EMPTY) openEnds++;
+            r = row - dx;
+            c = col - dy;
+            while (r >= 0 && r < SIZE && c >= 0 && c < SIZE && board[r][c] === player) {
+                count++;
+                r -= dx;
+                c -= dy;
+            }
+            if (r >= 0 && r < SIZE && c >= 0 && c < SIZE && board[r][c] === EMPTY) openEnds++;
+            totalScore += getScore(count, openEnds);
+        }
+        board[row][col] = EMPTY;
+        return totalScore;
+    }
+
+    function getCandidateMoves(board) {
+        const moves = new Set();
+        let hasStone = false;
+        for (let r = 0; r < SIZE; r++) {
+            for (let c = 0; c < SIZE; c++) {
+                if (board[r][c] !== EMPTY) {
+                    hasStone = true;
+                    for (let dr = -2; dr <= 2; dr++) {
+                        for (let dc = -2; dc <= 2; dc++) {
+                            const nr = r + dr,
+                                nc = c + dc;
+                            if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && board[nr][nc] === EMPTY) {
+                                moves.add(nr * SIZE + nc);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (!hasStone) {
+            const center = Math.floor(SIZE / 2);
+            return [{ row: center, col: center }];
+        }
+        return Array.from(moves).map(code => ({
+            row: Math.floor(code / SIZE),
+            col: code % SIZE
+        }));
+    }
+
+    // 增强 aiMove：返回最佳点及详细评分信息
+    function aiMove(board, player) {
+        const opponent = (player === BLACK) ? WHITE : BLACK;
+        const candidates = getCandidateMoves(board);
+        if (candidates.length === 0) return null;
+
+        let bestScore = -1;
+        let bestMove = candidates[0];
+        let bestAttack = 0,
+            bestDefense = 0;
+        const scoredCandidates = [];
+
+        for (let move of candidates) {
+            const { row, col } = move;
+            const attack = evaluatePoint(board, row, col, player);
+            const defense = evaluatePoint(board, row, col, opponent);
+            const total = attack + defense * 0.9;
+            scoredCandidates.push({ row, col, attack, defense, total });
+            if (total > bestScore) {
+                bestScore = total;
+                bestMove = { row, col };
+                bestAttack = attack;
+                bestDefense = defense;
+            }
+        }
+
+        const sorted = scoredCandidates.sort((a, b) => b.total - a.total);
+        const top5 = sorted.slice(0, 5);
+
+        return {
+            bestMove,
+            attack: bestAttack,
+            defense: bestDefense,
+            total: bestScore,
+            candidatesCount: candidates.length,
+            top5
+        };
+    }
+
+    // =============================================================
+    //  胜负判断
+    // =============================================================
+    function checkWin(board, row, col, player) {
+        if (board[row][col] !== player) return false;
+        const dirs = [
+            [1, 0],
+            [0, 1],
+            [1, 1],
+            [1, -1]
+        ];
+        for (let dir of dirs) {
+            const [dx, dy] = dir;
+            let count = 1;
+            let r = row + dx,
+                c = col + dy;
+            while (r >= 0 && r < SIZE && c >= 0 && c < SIZE && board[r][c] === player) {
+                count++;
+                r += dx;
+                c += dy;
+            }
+            r = row - dx;
+            c = col - dy;
+            while (r >= 0 && r < SIZE && c >= 0 && c < SIZE && board[r][c] === player) {
+                count++;
+                r -= dx;
+                c -= dy;
+            }
+            if (count >= 5) return true;
+        }
+        return false;
+    }
+
+    function isBoardFull() {
+        for (let r = 0; r < SIZE; r++)
+            for (let c = 0; c < SIZE; c++)
+                if (board[r][c] === EMPTY) return false;
+        return true;
+    }
+
+    // =============================================================
+    //  绘制棋盘（含手数 + 最后落子高亮）
+    // =============================================================
+    function drawBoard() {
+        const w = LOGIC_WIDTH,
+            h = LOGIC_HEIGHT;
+        ctx.clearRect(0, 0, w, h);
+
+        // 网格
+        ctx.strokeStyle = '#5a3e1b';
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < SIZE; i++) {
+            const pos = MARGIN + i * CELL_SIZE;
+            ctx.beginPath();
+            ctx.moveTo(pos, MARGIN);
+            ctx.lineTo(pos, h - MARGIN);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(MARGIN, pos);
+            ctx.lineTo(w - MARGIN, pos);
+            ctx.stroke();
+        }
+
+        // 星位
+        const stars = [
+            [3, 3],
+            [3, 11],
+            [11, 3],
+            [11, 11],
+            [7, 7]
+        ];
+        ctx.fillStyle = '#5a3e1b';
+        for (let [r, c] of stars) {
+            ctx.beginPath();
+            ctx.arc(MARGIN + c * CELL_SIZE, MARGIN + r * CELL_SIZE, 5, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        // 绘制所有棋子
+        for (let i = 0; i < history.length; i++) {
+            const { row, col, player } = history[i];
+            const x = MARGIN + col * CELL_SIZE;
+            const y = MARGIN + row * CELL_SIZE;
+            const radius = PIECE_RADIUS;
+            const grad = ctx.createRadialGradient(x - 4, y - 4, radius * 0.2, x, y, radius);
+            if (player === BLACK) {
+                grad.addColorStop(0, '#666');
+                grad.addColorStop(0.7, '#222');
+                grad.addColorStop(1, '#000');
+            } else {
+                grad.addColorStop(0, '#fff');
+                grad.addColorStop(0.7, '#e0e0e0');
+                grad.addColorStop(1, '#b0b0b0');
+            }
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, 2 * Math.PI);
+            ctx.fillStyle = grad;
+            ctx.shadowColor = 'rgba(0,0,0,0.25)';
+            ctx.shadowBlur = 6;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            if (player === WHITE) {
+                ctx.beginPath();
+                ctx.arc(x - 3, y - 3, radius * 0.15, 0, 2 * Math.PI);
+                ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                ctx.fill();
+            }
+        }
+
+        // --- 高亮最后落子 ---
+        if (lastMove) {
+            const { row, col } = lastMove;
+            const x = MARGIN + col * CELL_SIZE;
+            const y = MARGIN + row * CELL_SIZE;
+            // 红色外发光圆环
+            ctx.save();
+            ctx.shadowColor = 'rgba(255, 0, 0, 0.8)';
+            ctx.shadowBlur = 18;
+            ctx.strokeStyle = '#ff3333';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(x, y, PIECE_RADIUS + 3, 0, 2 * Math.PI);
+            ctx.stroke();
+            // 第二层较细的亮圈
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#ffaa00';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(x, y, PIECE_RADIUS + 6, 0, 2 * Math.PI);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // --- 手数数字 ---
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (let i = 0; i < history.length; i++) {
+            const { row, col, player } = history[i];
+            const x = MARGIN + col * CELL_SIZE;
+            const y = MARGIN + row * CELL_SIZE;
+            const number = (i + 1).toString();
+            const fontSize = Math.min(CELL_SIZE * 0.42, 18);
+            ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+            ctx.fillStyle = (player === BLACK) ? '#fff' : '#111';
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 4;
+            ctx.fillText(number, x, y + 1);
+            ctx.shadowBlur = 0;
+        }
+    }
+
+    // =============================================================
+    //  状态 & 思考过程更新（防跳动）
+    // =============================================================
+    function updateStatus(message, turnColor) {
+        const indicator = `<span class="turn-indicator turn-${turnColor}"></span>`;
+        statusMsg.innerHTML = `${message} ${indicator}`;
+    }
+
+    function updateThinkDetail(info) {
+        // 固定高度，只改变内容，不影响布局
+        if (!showThinkCheck.checked) {
+            thinkDetail.innerHTML = '<span style="color:#888;">（思考过程已隐藏）</span>';
+            return;
+        }
+        if (!info) {
+            thinkDetail.innerHTML = '<span style="color:#888;">（等待 AI 走棋）</span>';
+            return;
+        }
+        let html = `<div><span class="label">候选点总数：</span>${info.candidatesCount}</div>`;
+        html += `<div><span class="label">最佳落子：</span>(${info.bestMove.row}, ${info.bestMove.col}) 进攻=${info.attack}，防守=${info.defense}，综合=${info.total.toFixed(1)}</div>`;
+        html += `<div style="margin-top:6px;"><span class="label">综合得分前5：</span></div>`;
+        for (let item of info.top5) {
+            html += `<div class="candidate-item">(${item.row}, ${item.col}) 进攻=${item.attack}，防守=${item.defense}，综合=${item.total.toFixed(1)}</div>`;
+        }
+        thinkDetail.innerHTML = html;
+    }
+
+    // =============================================================
+    //  核心游戏逻辑
+    // =============================================================
+    function placePiece(row, col) {
+        if (gameOver) return false;
+        if (isAIThinking) return false;
+        if (row < 0 || row >= SIZE || col < 0 || col >= SIZE) return false;
+        if (board[row][col] !== EMPTY) return false;
+        if (currentPlayer !== humanPlayer) return false;
+
+        board[row][col] = currentPlayer;
+        history.push({ row, col, player: currentPlayer });
+        lastMove = { row, col };
+        drawBoard();
+
+        if (checkWin(board, row, col, currentPlayer)) {
+            gameOver = true;
+            const winner = (currentPlayer === BLACK) ? '黑棋' : '白棋';
+            updateStatus(`${winner}胜利！`, (currentPlayer === BLACK) ? 'black' : 'white');
+            updateThinkDetail(null);
+            return true;
+        }
+        if (isBoardFull()) {
+            gameOver = true;
+            updateStatus('平局', 'black');
+            updateThinkDetail(null);
+            return true;
+        }
+
+        currentPlayer = (currentPlayer === BLACK) ? WHITE : BLACK;
+        updateStatus(
+            (currentPlayer === humanPlayer) ? '你的回合' : 'AI 思考中...',
+            (currentPlayer === BLACK) ? 'black' : 'white'
+        );
+        if (currentPlayer === aiPlayer) {
+            isAIThinking = true;
+            setTimeout(() => doAIMove(), 50);
+        } else {
+            // 玩家回合时，可保留上一次思考信息，但不更新
+        }
+        return true;
+    }
+
+    function doAIMove() {
+        if (gameOver) { isAIThinking = false; return; }
+        if (currentPlayer !== aiPlayer) { isAIThinking = false; return; }
+
+        const result = aiMove(board, aiPlayer);
+        if (!result) { isAIThinking = false; return; }
+
+        const { bestMove, attack, defense, total, candidatesCount, top5 } = result;
+        const { row, col } = bestMove;
+
+        board[row][col] = aiPlayer;
+        history.push({ row, col, player: aiPlayer });
+        lastMove = { row, col };
+        drawBoard();
+
+        // 更新思考过程
+        updateThinkDetail({
+            bestMove: { row, col },
+            attack,
+            defense,
+            total,
+            candidatesCount,
+            top5
+        });
+
+        if (checkWin(board, row, col, aiPlayer)) {
+            gameOver = true;
+            const winner = (aiPlayer === BLACK) ? '黑棋' : '白棋';
+            updateStatus(`${winner}胜利！`, (aiPlayer === BLACK) ? 'black' : 'white');
+            isAIThinking = false;
+            return;
+        }
+        if (isBoardFull()) {
+            gameOver = true;
+            updateStatus('平局', 'black');
+            isAIThinking = false;
+            return;
+        }
+
+        currentPlayer = humanPlayer;
+        isAIThinking = false;
+        updateStatus('你的回合', (humanPlayer === BLACK) ? 'black' : 'white');
+        // 思考过程保留
+    }
+
+    // =============================================================
+    //  悔棋
+    // =============================================================
+    function undoMove() {
+        if (gameOver) return;
+        if (isAIThinking) return;
+        if (history.length === 0) return;
+
+        let removed = 0;
+        while (removed < 2 && history.length > 0) {
+            const last = history.pop();
+            board[last.row][last.col] = EMPTY;
+            removed++;
+            currentPlayer = last.player;
+        }
+        if (currentPlayer !== humanPlayer) {
+            if (history.length > 0) {
+                const last = history.pop();
+                board[last.row][last.col] = EMPTY;
+                currentPlayer = last.player;
+            } else {
+                currentPlayer = humanPlayer;
+            }
+        }
+        if (currentPlayer !== humanPlayer) {
+            currentPlayer = humanPlayer;
+        }
+
+        // 更新 lastMove 为当前最后一步（如果有）
+        if (history.length > 0) {
+            const last = history[history.length - 1];
+            lastMove = { row: last.row, col: last.col };
+        } else {
+            lastMove = null;
+        }
+
+        drawBoard();
+        gameOver = false;
+        updateStatus('你的回合', (humanPlayer === BLACK) ? 'black' : 'white');
+        updateThinkDetail(null);
+    }
+
+    // =============================================================
+    //  重置 / 切换先后手
+    // =============================================================
+    function resetGame(firstPlayerColor) {
+        if (firstPlayerColor !== undefined) {
+            humanPlayer = firstPlayerColor;
+            aiPlayer = (humanPlayer === BLACK) ? WHITE : BLACK;
+        }
+        board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
+        history = [];
+        currentPlayer = humanPlayer;
+        gameOver = false;
+        isAIThinking = false;
+        lastMove = null;
+
+        resizeAndRedraw();
+        updateThinkDetail(null);
+
+        if (humanPlayer === WHITE) {
+            currentPlayer = aiPlayer;
+            updateStatus('AI 思考中...', (aiPlayer === BLACK) ? 'black' : 'white');
+            isAIThinking = true;
+            setTimeout(() => doAIMove(), 50);
+        } else {
+            updateStatus('你的回合', 'black');
+        }
+        document.getElementById('btnBlack').classList.toggle('active', humanPlayer === BLACK);
+        document.getElementById('btnWhite').classList.toggle('active', humanPlayer === WHITE);
+    }
+
+    // =============================================================
+    //  事件绑定
+    // =============================================================
+    canvas.addEventListener('click', (e) => {
+        if (gameOver) return;
+        if (isAIThinking) return;
+        if (currentPlayer !== humanPlayer) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = LOGIC_WIDTH / rect.width;
+        const scaleY = LOGIC_HEIGHT / rect.height;
+        const mouseX = (e.clientX - rect.left) * scaleX;
+        const mouseY = (e.clientY - rect.top) * scaleY;
+
+        let col = Math.round((mouseX - MARGIN) / CELL_SIZE);
+        let row = Math.round((mouseY - MARGIN) / CELL_SIZE);
+        if (row < 0 || row >= SIZE || col < 0 || col >= SIZE) return;
+
+        const dx = Math.abs(mouseX - (MARGIN + col * CELL_SIZE));
+        const dy = Math.abs(mouseY - (MARGIN + row * CELL_SIZE));
+        if (dx > CELL_SIZE * 0.45 || dy > CELL_SIZE * 0.45) return;
+
+        placePiece(row, col);
+    });
+
+    window.addEventListener('resize', () => {
+        resizeAndRedraw();
+    });
+
+    document.getElementById('restartBtn').addEventListener('click', () => resetGame(humanPlayer));
+    document.getElementById('undoBtn').addEventListener('click', undoMove);
+    document.getElementById('btnBlack').addEventListener('click', () => resetGame(BLACK));
+    document.getElementById('btnWhite').addEventListener('click', () => resetGame(WHITE));
+
+    // 复选框：只控制详细内容显示，区域高度不变
+    showThinkCheck.addEventListener('change', () => {
+        // 重新渲染当前思考信息（若存在）
+        // 如果当前有思考数据（即最后一步是AI下的），则重新显示；否则显示占位
+        if (history.length > 0 && currentPlayer === humanPlayer && !gameOver) {
+            // 我们可以尝试重新生成思考信息？但这里简单处理：如果有最后一步且是AI下的，但我们没有存储思考结果。
+            // 简单做法：若显示复选框被取消，则隐藏详细信息；若勾选，但无数据则显示等待。
+            // 由于我们没存储之前的思考结果，这里直接调用 updateThinkDetail(null) 或保留上次内容
+            // 更好的做法：在 doAIMove 时把 info 存起来，但为了简化，我们直接重新调用 aiMove 获取？但会再次计算，可能耗时。
+            // 这里采用折衷：如果当前显示的是 "等待 AI 走棋" 或隐藏状态，则根据情况显示。
+            // 但我们之前显示的内容可能还在，所以直接调用 updateThinkDetail 如果勾选且无数据则显示等待。
+            // 我们可以从 thinkDetail 中读取当前内容，如果内容包含 "隐藏" 或 "等待"，则相应处理。
+            const currentHtml = thinkDetail.innerHTML;
+            if (showThinkCheck.checked) {
+                if (currentHtml.includes('隐藏') || currentHtml.includes('等待')) {
+                    updateThinkDetail(null);
+                }
+                // 否则保留原有内容（因为已经显示详细）
+            } else {
+                thinkDetail.innerHTML = '<span style="color:#888;">（思考过程已隐藏）</span>';
+            }
+        } else {
+            // 棋盘为空或游戏结束
+            if (showThinkCheck.checked) {
+                updateThinkDetail(null);
+            } else {
+                thinkDetail.innerHTML = '<span style="color:#888;">（思考过程已隐藏）</span>';
+            }
+        }
+    });
+
+    // =============================================================
+    //  启动
+    // =============================================================
+    setupCanvas();
+    resetGame(BLACK);
+</script>
+</body>
+</html>

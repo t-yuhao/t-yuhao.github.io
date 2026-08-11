@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音频整理 - 极简工作流</title>
+    <!-- 引入 Tailwind CSS 进行极简样式设计 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Lucide 图标库增加软件感 -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        /* 优雅的自定义滚动条 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
+        /* 去除输入框默认聚焦外框，使用 tailwind 样式 */
+        textarea:focus, input:focus { outline: none; }
+    </style>
+</head>
+<body class="bg-zinc-50 min-h-screen text-zinc-800">
+
+    <!-- 顶部导航条 -->
+    <header class="bg-white border-b border-zinc-200 px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+        <div class="flex items-center gap-2">
+            <i data-lucide="headphones" class="text-zinc-900 w-6 h-6"></i>
+            <h1 class="text-lg font-semibold tracking-tight text-zinc-900">音频整理助手</h1>
+        </div>
+        <div class="text-sm text-zinc-500 font-medium">纯前端运行 · 本地直连 API</div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- 左侧：全局配置区 -->
+        <aside class="lg:col-span-3 space-y-6">
+            <div class="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm">
+                <div class="flex items-center gap-2 mb-4">
+                    <i data-lucide="settings-2" class="w-4 h-4 text-zinc-500"></i>
+                    <h2 class="text-sm font-semibold text-zinc-900">全局设置</h2>
+                </div>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-500 mb-1.5">Gitee API Key</label>
+                        <input type="password" id="apiKey" placeholder="Bearer 后的令牌..." 
+                               class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm focus:border-zinc-400 transition-colors">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-500 mb-1.5">AI 整理提示词</label>
+                        <textarea id="promptText" rows="6" 
+                                  class="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm focus:border-zinc-400 transition-colors resize-none leading-relaxed">你是一个专业的文本整理助手。请帮我完成以下任务：
+1. 修改所有的错别字。
+2. 删除所有的 emoji 表情符号。
+3. 根据语意进行合理的文字分段。
+请保持原意不变，直接输出整理后的纯文本，不要包含任何多余的解释说明。</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 状态提示框 -->
+            <div id="statusAlert" class="bg-zinc-100 p-4 rounded-2xl border border-zinc-200 text-sm text-zinc-600 flex items-start gap-3 transition-all">
+                <i data-lucide="info" class="w-4 h-4 mt-0.5 shrink-0"></i>
+                <span id="statusText">等待上传音频文件...</span>
+            </div>
+        </aside>
+
+        <!-- 右侧：核心工作流区 -->
+        <section class="lg:col-span-9 space-y-6">
+            
+            <!-- 文件上传与控制台 -->
+            <div class="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex flex-col md:flex-row gap-6 items-center justify-between">
+                
+                <!-- 极简文件上传 -->
+                <div class="relative w-full md:w-1/2">
+                    <input type="file" id="audioFile" accept="audio/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="handleFileSelect(this)">
+                    <div id="uploadBox" class="flex items-center gap-4 px-4 py-3 border border-dashed border-zinc-300 rounded-xl bg-zinc-50 group transition-colors">
+                        <div class="w-10 h-10 rounded-lg bg-white border border-zinc-200 flex items-center justify-center shrink-0 text-zinc-500 group-hover:text-zinc-900 transition-colors">
+                            <i data-lucide="music" class="w-5 h-5"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <p class="text-sm font-medium text-zinc-900 truncate" id="fileNameDisplay">选择或拖拽音频文件</p>
+                            <p class="text-xs text-zinc-500">支持 mp3, wav, m4a, aac 等格式</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作按钮组 -->
+                <div class="flex items-center gap-2 w-full md:w-auto">
+                    <button onclick="runAutoPipeline()" id="btnAuto" class="flex-1 md:flex-none px-6 py-3 bg-zinc-900 hover:bg-zinc-800 text-white text-sm font-medium rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2">
+                        <i data-lucide="zap" class="w-4 h-4"></i>
+                        一键自动处理
+                    </button>
+                </div>
+            </div>
+
+            <!-- 分步执行栏 -->
+            <div class="flex items-center gap-2 overflow-x-auto pb-2 -mx-2 px-2 md:pb-0 md:mx-0 md:px-0">
+                <button onclick="step1Transcribe()" id="btnStep1" class="px-4 py-2 bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-700 text-sm font-medium rounded-lg shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap">
+                    <span class="w-5 h-5 rounded bg-zinc-100 flex items-center justify-center text-xs font-bold text-zinc-500">1</span>
+                    语音识别
+                </button>
+                <i data-lucide="arrow-right" class="w-4 h-4 text-zinc-300 shrink-0"></i>
+                <button onclick="step2Format()" id="btnStep2" class="px-4 py-2 bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-700 text-sm font-medium rounded-lg shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap">
+                    <span class="w-5 h-5 rounded bg-zinc-100 flex items-center justify-center text-xs font-bold text-zinc-500">2</span>
+                    AI 智能整理
+                </button>
+                <div class="ml-auto text-xs text-zinc-400 hidden md:block">支持手动修改识别结果后再整理</div>
+            </div>
+
+            <!-- 结果显示区 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 h-[450px]">
+                <!-- 原始结果 -->
+                <div class="bg-white rounded-2xl border border-zinc-200 shadow-sm flex flex-col overflow-hidden">
+                    <div class="px-4 py-3 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+                        <span class="text-sm font-medium text-zinc-700">原始识别文本</span>
+                        <span class="text-xs text-zinc-400">可编辑</span>
+                    </div>
+                    <textarea id="rawTextOutput" class="flex-grow p-4 bg-transparent text-sm leading-relaxed text-zinc-800 resize-none" placeholder="步骤1的识别结果将显示在这里..."></textarea>
+                </div>
+
+                <!-- 最终结果 -->
+                <div class="bg-zinc-900 rounded-2xl border border-zinc-800 shadow-sm flex flex-col overflow-hidden text-zinc-300 relative">
+                    <div class="px-4 py-3 border-b border-zinc-800 flex items-center justify-between bg-zinc-800/50">
+                        <span class="text-sm font-medium text-white flex items-center gap-2">
+                            <i data-lucide="sparkles" class="w-4 h-4 text-zinc-400"></i>
+                            整理结果
+                        </span>
+                        <button onclick="copyFinalText()" class="text-xs text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                            <i data-lucide="copy" class="w-3 h-3"></i> 复制
+                        </button>
+                    </div>
+                    <textarea id="finalTextOutput" readonly class="flex-grow p-4 bg-transparent text-sm leading-relaxed text-zinc-100 resize-none selection:bg-zinc-700 selection:text-white" placeholder="AI 处理结果将如打字机般流式呈现在此..."></textarea>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- 逻辑脚本 -->
+    <script>
+        // 初始化图标
+        lucide.createIcons();
+
+        // UI 辅助函数
+        function updateStatus(message, type = 'info') {
+            const statusAlert = document.getElementById('statusAlert');
+            const statusText = document.getElementById('statusText');
+            statusText.textContent = message;
+            
+            // 极简状态配色
+            if (type === 'error') {
+                statusAlert.className = "bg-red-50 p-4 rounded-2xl border border-red-100 text-sm text-red-600 flex items-start gap-3 transition-all";
+                statusAlert.innerHTML = `<i data-lucide="alert-circle" class="w-4 h-4 mt-0.5 shrink-0"></i><span id="statusText">${message}</span>`;
+            } else if (type === 'success') {
+                statusAlert.className = "bg-emerald-50 p-4 rounded-2xl border border-emerald-100 text-sm text-emerald-600 flex items-start gap-3 transition-all";
+                statusAlert.innerHTML = `<i data-lucide="check-circle-2" class="w-4 h-4 mt-0.5 shrink-0"></i><span id="statusText">${message}</span>`;
+            } else {
+                statusAlert.className = "bg-zinc-100 p-4 rounded-2xl border border-zinc-200 text-sm text-zinc-600 flex items-start gap-3 transition-all";
+                statusAlert.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 mt-0.5 shrink-0 animate-spin"></i><span id="statusText">${message}</span>`;
+            }
+            lucide.createIcons();
+        }
+
+        function handleFileSelect(input) {
+            if (input.files && input.files[0]) {
+                document.getElementById('fileNameDisplay').textContent = input.files[0].name;
+                updateStatus("音频文件已就绪，请选择操作。");
+            }
+        }
+
+        function setButtonsState(disabled) {
+            const btns = ['btnAuto', 'btnStep1', 'btnStep2'];
+            btns.forEach(id => {
+                const btn = document.getElementById(id);
+                btn.disabled = disabled;
+                if (disabled) {
+                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            });
+        }
+
+        // 复制最终文本
+        function copyFinalText() {
+            const text = document.getElementById('finalTextOutput').value;
+            if (text) {
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('复制成功！');
+                });
+            }
+        }
+
+        // --- 核心逻辑 ---
+
+        // 步骤 1：语音识别
+        async function step1Transcribe() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const audioInput = document.getElementById('audioFile');
+
+            if (!apiKey) return alert("请填写 Gitee API Key");
+            if (!audioInput.files.length) return alert("请先上传音频文件");
+
+            setButtonsState(true);
+            const rawTextOutput = document.getElementById('rawTextOutput');
+            rawTextOutput.value = "";
+
+            try {
+                updateStatus("步骤 1/2: 正在请求 AI 语音识别...");
+                const formData = new FormData();
+                formData.append('file', audioInput.files[0]);
+                formData.append('model', 'SenseVoiceSmall');
+
+                const res = await fetch('https://ai.gitee.com/v1/audio/transcriptions', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${apiKey}` },
+                    body: formData
+                });
+
+                if (!res.ok) throw new Error(`识别失败: ${await res.text()}`);
+                
+                const data = await res.json();
+                if (!data.text) throw new Error("识别结果为空");
+
+                rawTextOutput.value = data.text;
+                updateStatus("语音识别完成！您可以手动修改此文本，或直接进行【AI 智能整理】。", "success");
+            } catch (err) {
+                console.error(err);
+                updateStatus(`语音识别出错: ${err.message}`, "error");
+                throw err;
+            } finally {
+                setButtonsState(false);
+            }
+        }
+
+        // 步骤 2：AI 整理 (流式)
+        async function step2Format() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const prompt = document.getElementById('promptText').value.trim();
+            const rawText = document.getElementById('rawTextOutput').value.trim();
+            const finalTextOutput = document.getElementById('finalTextOutput');
+
+            if (!apiKey) return alert("请填写 Gitee API Key");
+            if (!rawText) return alert("识别文本框为空，请先执行前置步骤或手动输入文本");
+
+            setButtonsState(true);
+            finalTextOutput.value = "";
+
+            try {
+                updateStatus("步骤 2/2: AI 整理中 (流式接收)...");
+                const res = await fetch('https://ai.gitee.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            { role: "system", content: prompt },
+                            { role: "user", content: rawText }
+                        ],
+                        model: "DeepSeek-V4-Flash",
+                        stream: true,
+                        max_tokens: 2048,
+                        temperature: 0.7,
+                        top_p: 0.7,
+                        top_k: 50,
+                        frequency_penalty: 1
+                    })
+                });
+
+                if (!res.ok) throw new Error(`整理请求失败: ${await res.text()}`);
+
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let done = false;
+
+                while (!done) {
+                    const { value, done: readerDone } = await reader.read();
+                    done = readerDone;
+                    if (value) {
+                        const chunk = decoder.decode(value, { stream: true });
+                        const lines = chunk.split('\n');
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const dataStr = line.substring(6).trim();
+                                if (dataStr === '[DONE]') continue;
+                                try {
+                                    const parsed = JSON.parse(dataStr);
+                                    if (parsed.choices && parsed.choices.length > 0) {
+                                        const delta = parsed.choices[0].delta;
+                                        if (delta && delta.content) {
+                                            finalTextOutput.value += delta.content;
+                                            finalTextOutput.scrollTop = finalTextOutput.scrollHeight;
+                                        }
+                                    }
+                                } catch (e) {}
+                            }
+                        }
+                    }
+                }
+                updateStatus("🎉 任务圆满完成！", "success");
+            } catch (err) {
+                console.error(err);
+                updateStatus(`AI 整理出错: ${err.message}`, "error");
+            } finally {
+                setButtonsState(false);
+            }
+        }
+
+        // 自动工作流组合
+        async function runAutoPipeline() {
+            if (!document.getElementById('audioFile').files.length) {
+                return alert("请先上传音频文件");
+            }
+            if (!document.getElementById('apiKey').value.trim()) {
+                return alert("请填写 Gitee API Key");
+            }
+
+            try {
+                // 顺序执行两大步骤
+                await step1Transcribe();
+                await step2Format();
+            } catch (e) {
+                // 错误已在各个 step 内部被捕获和处理显示
+                console.warn("自动流程中止");
+            }
+        }
+    </script>
+</body>
+</html>

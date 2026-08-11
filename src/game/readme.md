@@ -39,4 +39,6 @@
 
 >[GTA](./games/GTA_Demo.html)
 
+>[五子棋] (./game/games/五子棋简易版.html)
+
 
