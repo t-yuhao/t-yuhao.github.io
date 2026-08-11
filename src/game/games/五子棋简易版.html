@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>五子棋 AI - 高亮落子 & 稳定思考</title>
+    <title>五子棋</title>
     <style>
         * {
             user-select: none;
@@ -30,14 +30,13 @@
         .canvas-wrapper {
             position: relative;
             width: 100%;
-            max-width: 620px;
             margin: 0 auto;
-            aspect-ratio: 1 / 1;
+            /* 高度由 canvas 撑起，不设固定 aspect-ratio 以免影响 canvas 自身尺寸 */
         }
         canvas {
             display: block;
-            width: 100%;
-            height: 100%;
+            width: 100%;           /* 实际宽度由 JS 设置 style 覆盖，但这里作为 fallback */
+            height: auto;
             background: #f0d9b5;
             border-radius: 8px;
             box-shadow: inset 0 0 10px #6b4f2e;
@@ -117,7 +116,7 @@
             background: radial-gradient(circle at 35% 35%, #fff, #aaa);
         }
 
-        /* 思考过程详情区域 - 固定高度防跳动 */
+        /* 思考过程 - 固定高度防跳动 */
         .think-detail {
             margin-top: 12px;
             padding: 8px 14px;
@@ -128,10 +127,10 @@
             text-align: left;
             color: #3b2a12;
             line-height: 1.6;
-            min-height: 70px;          /* 固定最小高度，防止内容变化跳动 */
+            min-height: 70px;
             max-height: 150px;
             overflow-y: auto;
-            transition: none;          /* 禁用过渡，避免动画抖动 */
+            transition: none;
         }
         .think-detail .label {
             font-weight: bold;
@@ -201,7 +200,7 @@
         </label>
     </div>
     <div class="think-detail" id="thinkDetail">
-        <!-- 由 JavaScript 动态填充，始终保持占位 -->
+        <!-- 由 JS 填充 -->
     </div>
 </div>
 
@@ -213,12 +212,7 @@
     const EMPTY = 0;
     const BLACK = 1;
     const WHITE = 2;
-
-    const LOGIC_WIDTH = 620;
-    const LOGIC_HEIGHT = 620;
-    const MARGIN = 30;
-    const CELL_SIZE = (LOGIC_WIDTH - 2 * MARGIN) / (SIZE - 1);
-    const PIECE_RADIUS = CELL_SIZE * 0.43;
+    const MAX_LOGIC_SIZE = 620;   // 最大逻辑尺寸
 
     let board = [];
     let history = [];
@@ -227,7 +221,13 @@
     let isAIThinking = false;
     let humanPlayer = BLACK;
     let aiPlayer = WHITE;
-    let lastMove = null;          // 记录最后落子 { row, col }
+    let lastMove = null;
+
+    // 动态逻辑尺寸
+    let logicSize = MAX_LOGIC_SIZE;
+    let margin = 30;
+    let cellSize = (logicSize - 2 * margin) / (SIZE - 1);
+    let pieceRadius = cellSize * 0.43;
 
     const canvas = document.getElementById('boardCanvas');
     const ctx = canvas.getContext('2d');
@@ -235,23 +235,34 @@
     const thinkDetail = document.getElementById('thinkDetail');
     const showThinkCheck = document.getElementById('showThinkCheck');
 
-    // 高 DPI 适配
-    let dpr = 1;
-    let scale = 1;
-
+    // =============================================================
+    //  自适应设置
+    // =============================================================
     function setupCanvas() {
-        dpr = window.devicePixelRatio || 1;
-        const rect = canvas.parentElement.getBoundingClientRect();
-        const cssWidth = Math.min(rect.width, LOGIC_WIDTH);
-        const cssHeight = cssWidth;
-        canvas.width = cssWidth * dpr;
-        canvas.height = cssHeight * dpr;
-        canvas.style.width = cssWidth + 'px';
-        canvas.style.height = cssHeight + 'px';
-        scale = dpr;
-        ctx.scale(scale, scale);
+        const dpr = window.devicePixelRatio || 1;
+        const wrapper = canvas.parentElement;
+        const wrapperWidth = wrapper.clientWidth;
+        // 取父容器宽度与最大尺寸的较小值
+        const newSize = Math.min(wrapperWidth, MAX_LOGIC_SIZE);
+        logicSize = newSize;
+
+        // 计算边距和格子大小（边距随尺寸线性变化）
+        margin = logicSize * 0.048;   // 约 30/620
+        cellSize = (logicSize - 2 * margin) / (SIZE - 1);
+        pieceRadius = cellSize * 0.43;
+
+        // 设置 canvas 尺寸
+        canvas.width = logicSize * dpr;
+        canvas.height = logicSize * dpr;
+        canvas.style.width = logicSize + 'px';
+        canvas.style.height = logicSize + 'px';
+
+        // 缩放 context，使绘制坐标与逻辑尺寸一致
+        ctx.setTransform(1, 0, 0, 1, 0, 0); // 重置变换
+        ctx.scale(dpr, dpr);
         ctx.imageSmoothingEnabled = true;
-        return { width: cssWidth, height: cssHeight };
+
+        return { logicSize, margin, cellSize, pieceRadius };
     }
 
     function resizeAndRedraw() {
@@ -260,7 +271,7 @@
     }
 
     // =============================================================
-    //  AI 核心评分函数
+    //  AI 核心评分函数（不变）
     // =============================================================
     function getScore(count, openEnds) {
         if (count >= 5) return 1000000;
@@ -337,7 +348,6 @@
         }));
     }
 
-    // 增强 aiMove：返回最佳点及详细评分信息
     function aiMove(board, player) {
         const opponent = (player === BLACK) ? WHITE : BLACK;
         const candidates = getCandidateMoves(board);
@@ -417,25 +427,25 @@
     }
 
     // =============================================================
-    //  绘制棋盘（含手数 + 最后落子高亮）
+    //  绘制棋盘（完全基于当前 logicSize）
     // =============================================================
     function drawBoard() {
-        const w = LOGIC_WIDTH,
-            h = LOGIC_HEIGHT;
+        const w = logicSize,
+            h = logicSize;
         ctx.clearRect(0, 0, w, h);
 
         // 网格
         ctx.strokeStyle = '#5a3e1b';
         ctx.lineWidth = 1.5;
         for (let i = 0; i < SIZE; i++) {
-            const pos = MARGIN + i * CELL_SIZE;
+            const pos = margin + i * cellSize;
             ctx.beginPath();
-            ctx.moveTo(pos, MARGIN);
-            ctx.lineTo(pos, h - MARGIN);
+            ctx.moveTo(pos, margin);
+            ctx.lineTo(pos, h - margin);
             ctx.stroke();
             ctx.beginPath();
-            ctx.moveTo(MARGIN, pos);
-            ctx.lineTo(w - MARGIN, pos);
+            ctx.moveTo(margin, pos);
+            ctx.lineTo(w - margin, pos);
             ctx.stroke();
         }
 
@@ -449,17 +459,20 @@
         ];
         ctx.fillStyle = '#5a3e1b';
         for (let [r, c] of stars) {
+            const x = margin + c * cellSize;
+            const y = margin + r * cellSize;
+            const radius = Math.max(3, cellSize * 0.1);
             ctx.beginPath();
-            ctx.arc(MARGIN + c * CELL_SIZE, MARGIN + r * CELL_SIZE, 5, 0, 2 * Math.PI);
+            ctx.arc(x, y, radius, 0, 2 * Math.PI);
             ctx.fill();
         }
 
-        // 绘制所有棋子
+        // 棋子
         for (let i = 0; i < history.length; i++) {
             const { row, col, player } = history[i];
-            const x = MARGIN + col * CELL_SIZE;
-            const y = MARGIN + row * CELL_SIZE;
-            const radius = PIECE_RADIUS;
+            const x = margin + col * cellSize;
+            const y = margin + row * cellSize;
+            const radius = pieceRadius;
             const grad = ctx.createRadialGradient(x - 4, y - 4, radius * 0.2, x, y, radius);
             if (player === BLACK) {
                 grad.addColorStop(0, '#666');
@@ -485,39 +498,37 @@
             }
         }
 
-        // --- 高亮最后落子 ---
+        // 高亮最后落子
         if (lastMove) {
             const { row, col } = lastMove;
-            const x = MARGIN + col * CELL_SIZE;
-            const y = MARGIN + row * CELL_SIZE;
-            // 红色外发光圆环
+            const x = margin + col * cellSize;
+            const y = margin + row * cellSize;
             ctx.save();
             ctx.shadowColor = 'rgba(255, 0, 0, 0.8)';
             ctx.shadowBlur = 18;
             ctx.strokeStyle = '#ff3333';
             ctx.lineWidth = 2.5;
             ctx.beginPath();
-            ctx.arc(x, y, PIECE_RADIUS + 3, 0, 2 * Math.PI);
+            ctx.arc(x, y, pieceRadius + 3, 0, 2 * Math.PI);
             ctx.stroke();
-            // 第二层较细的亮圈
             ctx.shadowBlur = 0;
             ctx.strokeStyle = '#ffaa00';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.arc(x, y, PIECE_RADIUS + 6, 0, 2 * Math.PI);
+            ctx.arc(x, y, pieceRadius + 6, 0, 2 * Math.PI);
             ctx.stroke();
             ctx.restore();
         }
 
-        // --- 手数数字 ---
+        // 手数数字
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         for (let i = 0; i < history.length; i++) {
             const { row, col, player } = history[i];
-            const x = MARGIN + col * CELL_SIZE;
-            const y = MARGIN + row * CELL_SIZE;
+            const x = margin + col * cellSize;
+            const y = margin + row * cellSize;
             const number = (i + 1).toString();
-            const fontSize = Math.min(CELL_SIZE * 0.42, 18);
+            const fontSize = Math.min(cellSize * 0.42, 18);
             ctx.font = `bold ${fontSize}px Arial, sans-serif`;
             ctx.fillStyle = (player === BLACK) ? '#fff' : '#111';
             ctx.shadowColor = 'rgba(0,0,0,0.5)';
@@ -528,7 +539,7 @@
     }
 
     // =============================================================
-    //  状态 & 思考过程更新（防跳动）
+    //  状态 & 思考过程
     // =============================================================
     function updateStatus(message, turnColor) {
         const indicator = `<span class="turn-indicator turn-${turnColor}"></span>`;
@@ -536,7 +547,6 @@
     }
 
     function updateThinkDetail(info) {
-        // 固定高度，只改变内容，不影响布局
         if (!showThinkCheck.checked) {
             thinkDetail.innerHTML = '<span style="color:#888;">（思考过程已隐藏）</span>';
             return;
@@ -555,7 +565,7 @@
     }
 
     // =============================================================
-    //  核心游戏逻辑
+    //  游戏逻辑
     // =============================================================
     function placePiece(row, col) {
         if (gameOver) return false;
@@ -591,8 +601,6 @@
         if (currentPlayer === aiPlayer) {
             isAIThinking = true;
             setTimeout(() => doAIMove(), 50);
-        } else {
-            // 玩家回合时，可保留上一次思考信息，但不更新
         }
         return true;
     }
@@ -612,7 +620,6 @@
         lastMove = { row, col };
         drawBoard();
 
-        // 更新思考过程
         updateThinkDetail({
             bestMove: { row, col },
             attack,
@@ -639,7 +646,6 @@
         currentPlayer = humanPlayer;
         isAIThinking = false;
         updateStatus('你的回合', (humanPlayer === BLACK) ? 'black' : 'white');
-        // 思考过程保留
     }
 
     // =============================================================
@@ -670,7 +676,6 @@
             currentPlayer = humanPlayer;
         }
 
-        // 更新 lastMove 为当前最后一步（如果有）
         if (history.length > 0) {
             const last = history[history.length - 1];
             lastMove = { row: last.row, col: last.col };
@@ -685,7 +690,7 @@
     }
 
     // =============================================================
-    //  重置 / 切换先后手
+    //  重置 / 先后手
     // =============================================================
     function resetGame(firstPlayerColor) {
         if (firstPlayerColor !== undefined) {
@@ -723,18 +728,20 @@
         if (currentPlayer !== humanPlayer) return;
 
         const rect = canvas.getBoundingClientRect();
-        const scaleX = LOGIC_WIDTH / rect.width;
-        const scaleY = LOGIC_HEIGHT / rect.height;
+        // 鼠标位置相对于 canvas CSS 坐标，需要转换为逻辑坐标
+        // canvas 的 CSS 尺寸与逻辑尺寸一致（都是 logicSize）
+        const scaleX = logicSize / rect.width;
+        const scaleY = logicSize / rect.height;
         const mouseX = (e.clientX - rect.left) * scaleX;
         const mouseY = (e.clientY - rect.top) * scaleY;
 
-        let col = Math.round((mouseX - MARGIN) / CELL_SIZE);
-        let row = Math.round((mouseY - MARGIN) / CELL_SIZE);
+        let col = Math.round((mouseX - margin) / cellSize);
+        let row = Math.round((mouseY - margin) / cellSize);
         if (row < 0 || row >= SIZE || col < 0 || col >= SIZE) return;
 
-        const dx = Math.abs(mouseX - (MARGIN + col * CELL_SIZE));
-        const dy = Math.abs(mouseY - (MARGIN + row * CELL_SIZE));
-        if (dx > CELL_SIZE * 0.45 || dy > CELL_SIZE * 0.45) return;
+        const dx = Math.abs(mouseX - (margin + col * cellSize));
+        const dy = Math.abs(mouseY - (margin + row * cellSize));
+        if (dx > cellSize * 0.45 || dy > cellSize * 0.45) return;
 
         placePiece(row, col);
     });
@@ -748,34 +755,15 @@
     document.getElementById('btnBlack').addEventListener('click', () => resetGame(BLACK));
     document.getElementById('btnWhite').addEventListener('click', () => resetGame(WHITE));
 
-    // 复选框：只控制详细内容显示，区域高度不变
     showThinkCheck.addEventListener('change', () => {
-        // 重新渲染当前思考信息（若存在）
-        // 如果当前有思考数据（即最后一步是AI下的），则重新显示；否则显示占位
-        if (history.length > 0 && currentPlayer === humanPlayer && !gameOver) {
-            // 我们可以尝试重新生成思考信息？但这里简单处理：如果有最后一步且是AI下的，但我们没有存储思考结果。
-            // 简单做法：若显示复选框被取消，则隐藏详细信息；若勾选，但无数据则显示等待。
-            // 由于我们没存储之前的思考结果，这里直接调用 updateThinkDetail(null) 或保留上次内容
-            // 更好的做法：在 doAIMove 时把 info 存起来，但为了简化，我们直接重新调用 aiMove 获取？但会再次计算，可能耗时。
-            // 这里采用折衷：如果当前显示的是 "等待 AI 走棋" 或隐藏状态，则根据情况显示。
-            // 但我们之前显示的内容可能还在，所以直接调用 updateThinkDetail 如果勾选且无数据则显示等待。
-            // 我们可以从 thinkDetail 中读取当前内容，如果内容包含 "隐藏" 或 "等待"，则相应处理。
-            const currentHtml = thinkDetail.innerHTML;
-            if (showThinkCheck.checked) {
-                if (currentHtml.includes('隐藏') || currentHtml.includes('等待')) {
-                    updateThinkDetail(null);
-                }
-                // 否则保留原有内容（因为已经显示详细）
-            } else {
-                thinkDetail.innerHTML = '<span style="color:#888;">（思考过程已隐藏）</span>';
+        // 重新更新显示，保留内容或隐藏
+        const currentHtml = thinkDetail.innerHTML;
+        if (showThinkCheck.checked) {
+            if (currentHtml.includes('隐藏') || currentHtml.includes('等待')) {
+                updateThinkDetail(null);
             }
         } else {
-            // 棋盘为空或游戏结束
-            if (showThinkCheck.checked) {
-                updateThinkDetail(null);
-            } else {
-                thinkDetail.innerHTML = '<span style="color:#888;">（思考过程已隐藏）</span>';
-            }
+            thinkDetail.innerHTML = '<span style="color:#888;">（思考过程已隐藏）</span>';
         }
     });
 

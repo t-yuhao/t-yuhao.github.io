@@ -9,14 +9,6 @@
 
 ##  [03-游戏](./game/)
 
-## [快递工具](./Tool/multitool-simple.html)
-
-## [工具](./Tool/multitoolow.html)
-
-## [工具](./Tool/dizhi_kuaidi.html)
-
-### 
-
 >[合成大西瓜](./game/games/3Dsuika_cylinder.html)
 
 >[合成太阳](./game/games/3Dsolar.html)
@@ -26,3 +18,15 @@
 >[GTA](./game/games/GTA_Demo.html)
 
 >[GTA](./game/games/五子棋简易版.html)
+
+## [04-工具](./Tool/)
+
+### [话术处理](./Tool/audio2text.html)
+
+### [简易快递工具](./Tool/multitool-simple.html)
+
+### [ow风格快递工具](./Tool/multitoolow.html)
+
+### [mac工具](./Tool/dizhi_kuaidi.html)
+
+
