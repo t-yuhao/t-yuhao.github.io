@@ -17,7 +17,9 @@
 
 >[GTA](./game/games/GTA_Demo.html)
 
->[GTA](./game/games/五子棋简易版.html)
+>[五子棋简易版](./game/games/五子棋简易版.html)
+
+>[五子棋](./game/games/五子棋.html)
 
 ## [04-工具](./Tool/)
 
