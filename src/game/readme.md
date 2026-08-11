@@ -41,6 +41,6 @@
 
 >[五子棋简易版](./games/五子棋简易版.html)
 
->[五子棋](./games/五子棋.html)
+>[五子棋](./games/Gomoku.html)
 
 
