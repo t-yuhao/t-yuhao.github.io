@@ -1,0 +1,1593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>井字棋 · 多模式 · Alpha-Beta</title>
+    <!-- 引入 PeerJS -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        /* ===== 全局重置 & 字体 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(ellipse at 20% 50%, #1a2a4a 0%, #0a0a1a 70%);
+            padding: 20px;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        /* ===== 背景光晕 ===== */
+        body::before,
+        body::after {
+            content: '';
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
+            pointer-events: none;
+            z-index: 0;
+        }
+        body::before {
+            width: 500px;
+            height: 500px;
+            top: -100px;
+            right: -100px;
+            background: rgba(60, 130, 255, 0.15);
+        }
+        body::after {
+            width: 400px;
+            height: 400px;
+            bottom: -80px;
+            left: -80px;
+            background: rgba(0, 200, 255, 0.10);
+        }
+
+        /* ===== 主容器 ===== */
+        .game-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 560px;
+            padding: 28px 24px 24px;
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(24px) saturate(1.4);
+            -webkit-backdrop-filter: blur(24px) saturate(1.4);
+            border-radius: 36px;
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04) inset, 0 1px 0 rgba(255, 255, 255, 0.08) inset;
+            transition: all 0.3s ease;
+        }
+
+        /* ===== 标题 ===== */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.3px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .title span {
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .title .icon {
+            font-size: 24px;
+            -webkit-text-fill-color: initial;
+            background: none;
+        }
+        .badge {
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.06);
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        /* ===== 模式选择 ===== */
+        .mode-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .mode-btn {
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.25s;
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.5);
+            border: 1px solid transparent;
+            flex: 1 1 auto;
+            min-width: 80px;
+        }
+        .mode-btn:hover {
+            background: rgba(255, 255, 255, 0.10);
+            color: #fff;
+        }
+        .mode-btn.active {
+            background: rgba(96, 165, 250, 0.20);
+            color: #93bbfc;
+            border-color: rgba(96, 165, 250, 0.25);
+            box-shadow: 0 0 20px rgba(96, 165, 250, 0.08);
+        }
+        .mode-btn .emoji {
+            margin-right: 4px;
+        }
+
+        /* ===== 联机面板 ===== */
+        .online-panel {
+            display: none;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 16px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+        }
+        .online-panel.show {
+            display: flex;
+        }
+        .online-panel input {
+            flex: 1 1 120px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            border-radius: 12px;
+            padding: 8px 12px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            transition: 0.2s;
+            min-width: 80px;
+        }
+        .online-panel input:focus {
+            border-color: rgba(96, 165, 250, 0.4);
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .online-panel input::placeholder {
+            color: rgba(255, 255, 255, 0.25);
+        }
+        .online-panel .btn {
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: 0.25s;
+            background: rgba(96, 165, 250, 0.15);
+            color: #93bbfc;
+            border: 1px solid rgba(96, 165, 250, 0.15);
+            white-space: nowrap;
+        }
+        .online-panel .btn:hover {
+            background: rgba(96, 165, 250, 0.25);
+            color: #fff;
+        }
+        .online-panel .btn:active {
+            transform: scale(0.95);
+        }
+        .online-panel .btn.danger {
+            background: rgba(248, 113, 113, 0.15);
+            color: #fca5a5;
+            border-color: rgba(248, 113, 113, 0.15);
+        }
+        .online-panel .btn.danger:hover {
+            background: rgba(248, 113, 113, 0.25);
+        }
+        .online-status {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-left: auto;
+            white-space: nowrap;
+        }
+        .online-status.connected {
+            color: #4ecdc4;
+        }
+        .online-status .room-code {
+            font-weight: 700;
+            color: #fbbf24;
+            letter-spacing: 2px;
+        }
+
+        /* ===== 状态栏 ===== */
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 18px;
+            min-height: 52px;
+        }
+        .status-text {
+            font-size: 15px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.85);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-text .indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse-dot 1.4s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        .status-text .indicator.player-turn {
+            background: #4ecdc4;
+            box-shadow: 0 0 12px rgba(78, 205, 196, 0.4);
+        }
+        .status-text .indicator.ai-turn {
+            background: #60a5fa;
+            box-shadow: 0 0 12px rgba(96, 165, 250, 0.4);
+        }
+        .status-text .indicator.game-over {
+            animation: none;
+            background: #fbbf24;
+            box-shadow: 0 0 16px rgba(251, 191, 36, 0.3);
+        }
+        @keyframes pulse-dot {
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.4;
+                transform: scale(0.7);
+            }
+        }
+        .status-turn {
+            font-weight: 600;
+        }
+        .status-turn.player {
+            color: #4ecdc4;
+        }
+        .status-turn.ai {
+            color: #60a5fa;
+        }
+        .status-turn.win {
+            color: #fbbf24;
+        }
+        .status-turn.lose {
+            color: #f87171;
+        }
+        .status-turn.draw {
+            color: #94a3b8;
+        }
+
+        /* ===== 棋盘 ===== */
+        .board-wrapper {
+            position: relative;
+            margin-bottom: 18px;
+            aspect-ratio: 1 / 1;
+            width: 100%;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 12px;
+            width: 100%;
+            height: 100%;
+        }
+        .cell {
+            position: relative;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 56px;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+        }
+        .cell:hover:not(.taken):not(.game-over):not(.disabled) {
+            background: rgba(255, 255, 255, 0.08);
+            transform: scale(1.02);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+        .cell:active:not(.taken):not(.game-over):not(.disabled) {
+            transform: scale(0.96);
+        }
+        .cell.taken,
+        .cell.disabled {
+            cursor: default;
+        }
+        .cell.game-over {
+            cursor: default;
+        }
+        .cell .piece {
+            animation: piece-enter 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+        @keyframes piece-enter {
+            0% {
+                transform: scale(0.2) rotate(-20deg);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+        }
+        .cell .piece.x {
+            color: #f87171;
+            text-shadow: 0 0 30px rgba(248, 113, 113, 0.25);
+        }
+        .cell .piece.o {
+            color: #60a5fa;
+            text-shadow: 0 0 30px rgba(96, 165, 250, 0.25);
+        }
+        .cell.win-highlight {
+            background: rgba(251, 191, 36, 0.15) !important;
+            border-color: rgba(251, 191, 36, 0.4) !important;
+            box-shadow: 0 0 40px rgba(251, 191, 36, 0.15), 0 0 0 1px rgba(251, 191, 36, 0.2) inset !important;
+            animation: glow-pulse 1.2s ease-in-out infinite;
+        }
+        .cell.win-highlight .piece {
+            color: #fbbf24 !important;
+            text-shadow: 0 0 40px rgba(251, 191, 36, 0.5) !important;
+        }
+        @keyframes glow-pulse {
+            0%,
+            100% {
+                box-shadow: 0 0 30px rgba(251, 191, 36, 0.10), 0 0 0 1px rgba(251, 191, 36, 0.15) inset;
+            }
+            50% {
+                box-shadow: 0 0 60px rgba(251, 191, 36, 0.20), 0 0 0 2px rgba(251, 191, 36, 0.25) inset;
+            }
+        }
+
+        /* AI 思考遮罩 */
+        .thinking-overlay {
+            position: absolute;
+            inset: 0;
+            border-radius: 20px;
+            background: rgba(0, 0, 0, 0.25);
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .thinking-overlay.active {
+            display: flex;
+            pointer-events: auto;
+        }
+        .thinking-overlay .spinner {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            font-weight: 500;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 12px 28px;
+            border-radius: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .thinking-overlay .spinner .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #60a5fa;
+            display: inline-block;
+            animation: spin-dot 1.0s ease-in-out infinite;
+        }
+        @keyframes spin-dot {
+            0%,
+            100% {
+                transform: scale(0.5);
+                opacity: 0.3;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
+        }
+
+        /* ===== 分数栏 ===== */
+        .scoreboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .score-item {
+            text-align: center;
+            padding: 8px 4px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+        .score-item .label {
+            font-size: 11px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.35);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .score-item .value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            margin-top: 2px;
+            line-height: 1.2;
+        }
+        .score-item.player-score .value {
+            color: #4ecdc4;
+        }
+        .score-item.ai-score .value {
+            color: #60a5fa;
+        }
+        .score-item.draw-score .value {
+            color: #94a3b8;
+        }
+
+        /* ===== 控制栏 ===== */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 4px;
+        }
+        .controls .btn-group {
+            display: flex;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 4px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .btn {
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 8px 18px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.6);
+            border: 1px solid transparent;
+            white-space: nowrap;
+        }
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.10);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+        .btn.active {
+            background: rgba(96, 165, 250, 0.20);
+            color: #93bbfc;
+            border-color: rgba(96, 165, 250, 0.25);
+        }
+        .btn.active-x {
+            background: rgba(248, 113, 113, 0.15);
+            color: #fca5a5;
+            border-color: rgba(248, 113, 113, 0.20);
+        }
+        .btn.active-o {
+            background: rgba(78, 205, 196, 0.15);
+            color: #6ee7df;
+            border-color: rgba(78, 205, 196, 0.20);
+        }
+        .btn-primary {
+            background: rgba(96, 165, 250, 0.12);
+            color: #93bbfc;
+            border-color: rgba(96, 165, 250, 0.12);
+        }
+        .btn-primary:hover {
+            background: rgba(96, 165, 250, 0.22);
+            color: #fff;
+        }
+        .btn-primary:active {
+            background: rgba(96, 165, 250, 0.32);
+        }
+        .btn .emoji {
+            margin-right: 4px;
+        }
+
+        /* ===== 底部 ===== */
+        .footer {
+            margin-top: 16px;
+            text-align: center;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.20);
+            border-top: 1px solid rgba(255, 255, 255, 0.04);
+            padding-top: 14px;
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 480px) {
+            .game-container {
+                padding: 16px 12px 16px;
+                border-radius: 28px;
+            }
+            .title {
+                font-size: 18px;
+            }
+            .badge {
+                font-size: 10px;
+                padding: 3px 10px;
+            }
+            .cell {
+                font-size: 40px;
+                border-radius: 16px;
+            }
+            .board {
+                gap: 8px;
+            }
+            .status-text {
+                font-size: 13px;
+            }
+            .btn {
+                font-size: 12px;
+                padding: 6px 12px;
+            }
+            .mode-btn {
+                font-size: 12px;
+                padding: 5px 10px;
+            }
+            .online-panel input {
+                font-size: 13px;
+                padding: 6px 10px;
+            }
+            .online-panel .btn {
+                font-size: 12px;
+                padding: 6px 12px;
+            }
+            .score-item .value {
+                font-size: 18px;
+            }
+        }
+        @media (max-width: 380px) {
+            .cell {
+                font-size: 32px;
+                border-radius: 12px;
+            }
+            .board {
+                gap: 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container" role="main">
+        <!-- 标题 -->
+        <div class="header">
+            <div class="title">
+                <span class="icon">✦</span>
+                <span>井字棋</span>
+            </div>
+            <div class="badge">多模式</div>
+        </div>
+
+        <!-- 模式选择 -->
+        <div class="mode-selector" id="modeSelector">
+            <button class="mode-btn active" data-mode="ai"><span class="emoji">🤖</span>人机</button>
+            <button class="mode-btn" data-mode="local"><span class="emoji">👥</span>本地双人</button>
+            <button class="mode-btn" data-mode="online"><span class="emoji">🌐</span>在线联机</button>
+        </div>
+
+        <!-- 联机面板 -->
+        <div class="online-panel" id="onlinePanel">
+            <input type="text" id="roomInput" placeholder="房间码 (4位)" maxlength="4" />
+            <button class="btn" id="btnCreate">创建房间</button>
+            <button class="btn" id="btnJoin">加入房间</button>
+            <button class="btn danger" id="btnDisconnect" style="display:none;">断开</button>
+            <span class="online-status" id="onlineStatus">未连接</span>
+        </div>
+
+        <!-- 状态栏 -->
+        <div class="status-bar" id="statusBar">
+            <div class="status-text" id="statusText">
+                <span class="indicator player-turn" id="statusDot"></span>
+                <span id="statusMessage">你的回合 · <strong class="status-turn player">X</strong></span>
+            </div>
+            <div style="font-size:13px; color:rgba(255,255,255,0.3);" id="turnIndicator">⚡</div>
+        </div>
+
+        <!-- 棋盘 -->
+        <div class="board-wrapper">
+            <div class="board" id="board"></div>
+            <div class="thinking-overlay" id="thinkingOverlay">
+                <div class="spinner"><span class="dot"></span><span>AI 思考中...</span><span class="dot"></span></div>
+            </div>
+        </div>
+
+        <!-- 分数 -->
+        <div class="scoreboard">
+            <div class="score-item player-score"><div class="label">🧑 玩家</div><div class="value" id="playerScore">0</div></div>
+            <div class="score-item draw-score"><div class="label">⚖️ 平局</div><div class="value" id="drawScore">0</div></div>
+            <div class="score-item ai-score"><div class="label">🤖 AI</div><div class="value" id="aiScore">0</div></div>
+        </div>
+
+        <!-- 控制 -->
+        <div class="controls">
+            <div class="btn-group">
+                <button class="btn active active-x" id="btnFirst"><span class="emoji">✕</span>先手</button>
+                <button class="btn" id="btnSecond"><span class="emoji">◯</span>后手</button>
+            </div>
+            <button class="btn btn-primary" id="btnReset"><span class="emoji">⟳</span>新一局</button>
+        </div>
+
+        <div class="footer"><span>✦ 你执 <span id="footerPlayerSymbol">X</span> · AI 执 <span id="footerAISymbol">O</span></span></div>
+    </div>
+
+    <script>
+        // ================================================================
+        //  井字棋 · 多模式 (人机 / 本地双人 / 在线联机)
+        // ================================================================
+
+        // ---------- DOM 引用 ----------
+        const boardEl = document.getElementById('board');
+        const statusText = document.getElementById('statusMessage');
+        const statusDot = document.getElementById('statusDot');
+        const turnIndicator = document.getElementById('turnIndicator');
+        const thinkingOverlay = document.getElementById('thinkingOverlay');
+        const playerScoreEl = document.getElementById('playerScore');
+        const aiScoreEl = document.getElementById('aiScore');
+        const drawScoreEl = document.getElementById('drawScore');
+        const btnFirst = document.getElementById('btnFirst');
+        const btnSecond = document.getElementById('btnSecond');
+        const btnReset = document.getElementById('btnReset');
+        const footerPlayerSym = document.getElementById('footerPlayerSymbol');
+        const footerAISym = document.getElementById('footerAISymbol');
+        const modeSelector = document.getElementById('modeSelector');
+        const onlinePanel = document.getElementById('onlinePanel');
+        const roomInput = document.getElementById('roomInput');
+        const btnCreate = document.getElementById('btnCreate');
+        const btnJoin = document.getElementById('btnJoin');
+        const btnDisconnect = document.getElementById('btnDisconnect');
+        const onlineStatus = document.getElementById('onlineStatus');
+
+        // ---------- 音效引擎 ----------
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.initialized = false;
+            }
+            init() {
+                if (this.initialized) return;
+                try {
+                    this.ctx = new(window.AudioContext || window.webkitAudioContext)();
+                    this.initialized = true;
+                } catch (_) {}
+            }
+            _playTone(freq, duration, type = 'sine', volume = 0.25, delay = 0) {
+                if (!this.initialized) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.type = type;
+                    osc.frequency.value = freq;
+                    const start = this.ctx.currentTime + delay;
+                    gain.gain.setValueAtTime(volume, start);
+                    gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+                    osc.start(start);
+                    osc.stop(start + duration + 0.05);
+                } catch (_) {}
+            }
+            move() { this.init();
+                this._playTone(720, 0.08, 'sine', 0.20);
+                setTimeout(() => this._playTone(960, 0.06, 'sine', 0.12), 50); }
+            win() { this.init();
+                [523, 659, 784, 1047].forEach((f, i) => this._playTone(f, 0.18, 'sine', 0.20, i * 0.12)); }
+            lose() { this.init();
+                [1047, 784, 659, 523].forEach((f, i) => this._playTone(f, 0.20, 'sine', 0.18, i * 0.14)); }
+            draw() { this.init();
+                this._playTone(523, 0.20, 'sine', 0.18, 0);
+                this._playTone(659, 0.20, 'sine', 0.14, 0.16); }
+            click() { this.init();
+                this._playTone(440, 0.06, 'sine', 0.10); }
+        }
+        const sound = new SoundEngine();
+
+        // ---------- 游戏核心 (与模式解耦) ----------
+        class TicTacToeGame {
+            constructor() {
+                this.board = Array(9).fill(null);
+                this.currentPlayer = 'X'; // 'X' 先手
+                this.gameOver = false;
+                this.winner = null;
+                this.winLine = null;
+                this.scores = { player: 0, ai: 0, draw: 0 };
+                // 人机模式专用
+                this.playerSymbol = 'X';
+                this.aiSymbol = 'O';
+                this.isPlayerTurn = true;
+                this.isThinking = false;
+                // 双人模式专用
+                this.localPlayers = ['X', 'O'];
+                this.localIndex = 0; // 当前轮到谁 (0:X, 1:O)
+                // 在线模式专用
+                this.onlineRole = null; // 'creator' 或 'joiner'
+                this.peer = null;
+                this.conn = null;
+                this.roomCode = '';
+                this.isOnline = false;
+                this.mySymbol = null; // 在线时自己的棋子
+                this.opponentSymbol = null;
+                this.isMyTurn = false;
+                // 通用
+                this.mode = 'ai'; // 'ai' | 'local' | 'online'
+                this.allowClick = true;
+                this._render();
+                this._updateStatus();
+                this._updateScores();
+                this._updateFooter();
+                this._updateButtons();
+            }
+
+            // ---------- 模式切换 ----------
+            setMode(mode) {
+                if (this.isThinking) return;
+                sound.click();
+                this.mode = mode;
+                // 重置游戏状态
+                this.board = Array(9).fill(null);
+                this.gameOver = false;
+                this.winner = null;
+                this.winLine = null;
+                this.isThinking = false;
+                thinkingOverlay.classList.remove('active');
+                // 重置在线状态
+                if (mode !== 'online') {
+                    this._disconnectOnline();
+                }
+                // 根据模式设置初始状态
+                if (mode === 'ai') {
+                    this.playerSymbol = 'X';
+                    this.aiSymbol = 'O';
+                    this.isPlayerTurn = true;
+                    this.localIndex = 0;
+                    this.mySymbol = null;
+                    this.isMyTurn = false;
+                    onlinePanel.classList.remove('show');
+                    btnFirst.disabled = false;
+                    btnSecond.disabled = false;
+                    this._updateFooter();
+                    this._updateButtons();
+                } else if (mode === 'local') {
+                    this.playerSymbol = 'X';
+                    this.aiSymbol = 'O';
+                    this.isPlayerTurn = true;
+                    this.localIndex = 0;
+                    this.mySymbol = null;
+                    this.isMyTurn = false;
+                    onlinePanel.classList.remove('show');
+                    btnFirst.disabled = true;
+                    btnSecond.disabled = true;
+                    this._updateFooter();
+                    this._updateButtons();
+                } else if (mode === 'online') {
+                    onlinePanel.classList.add('show');
+                    btnFirst.disabled = true;
+                    btnSecond.disabled = true;
+                    // 重置在线状态，等待用户操作
+                    this._disconnectOnline();
+                    this._updateFooter();
+                    this._updateButtons();
+                }
+                this._render();
+                this._updateStatus();
+                this._updateScores();
+                // 如果是在线模式，等待用户创建或加入
+            }
+
+            // ---------- 在线联机 ----------
+            _disconnectOnline() {
+                if (this.conn) {
+                    this.conn.close();
+                    this.conn = null;
+                }
+                if (this.peer) {
+                    this.peer.destroy();
+                    this.peer = null;
+                }
+                this.isOnline = false;
+                this.onlineRole = null;
+                this.mySymbol = null;
+                this.opponentSymbol = null;
+                this.isMyTurn = false;
+                this.roomCode = '';
+                onlineStatus.textContent = '未连接';
+                onlineStatus.className = 'online-status';
+                btnDisconnect.style.display = 'none';
+                roomInput.value = '';
+                roomInput.disabled = false;
+                btnCreate.disabled = false;
+                btnJoin.disabled = false;
+            }
+
+            createRoom() {
+                if (this.mode !== 'online') return;
+                sound.click();
+                const room = roomInput.value.trim().toUpperCase();
+                if (room.length !== 4 || !/^[A-Z0-9]{4}$/.test(room)) {
+                    alert('请输入4位房间码（字母或数字）');
+                    return;
+                }
+                this.roomCode = room;
+                // 初始化 Peer
+                this.peer = new Peer(undefined, {
+                    debug: 2
+                });
+                this.peer.on('open', (id) => {
+                    onlineStatus.textContent = `房间 ${room} 已创建，ID: ${id}`;
+                    onlineStatus.className = 'online-status connected';
+                    btnDisconnect.style.display = 'inline-block';
+                    roomInput.disabled = true;
+                    btnCreate.disabled = true;
+                    btnJoin.disabled = true;
+                    // 监听连接
+                    this.peer.on('connection', (conn) => {
+                        this.conn = conn;
+                        this._setupConnection();
+                        this.onlineRole = 'creator';
+                        this.mySymbol = 'X';
+                        this.opponentSymbol = 'O';
+                        this.isMyTurn = true; // 创建者先手
+                        this.isOnline = true;
+                        this._resetBoardOnline();
+                        this._updateStatus();
+                    });
+                });
+                this.peer.on('error', (err) => {
+                    console.error(err);
+                    alert('创建房间失败，请重试');
+                    this._disconnectOnline();
+                });
+            }
+
+            joinRoom() {
+                if (this.mode !== 'online') return;
+                sound.click();
+                const room = roomInput.value.trim().toUpperCase();
+                if (room.length !== 4 || !/^[A-Z0-9]{4}$/.test(room)) {
+                    alert('请输入4位房间码（字母或数字）');
+                    return;
+                }
+                this.roomCode = room;
+                // 初始化 Peer
+                this.peer = new Peer(undefined, { debug: 2 });
+                this.peer.on('open', (id) => {
+                    onlineStatus.textContent = `正在连接房间 ${room} ...`;
+                    onlineStatus.className = 'online-status';
+                    btnDisconnect.style.display = 'inline-block';
+                    roomInput.disabled = true;
+                    btnCreate.disabled = true;
+                    btnJoin.disabled = true;
+                    // 连接到创建者 (使用房间码作为对方ID，这里简化：假设创建者ID就是房间码，但实际需要更复杂的信令)
+                    // 更佳实践：创建者生成一个唯一ID，但为简化，我们规定房间码即为创建者的Peer ID
+                    // 但创建者Peer ID是随机生成的，所以我们修改：创建者先获取自己的ID，然后告诉对方，但我们用房间码作为标识
+                    // 这里我们采用：创建者将房间码作为自己的ID（通过 new Peer(room)），但可能冲突。
+                    // 更可靠：创建者生成随机ID，但房间码用于查找。这里为了演示，采用简单方式：
+                    // 实际应使用信令服务器，但这里我们使用房间码作为目标ID（假设创建者以房间码为ID创建）
+                    // 因此，我们修改创建逻辑：创建者以房间码作为Peer ID
+                    // 重新设计：点击创建时，用房间码作为ID创建Peer，若被占用则提示。
+                    // 为简化，我们改为：创建者用房间码作为ID，加入者连接该ID。
+                    // 重新实现创建和加入。
+                    alert('由于PeerJS限制，此demo采用简化信令：创建者以房间码为ID。请重新点击创建或加入。');
+                    this._disconnectOnline();
+                    // 为了演示，我们重新设计：使用房间码作为Peer ID
+                });
+            }
+
+            // 重新设计在线连接：使用房间码作为Peer ID
+            // 我们重写 createRoom 和 joinRoom
+            // 但为了简洁，这里我们用另一种方式：用房间码作为对方ID，但创建者使用随机ID，并通过某种方式分享。
+            // 其实更好的办法：创建者生成一个ID并显示，对方输入该ID连接。
+            // 我们直接使用房间码作为双方的共同标识，但双方都连接到同一个“房间”，需要使用第三方信令，但PeerJS不支持直接房间概念。
+            // 简化方案：使用 PeerJS 的“房间码”作为双方约定的 Peer ID，创建者以该ID创建，加入者连接该ID。
+            // 所以我们重写：
+
+            createRoomV2() {
+                if (this.mode !== 'online') return;
+                sound.click();
+                const room = roomInput.value.trim().toUpperCase();
+                if (room.length !== 4 || !/^[A-Z0-9]{4}$/.test(room)) {
+                    alert('请输入4位房间码（字母或数字）');
+                    return;
+                }
+                this.roomCode = room;
+                // 以房间码作为Peer ID创建
+                this.peer = new Peer(room, { debug: 2 });
+                this.peer.on('open', (id) => {
+                    onlineStatus.textContent = `房间 ${room} 已创建，等待对方加入...`;
+                    onlineStatus.className = 'online-status connected';
+                    btnDisconnect.style.display = 'inline-block';
+                    roomInput.disabled = true;
+                    btnCreate.disabled = true;
+                    btnJoin.disabled = true;
+                    // 监听连接
+                    this.peer.on('connection', (conn) => {
+                        this.conn = conn;
+                        this._setupConnection();
+                        this.onlineRole = 'creator';
+                        this.mySymbol = 'X';
+                        this.opponentSymbol = 'O';
+                        this.isMyTurn = true;
+                        this.isOnline = true;
+                        this._resetBoardOnline();
+                        this._updateStatus();
+                        onlineStatus.textContent = `已连接！你执 X`;
+                    });
+                });
+                this.peer.on('error', (err) => {
+                    console.error(err);
+                    if (err.type === 'unavailable-id') {
+                        alert('房间码已被占用，请换一个');
+                    } else {
+                        alert('创建房间失败，请重试');
+                    }
+                    this._disconnectOnline();
+                });
+            }
+
+            joinRoomV2() {
+                if (this.mode !== 'online') return;
+                sound.click();
+                const room = roomInput.value.trim().toUpperCase();
+                if (room.length !== 4 || !/^[A-Z0-9]{4}$/.test(room)) {
+                    alert('请输入4位房间码（字母或数字）');
+                    return;
+                }
+                this.roomCode = room;
+                // 以随机ID创建Peer，然后连接到房间码
+                this.peer = new Peer(undefined, { debug: 2 });
+                this.peer.on('open', (id) => {
+                    onlineStatus.textContent = `正在连接房间 ${room} ...`;
+                    onlineStatus.className = 'online-status';
+                    btnDisconnect.style.display = 'inline-block';
+                    roomInput.disabled = true;
+                    btnCreate.disabled = true;
+                    btnJoin.disabled = true;
+                    // 连接对方
+                    const conn = this.peer.connect(room);
+                    conn.on('open', () => {
+                        this.conn = conn;
+                        this._setupConnection();
+                        this.onlineRole = 'joiner';
+                        this.mySymbol = 'O';
+                        this.opponentSymbol = 'X';
+                        this.isMyTurn = false; // 加入者后手
+                        this.isOnline = true;
+                        this._resetBoardOnline();
+                        this._updateStatus();
+                        onlineStatus.textContent = `已连接！你执 O`;
+                    });
+                    conn.on('error', (err) => {
+                        alert('连接失败，请确认房间码正确且对方已创建');
+                        this._disconnectOnline();
+                    });
+                });
+                this.peer.on('error', (err) => {
+                    console.error(err);
+                    alert('加入房间失败，请重试');
+                    this._disconnectOnline();
+                });
+            }
+
+            _setupConnection() {
+                if (!this.conn) return;
+                this.conn.on('data', (data) => {
+                    // 收到对方走子
+                    if (data.type === 'move') {
+                        const idx = data.index;
+                        const symbol = data.symbol;
+                        // 验证合法性
+                        if (this.board[idx] !== null) return;
+                        if (symbol !== this.opponentSymbol) return;
+                        this.board[idx] = symbol;
+                        sound.move();
+                        this._render();
+                        if (this._checkGameOver()) {
+                            this._updateStatus();
+                            this._updateScores();
+                            return;
+                        }
+                        // 切换为我的回合
+                        this.isMyTurn = true;
+                        this._updateStatus();
+                    } else if (data.type === 'reset') {
+                        this._resetBoardOnline();
+                    } else if (data.type === 'gameover') {
+                        // 同步游戏结束状态（可选）
+                    }
+                });
+                this.conn.on('close', () => {
+                    alert('对方已断开连接');
+                    this._disconnectOnline();
+                    this._resetBoardOnline();
+                    this._updateStatus();
+                });
+            }
+
+            _resetBoardOnline() {
+                this.board = Array(9).fill(null);
+                this.gameOver = false;
+                this.winner = null;
+                this.winLine = null;
+                this._render();
+                this._updateStatus();
+                this._updateScores();
+                // 如果是创建者，先手；加入者后手
+                if (this.onlineRole === 'creator') {
+                    this.isMyTurn = true;
+                } else {
+                    this.isMyTurn = false;
+                }
+                this._updateStatus();
+            }
+
+            // ---------- 通用走子 ----------
+            makeMove(index) {
+                if (this.isThinking) return;
+                if (this.gameOver) return;
+                if (this.mode === 'ai') {
+                    if (!this.isPlayerTurn) return;
+                    if (this.board[index] !== null) return;
+                    this.board[index] = this.playerSymbol;
+                    sound.move();
+                    this._render();
+                    if (this._checkGameOver()) {
+                        this._updateStatus();
+                        this._updateScores();
+                        return;
+                    }
+                    this.isPlayerTurn = false;
+                    this._updateStatus();
+                    this._aiMove();
+                } else if (this.mode === 'local') {
+                    if (this.board[index] !== null) return;
+                    const symbol = this.localPlayers[this.localIndex];
+                    this.board[index] = symbol;
+                    sound.move();
+                    this._render();
+                    if (this._checkGameOver()) {
+                        this._updateStatus();
+                        this._updateScores();
+                        return;
+                    }
+                    this.localIndex = 1 - this.localIndex;
+                    this._updateStatus();
+                } else if (this.mode === 'online') {
+                    if (!this.isOnline || !this.isMyTurn) return;
+                    if (this.board[index] !== null) return;
+                    if (this.mySymbol === null) return;
+                    this.board[index] = this.mySymbol;
+                    sound.move();
+                    this._render();
+                    // 发送走子给对手
+                    if (this.conn && this.conn.open) {
+                        this.conn.send({ type: 'move', index: index, symbol: this.mySymbol });
+                    }
+                    if (this._checkGameOver()) {
+                        this._updateStatus();
+                        this._updateScores();
+                        // 通知对手游戏结束（可选）
+                        if (this.conn && this.conn.open) {
+                            this.conn.send({ type: 'gameover' });
+                        }
+                        return;
+                    }
+                    this.isMyTurn = false;
+                    this._updateStatus();
+                }
+            }
+
+            // ---------- AI 走子 (沿用原逻辑) ----------
+            _aiMove() {
+                if (this.mode !== 'ai') return;
+                if (this.isThinking) return;
+                if (this.gameOver) return;
+                if (this.isPlayerTurn) return;
+
+                this.isThinking = true;
+                thinkingOverlay.classList.add('active');
+                this._updateStatus();
+
+                setTimeout(() => {
+                    if (this.gameOver || this.isPlayerTurn || this.mode !== 'ai') {
+                        this.isThinking = false;
+                        thinkingOverlay.classList.remove('active');
+                        return;
+                    }
+                    const bestMove = this._getBestMove();
+                    if (bestMove === -1) {
+                        this.isThinking = false;
+                        thinkingOverlay.classList.remove('active');
+                        return;
+                    }
+                    this.board[bestMove] = this.aiSymbol;
+                    sound.move();
+                    this._render();
+                    this.isThinking = false;
+                    thinkingOverlay.classList.remove('active');
+                    if (this._checkGameOver()) {
+                        this._updateStatus();
+                        this._updateScores();
+                        return;
+                    }
+                    this.isPlayerTurn = true;
+                    this._updateStatus();
+                }, 180);
+            }
+
+            _getBestMove() {
+                let bestScore = -Infinity;
+                let bestMove = -1;
+                const empty = [];
+                for (let i = 0; i < 9; i++) {
+                    if (this.board[i] === null) empty.push(i);
+                }
+                for (const idx of empty) {
+                    this.board[idx] = this.aiSymbol;
+                    const score = this._alphaBeta(this.board, 0, -Infinity, Infinity, false);
+                    this.board[idx] = null;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMove = idx;
+                    }
+                }
+                return bestMove;
+            }
+
+            _alphaBeta(board, depth, alpha, beta, isMaximizing) {
+                const result = this._evaluate(board);
+                if (result === this.aiSymbol) return 10 - depth;
+                if (result === this.playerSymbol) return -10 + depth;
+                if (result === 'draw') return 0;
+                const empty = [];
+                for (let i = 0; i < 9; i++) {
+                    if (board[i] === null) empty.push(i);
+                }
+                if (empty.length === 0) return 0;
+                if (isMaximizing) {
+                    let maxEval = -Infinity;
+                    for (const idx of empty) {
+                        board[idx] = this.aiSymbol;
+                        const eval_ = this._alphaBeta(board, depth + 1, alpha, beta, false);
+                        board[idx] = null;
+                        maxEval = Math.max(maxEval, eval_);
+                        alpha = Math.max(alpha, eval_);
+                        if (beta <= alpha) break;
+                    }
+                    return maxEval;
+                } else {
+                    let minEval = Infinity;
+                    for (const idx of empty) {
+                        board[idx] = this.playerSymbol;
+                        const eval_ = this._alphaBeta(board, depth + 1, alpha, beta, true);
+                        board[idx] = null;
+                        minEval = Math.min(minEval, eval_);
+                        beta = Math.min(beta, eval_);
+                        if (beta <= alpha) break;
+                    }
+                    return minEval;
+                }
+            }
+
+            _evaluate(board) {
+                const lines = [
+                    [0, 1, 2],
+                    [3, 4, 5],
+                    [6, 7, 8],
+                    [0, 3, 6],
+                    [1, 4, 7],
+                    [2, 5, 8],
+                    [0, 4, 8],
+                    [2, 4, 6]
+                ];
+                for (const [a, b, c] of lines) {
+                    if (board[a] && board[a] === board[b] && board[b] === board[c]) {
+                        return board[a];
+                    }
+                }
+                for (let i = 0; i < 9; i++) {
+                    if (board[i] === null) return null;
+                }
+                return 'draw';
+            }
+
+            _checkGameOver() {
+                const result = this._evaluate(this.board);
+                if (result === this.aiSymbol || (this.mode === 'local' && result === 'O') || (this.mode === 'online' && result ===
+                        this.opponentSymbol)) {
+                    // AI赢 或 本地后手赢 或 在线对手赢
+                    this.gameOver = true;
+                    this.winner = (this.mode === 'ai') ? 'ai' : (this.mode === 'local' ? (result === 'X' ? 'player' :
+                        'ai') : (result === this.mySymbol ? 'player' : 'ai'));
+                    this.winLine = this._getWinLine();
+                    if (this.mode === 'ai' && result === this.aiSymbol) {
+                        this.scores.ai += 1;
+                        sound.win();
+                    } else if (this.mode === 'local') {
+                        // 本地双人：根据谁赢加分（用player和ai代表两个玩家，但显示为玩家和AI？我们统一用player和ai）
+                        if (result === 'X') { this.scores.player += 1;
+                            sound.win(); } else { this.scores.ai += 1;
+                            sound.win(); }
+                    } else if (this.mode === 'online') {
+                        if (result === this.mySymbol) { this.scores.player += 1;
+                            sound.win(); } else { this.scores.ai += 1;
+                            sound.win(); }
+                    }
+                    this._render();
+                    this._updateStatus();
+                    this._updateScores();
+                    return true;
+                } else if (result === this.playerSymbol || (this.mode === 'local' && result === 'X') || (this.mode ===
+                        'online' && result === this.mySymbol)) {
+                    // 玩家赢 或 本地先手赢 或 在线自己赢
+                    this.gameOver = true;
+                    this.winner = 'player';
+                    this.winLine = this._getWinLine();
+                    this.scores.player += 1;
+                    sound.lose(); // 玩家赢时播放lose音效（因为原来lose是玩家输，这里调换一下，可以自定义）
+                    // 但为了区分，我们改为win音效，但为了保持一致性，我们用win
+                    sound.win(); // 玩家赢也播放win
+                    this._render();
+                    this._updateStatus();
+                    this._updateScores();
+                    return true;
+                } else if (result === 'draw') {
+                    this.gameOver = true;
+                    this.winner = 'draw';
+                    this.winLine = null;
+                    this.scores.draw += 1;
+                    sound.draw();
+                    this._render();
+                    this._updateStatus();
+                    this._updateScores();
+                    return true;
+                }
+                return false;
+            }
+
+            _getWinLine() {
+                const lines = [
+                    [0, 1, 2],
+                    [3, 4, 5],
+                    [6, 7, 8],
+                    [0, 3, 6],
+                    [1, 4, 7],
+                    [2, 5, 8],
+                    [0, 4, 8],
+                    [2, 4, 6]
+                ];
+                for (const [a, b, c] of lines) {
+                    if (this.board[a] && this.board[a] === this.board[b] && this.board[b] === this.board[c]) {
+                        return [a, b, c];
+                    }
+                }
+                return null;
+            }
+
+            // ---------- 先手/后手 (仅人机模式) ----------
+            setPlayerFirst() {
+                if (this.mode !== 'ai' || this.isThinking) return;
+                sound.click();
+                this.playerSymbol = 'X';
+                this.aiSymbol = 'O';
+                this.isPlayerTurn = true;
+                this._resetBoard();
+                this._updateFooter();
+                this._updateButtons();
+            }
+
+            setPlayerSecond() {
+                if (this.mode !== 'ai' || this.isThinking) return;
+                sound.click();
+                this.playerSymbol = 'O';
+                this.aiSymbol = 'X';
+                this.isPlayerTurn = false;
+                this._resetBoard();
+                this._updateFooter();
+                this._updateButtons();
+                if (!this.isPlayerTurn && !this.gameOver && this.mode === 'ai') {
+                    this._aiMove();
+                }
+            }
+
+            reset() {
+                if (this.isThinking) return;
+                sound.click();
+                if (this.mode === 'ai') {
+                    this._resetBoard();
+                    if (this.playerSymbol === 'O') {
+                        this.isPlayerTurn = false;
+                        this._render();
+                        this._updateStatus();
+                        if (!this.gameOver) this._aiMove();
+                    } else {
+                        this.isPlayerTurn = true;
+                        this._render();
+                        this._updateStatus();
+                    }
+                } else if (this.mode === 'local') {
+                    this._resetBoard();
+                    this.localIndex = 0;
+                    this._render();
+                    this._updateStatus();
+                } else if (this.mode === 'online') {
+                    if (this.isOnline && this.conn && this.conn.open) {
+                        this.conn.send({ type: 'reset' });
+                    }
+                    this._resetBoardOnline();
+                }
+                this._updateScores();
+            }
+
+            _resetBoard() {
+                this.board = Array(9).fill(null);
+                this.gameOver = false;
+                this.winner = null;
+                this.winLine = null;
+                this.isThinking = false;
+                thinkingOverlay.classList.remove('active');
+                this._render();
+                this._updateStatus();
+                this._updateScores();
+            }
+
+            // ---------- 渲染 ----------
+            _render() {
+                boardEl.innerHTML = '';
+                for (let i = 0; i < 9; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    if (this.board[i] !== null) {
+                        cell.classList.add('taken');
+                        const piece = document.createElement('span');
+                        piece.className = `piece ${this.board[i] === 'X' ? 'x' : 'o'}`;
+                        piece.textContent = this.board[i] === 'X' ? '✕' : '◯';
+                        cell.appendChild(piece);
+                    }
+                    if (this.winLine && this.winLine.includes(i)) {
+                        cell.classList.add('win-highlight');
+                    }
+                    if (this.gameOver) {
+                        cell.classList.add('game-over');
+                    }
+                    // 在线模式：如果不是我的回合或未连接，禁用点击
+                    if (this.mode === 'online') {
+                        if (!this.isOnline || !this.isMyTurn || this.board[i] !== null || this.gameOver) {
+                            cell.classList.add('disabled');
+                        }
+                    }
+                    cell.dataset.index = i;
+                    cell.addEventListener('click', () => {
+                        sound.init();
+                        this.makeMove(i);
+                    });
+                    boardEl.appendChild(cell);
+                }
+            }
+
+            _updateStatus() {
+                const dot = statusDot;
+                const msg = statusText;
+                const indicator = turnIndicator;
+
+                if (this.gameOver) {
+                    dot.className = 'indicator game-over';
+                    if (this.winner === 'player') {
+                        msg.innerHTML = '🎉 你赢了！ <strong class="status-turn win">太棒了！</strong>';
+                        indicator.textContent = '🏆';
+                    } else if (this.winner === 'ai') {
+                        msg.innerHTML = '😅 AI 赢了... <strong class="status-turn lose">再来一局？</strong>';
+                        indicator.textContent = '💪';
+                    } else if (this.winner === 'draw') {
+                        msg.innerHTML = '🤝 平局！ <strong class="status-turn draw">旗鼓相当</strong>';
+                        indicator.textContent = '⚖️';
+                    }
+                    return;
+                }
+
+                if (this.mode === 'ai') {
+                    if (this.isThinking) {
+                        dot.className = 'indicator ai-turn';
+                        msg.innerHTML = '🤖 AI 思考中 <span style="opacity:0.5;font-weight:400;">...</span>';
+                        indicator.textContent = '⏳';
+                        return;
+                    }
+                    if (this.isPlayerTurn) {
+                        dot.className = 'indicator player-turn';
+                        const sym = this.playerSymbol === 'X' ? '✕' : '◯';
+                        msg.innerHTML = `你的回合 · <strong class="status-turn player">${sym}</strong>`;
+                        indicator.textContent = '🧑';
+                    } else {
+                        dot.className = 'indicator ai-turn';
+                        const sym = this.aiSymbol === 'X' ? '✕' : '◯';
+                        msg.innerHTML = `AI 回合 · <strong class="status-turn ai">${sym}</strong>`;
+                        indicator.textContent = '🤖';
+                    }
+                } else if (this.mode === 'local') {
+                    const sym = this.localPlayers[this.localIndex];
+                    const name = sym === 'X' ? '玩家 X' : '玩家 O';
+                    dot.className = 'indicator player-turn';
+                    msg.innerHTML = `${name} 的回合 · <strong class="status-turn player">${sym === 'X' ? '✕' : '◯'}</strong>`;
+                    indicator.textContent = '👥';
+                } else if (this.mode === 'online') {
+                    if (!this.isOnline) {
+                        dot.className = 'indicator game-over';
+                        msg.innerHTML = '⏳ 等待连接...';
+                        indicator.textContent = '🌐';
+                        return;
+                    }
+                    if (this.isMyTurn) {
+                        dot.className = 'indicator player-turn';
+                        const sym = this.mySymbol === 'X' ? '✕' : '◯';
+                        msg.innerHTML = `你的回合 · <strong class="status-turn player">${sym}</strong>`;
+                        indicator.textContent = '🧑';
+                    } else {
+                        dot.className = 'indicator ai-turn';
+                        const sym = this.opponentSymbol === 'X' ? '✕' : '◯';
+                        msg.innerHTML = `对手回合 · <strong class="status-turn ai">${sym}</strong>`;
+                        indicator.textContent = '🤖';
+                    }
+                }
+            }
+
+            _updateScores() {
+                playerScoreEl.textContent = this.scores.player;
+                aiScoreEl.textContent = this.scores.ai;
+                drawScoreEl.textContent = this.scores.draw;
+            }
+
+            _updateFooter() {
+                if (this.mode === 'ai') {
+                    footerPlayerSym.textContent = this.playerSymbol;
+                    footerAISym.textContent = this.aiSymbol;
+                } else if (this.mode === 'local') {
+                    footerPlayerSym.textContent = 'X';
+                    footerAISym.textContent = 'O';
+                } else if (this.mode === 'online') {
+                    footerPlayerSym.textContent = this.mySymbol || '?';
+                    footerAISym.textContent = this.opponentSymbol || '?';
+                }
+            }
+
+            _updateButtons() {
+                const isFirst = (this.mode === 'ai' && this.playerSymbol === 'X');
+                btnFirst.className = `btn ${isFirst ? 'active active-x' : ''}`;
+                btnFirst.disabled = (this.mode !== 'ai');
+                btnSecond.className = `btn ${(!isFirst && this.mode === 'ai') ? 'active active-o' : ''}`;
+                btnSecond.disabled = (this.mode !== 'ai');
+            }
+        }
+
+        // ---------- 初始化 ----------
+        const game = new TicTacToeGame();
+
+        // 模式切换
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                const mode = this.dataset.mode;
+                game.setMode(mode);
+                // 如果切换为在线模式，显示面板
+                if (mode === 'online') {
+                    onlinePanel.classList.add('show');
+                } else {
+                    onlinePanel.classList.remove('show');
+                }
+            });
+        });
+
+        // 在线按钮
+        btnCreate.addEventListener('click', () => {
+            sound.init();
+            game.createRoomV2();
+        });
+        btnJoin.addEventListener('click', () => {
+            sound.init();
+            game.joinRoomV2();
+        });
+        btnDisconnect.addEventListener('click', () => {
+            sound.click();
+            game._disconnectOnline();
+            game._resetBoardOnline();
+            game._updateStatus();
+            game._updateFooter();
+            onlinePanel.classList.remove('show');
+            // 重新显示面板
+            setTimeout(() => {
+                onlinePanel.classList.add('show');
+            }, 100);
+        });
+
+        // 先手/后手 (人机)
+        btnFirst.addEventListener('click', () => {
+            sound.init();
+            game.setPlayerFirst();
+        });
+        btnSecond.addEventListener('click', () => {
+            sound.init();
+            game.setPlayerSecond();
+        });
+
+        // 重置
+        btnReset.addEventListener('click', () => {
+            sound.init();
+            game.reset();
+        });
+
+        // 全局音效初始化
+        document.addEventListener('click', () => sound.init(), { once: true });
+        document.addEventListener('touchstart', () => sound.init(), { once: true });
+
+        // 初始渲染
+        game._render();
+        game._updateStatus();
+        game._updateScores();
+        game._updateFooter();
+        game._updateButtons();
+
+        console.log('✦ 井字棋 · 多模式已启动 (人机/本地双人/在线联机)');
+    </script>
+</body>
+</html>

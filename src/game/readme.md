@@ -41,6 +41,8 @@
 
 ### 五子棋
 
+>[五子棋online](./games/gomokuonline.html)
+
 >[五子棋简易版](./games/go.html)
 
 >[五子棋简易版-启发式算法](./games/gomoku-simple.html)
@@ -49,4 +51,4 @@
 
 >[五子棋Alpha-Beta](./games/αβAI.html)
 
-
+>[井字棋](./games/Tic-tac-toe.html)
