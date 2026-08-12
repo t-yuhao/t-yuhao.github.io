@@ -2,12 +2,11 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>井字棋 · 多模式 · Alpha-Beta</title>
-    <!-- 引入 PeerJS -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        /* ===== 全局重置 & 字体 ===== */
+        /* ===== 全局重置 ===== */
         * {
             margin: 0;
             padding: 0;
@@ -21,11 +20,11 @@
             min-height: 100vh;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             background: radial-gradient(ellipse at 20% 50%, #1a2a4a 0%, #0a0a1a 70%);
-            padding: 20px;
+            padding: 20px 12px;
             user-select: none;
-            overflow: hidden;
+            overflow-y: auto;
         }
 
         /* ===== 背景光晕 ===== */
@@ -59,13 +58,16 @@
             z-index: 1;
             width: 100%;
             max-width: 560px;
-            padding: 28px 24px 24px;
+            margin: 0 auto;
+            padding: 20px 18px 18px;
             background: rgba(255, 255, 255, 0.06);
             backdrop-filter: blur(24px) saturate(1.4);
             -webkit-backdrop-filter: blur(24px) saturate(1.4);
             border-radius: 36px;
             border: 1px solid rgba(255, 255, 255, 0.10);
             box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04) inset, 0 1px 0 rgba(255, 255, 255, 0.08) inset;
+            max-height: 98vh;
+            overflow-y: auto;
             transition: all 0.3s ease;
         }
 
@@ -74,16 +76,18 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            gap: 8px;
         }
         .title {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 700;
             color: #fff;
             letter-spacing: -0.3px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
         .title span {
             background: linear-gradient(135deg, #60a5fa, #3b82f6);
@@ -92,16 +96,16 @@
             background-clip: text;
         }
         .title .icon {
-            font-size: 24px;
+            font-size: 22px;
             -webkit-text-fill-color: initial;
             background: none;
         }
         .badge {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             color: rgba(255, 255, 255, 0.5);
             background: rgba(255, 255, 255, 0.06);
-            padding: 4px 12px;
+            padding: 3px 10px;
             border-radius: 20px;
             border: 1px solid rgba(255, 255, 255, 0.06);
         }
@@ -109,8 +113,8 @@
         /* ===== 模式选择 ===== */
         .mode-selector {
             display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
+            gap: 6px;
+            margin-bottom: 14px;
             flex-wrap: wrap;
             justify-content: center;
         }
@@ -127,7 +131,7 @@
             color: rgba(255, 255, 255, 0.5);
             border: 1px solid transparent;
             flex: 1 1 auto;
-            min-width: 80px;
+            min-width: 70px;
         }
         .mode-btn:hover {
             background: rgba(255, 255, 255, 0.10);
@@ -148,18 +152,18 @@
             display: none;
             background: rgba(255, 255, 255, 0.04);
             border-radius: 16px;
-            padding: 12px 16px;
-            margin-bottom: 16px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
             border: 1px solid rgba(255, 255, 255, 0.06);
             flex-wrap: wrap;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
         .online-panel.show {
             display: flex;
         }
         .online-panel input {
-            flex: 1 1 120px;
+            flex: 1 1 100px;
             background: rgba(255, 255, 255, 0.06);
             border: 1px solid rgba(255, 255, 255, 0.10);
             border-radius: 12px;
@@ -168,7 +172,7 @@
             font-size: 14px;
             outline: none;
             transition: 0.2s;
-            min-width: 80px;
+            min-width: 60px;
         }
         .online-panel input:focus {
             border-color: rgba(96, 165, 250, 0.4);
@@ -179,9 +183,9 @@
         }
         .online-panel .btn {
             font-family: inherit;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
-            padding: 8px 16px;
+            padding: 7px 14px;
             border: none;
             border-radius: 12px;
             cursor: pointer;
@@ -206,8 +210,16 @@
         .online-panel .btn.danger:hover {
             background: rgba(248, 113, 113, 0.25);
         }
+        .online-panel .btn.room-list-btn {
+            background: rgba(251, 191, 36, 0.12);
+            color: #fcd34d;
+            border-color: rgba(251, 191, 36, 0.15);
+        }
+        .online-panel .btn.room-list-btn:hover {
+            background: rgba(251, 191, 36, 0.20);
+        }
         .online-status {
-            font-size: 13px;
+            font-size: 12px;
             color: rgba(255, 255, 255, 0.6);
             margin-left: auto;
             white-space: nowrap;
@@ -226,20 +238,21 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 16px;
+            padding: 8px 14px;
             background: rgba(255, 255, 255, 0.04);
             border-radius: 16px;
             border: 1px solid rgba(255, 255, 255, 0.05);
-            margin-bottom: 18px;
-            min-height: 52px;
+            margin-bottom: 16px;
+            min-height: 44px;
         }
         .status-text {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 500;
             color: rgba(255, 255, 255, 0.85);
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
+            flex-wrap: wrap;
         }
         .status-text .indicator {
             display: inline-block;
@@ -295,9 +308,12 @@
         /* ===== 棋盘 ===== */
         .board-wrapper {
             position: relative;
-            margin-bottom: 18px;
-            aspect-ratio: 1 / 1;
+            margin-bottom: 16px;
             width: 100%;
+            max-width: 420px;
+            margin-left: auto;
+            margin-right: auto;
+            aspect-ratio: 1 / 1;
         }
         .board {
             display: grid;
@@ -320,7 +336,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 56px;
+            font-size: 52px;
             font-weight: 700;
             color: #fff;
             text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
@@ -442,28 +458,28 @@
         .scoreboard {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 16px;
+            gap: 8px;
+            margin-bottom: 14px;
         }
         .score-item {
             text-align: center;
-            padding: 8px 4px;
+            padding: 6px 4px;
             border-radius: 14px;
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.04);
         }
         .score-item .label {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 500;
             color: rgba(255, 255, 255, 0.35);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
         .score-item .value {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 700;
             color: #fff;
-            margin-top: 2px;
+            margin-top: 0px;
             line-height: 1.2;
         }
         .score-item.player-score .value {
@@ -480,13 +496,13 @@
         .controls {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 8px;
             justify-content: center;
-            margin-top: 4px;
+            margin-top: 2px;
         }
         .controls .btn-group {
             display: flex;
-            gap: 6px;
+            gap: 4px;
             background: rgba(255, 255, 255, 0.04);
             padding: 4px;
             border-radius: 16px;
@@ -494,9 +510,9 @@
         }
         .btn {
             font-family: inherit;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
-            padding: 8px 18px;
+            padding: 7px 14px;
             border: none;
             border-radius: 12px;
             cursor: pointer;
@@ -547,29 +563,146 @@
 
         /* ===== 底部 ===== */
         .footer {
-            margin-top: 16px;
+            margin-top: 14px;
             text-align: center;
-            font-size: 12px;
+            font-size: 11px;
             color: rgba(255, 255, 255, 0.20);
             border-top: 1px solid rgba(255, 255, 255, 0.04);
-            padding-top: 14px;
+            padding-top: 12px;
+        }
+
+        /* ===== 房间列表弹窗 ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: rgba(20, 30, 50, 0.95);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-radius: 28px;
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            padding: 24px 20px 20px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .modal-header h3 {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0 6px;
+            transition: 0.2s;
+        }
+        .modal-close:hover {
+            color: #fff;
+            transform: rotate(90deg);
+        }
+        .modal-body {
+            overflow-y: auto;
+            flex: 1;
+        }
+        .room-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .room-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 10px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .room-item .room-code {
+            color: #fbbf24;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+        .room-item .room-meta {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 2px;
+        }
+        .room-item .room-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .room-item .room-actions .btn-sm {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: 0.2s;
+            font-weight: 600;
+        }
+        .room-item .room-actions .btn-join {
+            background: rgba(96, 165, 250, 0.15);
+            color: #93bbfc;
+        }
+        .room-item .room-actions .btn-join:hover {
+            background: rgba(96, 165, 250, 0.25);
+        }
+        .room-item .room-actions .btn-close {
+            background: rgba(248, 113, 113, 0.12);
+            color: #fca5a5;
+        }
+        .room-item .room-actions .btn-close:hover {
+            background: rgba(248, 113, 113, 0.22);
+        }
+        .no-rooms {
+            color: rgba(255, 255, 255, 0.3);
+            text-align: center;
+            padding: 30px 0;
+            font-size: 14px;
         }
 
         /* ===== 响应式 ===== */
         @media (max-width: 480px) {
             .game-container {
-                padding: 16px 12px 16px;
+                padding: 14px 10px 14px;
                 border-radius: 28px;
+                max-height: 96vh;
             }
             .title {
                 font-size: 18px;
             }
             .badge {
-                font-size: 10px;
-                padding: 3px 10px;
+                font-size: 9px;
+                padding: 2px 8px;
             }
             .cell {
-                font-size: 40px;
+                font-size: 38px;
                 border-radius: 16px;
             }
             .board {
@@ -579,8 +712,8 @@
                 font-size: 13px;
             }
             .btn {
-                font-size: 12px;
-                padding: 6px 12px;
+                font-size: 11px;
+                padding: 5px 10px;
             }
             .mode-btn {
                 font-size: 12px;
@@ -591,20 +724,29 @@
                 padding: 6px 10px;
             }
             .online-panel .btn {
-                font-size: 12px;
-                padding: 6px 12px;
+                font-size: 11px;
+                padding: 6px 10px;
             }
             .score-item .value {
                 font-size: 18px;
             }
+            .board-wrapper {
+                max-width: 320px;
+            }
+            .modal {
+                padding: 18px 14px;
+            }
         }
         @media (max-width: 380px) {
             .cell {
-                font-size: 32px;
+                font-size: 30px;
                 border-radius: 12px;
             }
             .board {
                 gap: 6px;
+            }
+            .board-wrapper {
+                max-width: 260px;
             }
         }
     </style>
@@ -631,9 +773,10 @@
         <!-- 联机面板 -->
         <div class="online-panel" id="onlinePanel">
             <input type="text" id="roomInput" placeholder="房间码 (4位)" maxlength="4" />
-            <button class="btn" id="btnCreate">创建房间</button>
-            <button class="btn" id="btnJoin">加入房间</button>
+            <button class="btn" id="btnCreate">创建</button>
+            <button class="btn" id="btnJoin">加入</button>
             <button class="btn danger" id="btnDisconnect" style="display:none;">断开</button>
+            <button class="btn room-list-btn" id="btnRoomList">📋 房间列表</button>
             <span class="online-status" id="onlineStatus">未连接</span>
         </div>
 
@@ -673,9 +816,24 @@
         <div class="footer"><span>✦ 你执 <span id="footerPlayerSymbol">X</span> · AI 执 <span id="footerAISymbol">O</span></span></div>
     </div>
 
+    <!-- 房间列表弹窗 -->
+    <div class="modal-overlay" id="roomListModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>📋 我的房间</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body" id="roomListBody">
+                <div class="room-list" id="roomListContainer">
+                    <!-- 动态渲染 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ================================================================
-        //  井字棋 · 多模式 (人机 / 本地双人 / 在线联机)
+        //  井字棋 · 多模式 (人机 / 本地双人 / 在线联机) + 房间列表
         // ================================================================
 
         // ---------- DOM 引用 ----------
@@ -699,6 +857,10 @@
         const btnJoin = document.getElementById('btnJoin');
         const btnDisconnect = document.getElementById('btnDisconnect');
         const onlineStatus = document.getElementById('onlineStatus');
+        const btnRoomList = document.getElementById('btnRoomList');
+        const roomListModal = document.getElementById('roomListModal');
+        const modalClose = document.getElementById('modalClose');
+        const roomListContainer = document.getElementById('roomListContainer');
 
         // ---------- 音效引擎 ----------
         class SoundEngine {
@@ -744,40 +906,69 @@
         }
         const sound = new SoundEngine();
 
-        // ---------- 游戏核心 (与模式解耦) ----------
+        // ---------- 房间列表管理 (localStorage) ----------
+        const STORAGE_KEY = 'tictactoe_rooms';
+
+        function getRooms() {
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                return data ? JSON.parse(data) : [];
+            } catch { return []; }
+        }
+
+        function saveRooms(rooms) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(rooms));
+        }
+
+        function addRoom(roomCode) {
+            const rooms = getRooms();
+            // 避免重复
+            if (!rooms.find(r => r.code === roomCode)) {
+                rooms.push({ code: roomCode, createdAt: Date.now() });
+                saveRooms(rooms);
+            }
+        }
+
+        function removeRoom(roomCode) {
+            let rooms = getRooms();
+            rooms = rooms.filter(r => r.code !== roomCode);
+            saveRooms(rooms);
+        }
+
+        // ---------- 游戏核心 ----------
         class TicTacToeGame {
             constructor() {
                 this.board = Array(9).fill(null);
-                this.currentPlayer = 'X'; // 'X' 先手
+                this.currentPlayer = 'X';
                 this.gameOver = false;
                 this.winner = null;
                 this.winLine = null;
                 this.scores = { player: 0, ai: 0, draw: 0 };
-                // 人机模式专用
                 this.playerSymbol = 'X';
                 this.aiSymbol = 'O';
                 this.isPlayerTurn = true;
                 this.isThinking = false;
-                // 双人模式专用
                 this.localPlayers = ['X', 'O'];
-                this.localIndex = 0; // 当前轮到谁 (0:X, 1:O)
-                // 在线模式专用
-                this.onlineRole = null; // 'creator' 或 'joiner'
+                this.localIndex = 0;
+                this.onlineRole = null;
                 this.peer = null;
                 this.conn = null;
                 this.roomCode = '';
                 this.isOnline = false;
-                this.mySymbol = null; // 在线时自己的棋子
+                this.mySymbol = null;
                 this.opponentSymbol = null;
                 this.isMyTurn = false;
-                // 通用
-                this.mode = 'ai'; // 'ai' | 'local' | 'online'
+                this.mode = 'ai';
                 this.allowClick = true;
                 this._render();
                 this._updateStatus();
                 this._updateScores();
                 this._updateFooter();
                 this._updateButtons();
+                // 监听 localStorage 变化（仅用于更新房间列表 UI）
+                window.addEventListener('storage', (e) => {
+                    if (e.key === STORAGE_KEY) this._renderRoomList();
+                });
             }
 
             // ---------- 模式切换 ----------
@@ -785,18 +976,15 @@
                 if (this.isThinking) return;
                 sound.click();
                 this.mode = mode;
-                // 重置游戏状态
                 this.board = Array(9).fill(null);
                 this.gameOver = false;
                 this.winner = null;
                 this.winLine = null;
                 this.isThinking = false;
                 thinkingOverlay.classList.remove('active');
-                // 重置在线状态
                 if (mode !== 'online') {
                     this._disconnectOnline();
                 }
-                // 根据模式设置初始状态
                 if (mode === 'ai') {
                     this.playerSymbol = 'X';
                     this.aiSymbol = 'O';
@@ -825,7 +1013,6 @@
                     onlinePanel.classList.add('show');
                     btnFirst.disabled = true;
                     btnSecond.disabled = true;
-                    // 重置在线状态，等待用户操作
                     this._disconnectOnline();
                     this._updateFooter();
                     this._updateButtons();
@@ -833,7 +1020,7 @@
                 this._render();
                 this._updateStatus();
                 this._updateScores();
-                // 如果是在线模式，等待用户创建或加入
+                this._renderRoomList(); // 刷新列表
             }
 
             // ---------- 在线联机 ----------
@@ -855,93 +1042,11 @@
                 onlineStatus.textContent = '未连接';
                 onlineStatus.className = 'online-status';
                 btnDisconnect.style.display = 'none';
-                roomInput.value = '';
                 roomInput.disabled = false;
                 btnCreate.disabled = false;
                 btnJoin.disabled = false;
+                // 如果当前有房间记录，不删除，保留在列表中
             }
-
-            createRoom() {
-                if (this.mode !== 'online') return;
-                sound.click();
-                const room = roomInput.value.trim().toUpperCase();
-                if (room.length !== 4 || !/^[A-Z0-9]{4}$/.test(room)) {
-                    alert('请输入4位房间码（字母或数字）');
-                    return;
-                }
-                this.roomCode = room;
-                // 初始化 Peer
-                this.peer = new Peer(undefined, {
-                    debug: 2
-                });
-                this.peer.on('open', (id) => {
-                    onlineStatus.textContent = `房间 ${room} 已创建，ID: ${id}`;
-                    onlineStatus.className = 'online-status connected';
-                    btnDisconnect.style.display = 'inline-block';
-                    roomInput.disabled = true;
-                    btnCreate.disabled = true;
-                    btnJoin.disabled = true;
-                    // 监听连接
-                    this.peer.on('connection', (conn) => {
-                        this.conn = conn;
-                        this._setupConnection();
-                        this.onlineRole = 'creator';
-                        this.mySymbol = 'X';
-                        this.opponentSymbol = 'O';
-                        this.isMyTurn = true; // 创建者先手
-                        this.isOnline = true;
-                        this._resetBoardOnline();
-                        this._updateStatus();
-                    });
-                });
-                this.peer.on('error', (err) => {
-                    console.error(err);
-                    alert('创建房间失败，请重试');
-                    this._disconnectOnline();
-                });
-            }
-
-            joinRoom() {
-                if (this.mode !== 'online') return;
-                sound.click();
-                const room = roomInput.value.trim().toUpperCase();
-                if (room.length !== 4 || !/^[A-Z0-9]{4}$/.test(room)) {
-                    alert('请输入4位房间码（字母或数字）');
-                    return;
-                }
-                this.roomCode = room;
-                // 初始化 Peer
-                this.peer = new Peer(undefined, { debug: 2 });
-                this.peer.on('open', (id) => {
-                    onlineStatus.textContent = `正在连接房间 ${room} ...`;
-                    onlineStatus.className = 'online-status';
-                    btnDisconnect.style.display = 'inline-block';
-                    roomInput.disabled = true;
-                    btnCreate.disabled = true;
-                    btnJoin.disabled = true;
-                    // 连接到创建者 (使用房间码作为对方ID，这里简化：假设创建者ID就是房间码，但实际需要更复杂的信令)
-                    // 更佳实践：创建者生成一个唯一ID，但为简化，我们规定房间码即为创建者的Peer ID
-                    // 但创建者Peer ID是随机生成的，所以我们修改：创建者先获取自己的ID，然后告诉对方，但我们用房间码作为标识
-                    // 这里我们采用：创建者将房间码作为自己的ID（通过 new Peer(room)），但可能冲突。
-                    // 更可靠：创建者生成随机ID，但房间码用于查找。这里为了演示，采用简单方式：
-                    // 实际应使用信令服务器，但这里我们使用房间码作为目标ID（假设创建者以房间码为ID创建）
-                    // 因此，我们修改创建逻辑：创建者以房间码作为Peer ID
-                    // 重新设计：点击创建时，用房间码作为ID创建Peer，若被占用则提示。
-                    // 为简化，我们改为：创建者用房间码作为ID，加入者连接该ID。
-                    // 重新实现创建和加入。
-                    alert('由于PeerJS限制，此demo采用简化信令：创建者以房间码为ID。请重新点击创建或加入。');
-                    this._disconnectOnline();
-                    // 为了演示，我们重新设计：使用房间码作为Peer ID
-                });
-            }
-
-            // 重新设计在线连接：使用房间码作为Peer ID
-            // 我们重写 createRoom 和 joinRoom
-            // 但为了简洁，这里我们用另一种方式：用房间码作为对方ID，但创建者使用随机ID，并通过某种方式分享。
-            // 其实更好的办法：创建者生成一个ID并显示，对方输入该ID连接。
-            // 我们直接使用房间码作为双方的共同标识，但双方都连接到同一个“房间”，需要使用第三方信令，但PeerJS不支持直接房间概念。
-            // 简化方案：使用 PeerJS 的“房间码”作为双方约定的 Peer ID，创建者以该ID创建，加入者连接该ID。
-            // 所以我们重写：
 
             createRoomV2() {
                 if (this.mode !== 'online') return;
@@ -952,16 +1057,18 @@
                     return;
                 }
                 this.roomCode = room;
-                // 以房间码作为Peer ID创建
                 this.peer = new Peer(room, { debug: 2 });
                 this.peer.on('open', (id) => {
-                    onlineStatus.textContent = `房间 ${room} 已创建，等待对方加入...`;
+                    onlineStatus.textContent = `房间 ${room} 已创建，等待加入...`;
                     onlineStatus.className = 'online-status connected';
                     btnDisconnect.style.display = 'inline-block';
                     roomInput.disabled = true;
                     btnCreate.disabled = true;
                     btnJoin.disabled = true;
-                    // 监听连接
+                    // 存到房间列表
+                    addRoom(room);
+                    this._renderRoomList();
+
                     this.peer.on('connection', (conn) => {
                         this.conn = conn;
                         this._setupConnection();
@@ -973,6 +1080,7 @@
                         this._resetBoardOnline();
                         this._updateStatus();
                         onlineStatus.textContent = `已连接！你执 X`;
+                        // 连接后不再显示断开按钮？保留
                     });
                 });
                 this.peer.on('error', (err) => {
@@ -995,16 +1103,14 @@
                     return;
                 }
                 this.roomCode = room;
-                // 以随机ID创建Peer，然后连接到房间码
                 this.peer = new Peer(undefined, { debug: 2 });
                 this.peer.on('open', (id) => {
-                    onlineStatus.textContent = `正在连接房间 ${room} ...`;
+                    onlineStatus.textContent = `连接房间 ${room} ...`;
                     onlineStatus.className = 'online-status';
                     btnDisconnect.style.display = 'inline-block';
                     roomInput.disabled = true;
                     btnCreate.disabled = true;
                     btnJoin.disabled = true;
-                    // 连接对方
                     const conn = this.peer.connect(room);
                     conn.on('open', () => {
                         this.conn = conn;
@@ -1012,11 +1118,14 @@
                         this.onlineRole = 'joiner';
                         this.mySymbol = 'O';
                         this.opponentSymbol = 'X';
-                        this.isMyTurn = false; // 加入者后手
+                        this.isMyTurn = false;
                         this.isOnline = true;
                         this._resetBoardOnline();
                         this._updateStatus();
                         onlineStatus.textContent = `已连接！你执 O`;
+                        // 加入后也存到列表（方便管理）
+                        addRoom(room);
+                        this._renderRoomList();
                     });
                     conn.on('error', (err) => {
                         alert('连接失败，请确认房间码正确且对方已创建');
@@ -1033,11 +1142,9 @@
             _setupConnection() {
                 if (!this.conn) return;
                 this.conn.on('data', (data) => {
-                    // 收到对方走子
                     if (data.type === 'move') {
                         const idx = data.index;
                         const symbol = data.symbol;
-                        // 验证合法性
                         if (this.board[idx] !== null) return;
                         if (symbol !== this.opponentSymbol) return;
                         this.board[idx] = symbol;
@@ -1048,13 +1155,12 @@
                             this._updateScores();
                             return;
                         }
-                        // 切换为我的回合
                         this.isMyTurn = true;
                         this._updateStatus();
                     } else if (data.type === 'reset') {
                         this._resetBoardOnline();
                     } else if (data.type === 'gameover') {
-                        // 同步游戏结束状态（可选）
+                        // 同步（可选）
                     }
                 });
                 this.conn.on('close', () => {
@@ -1073,7 +1179,6 @@
                 this._render();
                 this._updateStatus();
                 this._updateScores();
-                // 如果是创建者，先手；加入者后手
                 if (this.onlineRole === 'creator') {
                     this.isMyTurn = true;
                 } else {
@@ -1120,14 +1225,12 @@
                     this.board[index] = this.mySymbol;
                     sound.move();
                     this._render();
-                    // 发送走子给对手
                     if (this.conn && this.conn.open) {
                         this.conn.send({ type: 'move', index: index, symbol: this.mySymbol });
                     }
                     if (this._checkGameOver()) {
                         this._updateStatus();
                         this._updateScores();
-                        // 通知对手游戏结束（可选）
                         if (this.conn && this.conn.open) {
                             this.conn.send({ type: 'gameover' });
                         }
@@ -1138,7 +1241,7 @@
                 }
             }
 
-            // ---------- AI 走子 (沿用原逻辑) ----------
+            // ---------- AI ----------
             _aiMove() {
                 if (this.mode !== 'ai') return;
                 if (this.isThinking) return;
@@ -1254,9 +1357,9 @@
 
             _checkGameOver() {
                 const result = this._evaluate(this.board);
+                // 处理不同模式下的胜负判定
                 if (result === this.aiSymbol || (this.mode === 'local' && result === 'O') || (this.mode === 'online' && result ===
                         this.opponentSymbol)) {
-                    // AI赢 或 本地后手赢 或 在线对手赢
                     this.gameOver = true;
                     this.winner = (this.mode === 'ai') ? 'ai' : (this.mode === 'local' ? (result === 'X' ? 'player' :
                         'ai') : (result === this.mySymbol ? 'player' : 'ai'));
@@ -1265,7 +1368,6 @@
                         this.scores.ai += 1;
                         sound.win();
                     } else if (this.mode === 'local') {
-                        // 本地双人：根据谁赢加分（用player和ai代表两个玩家，但显示为玩家和AI？我们统一用player和ai）
                         if (result === 'X') { this.scores.player += 1;
                             sound.win(); } else { this.scores.ai += 1;
                             sound.win(); }
@@ -1280,14 +1382,11 @@
                     return true;
                 } else if (result === this.playerSymbol || (this.mode === 'local' && result === 'X') || (this.mode ===
                         'online' && result === this.mySymbol)) {
-                    // 玩家赢 或 本地先手赢 或 在线自己赢
                     this.gameOver = true;
                     this.winner = 'player';
                     this.winLine = this._getWinLine();
                     this.scores.player += 1;
-                    sound.lose(); // 玩家赢时播放lose音效（因为原来lose是玩家输，这里调换一下，可以自定义）
-                    // 但为了区分，我们改为win音效，但为了保持一致性，我们用win
-                    sound.win(); // 玩家赢也播放win
+                    sound.win();
                     this._render();
                     this._updateStatus();
                     this._updateScores();
@@ -1325,7 +1424,7 @@
                 return null;
             }
 
-            // ---------- 先手/后手 (仅人机模式) ----------
+            // ---------- 先手/后手 (仅人机) ----------
             setPlayerFirst() {
                 if (this.mode !== 'ai' || this.isThinking) return;
                 sound.click();
@@ -1411,7 +1510,6 @@
                     if (this.gameOver) {
                         cell.classList.add('game-over');
                     }
-                    // 在线模式：如果不是我的回合或未连接，禁用点击
                     if (this.mode === 'online') {
                         if (!this.isOnline || !this.isMyTurn || this.board[i] !== null || this.gameOver) {
                             cell.classList.add('disabled');
@@ -1517,6 +1615,70 @@
                 btnSecond.className = `btn ${(!isFirst && this.mode === 'ai') ? 'active active-o' : ''}`;
                 btnSecond.disabled = (this.mode !== 'ai');
             }
+
+            // ---------- 房间列表渲染 ----------
+            _renderRoomList() {
+                const rooms = getRooms();
+                if (rooms.length === 0) {
+                    roomListContainer.innerHTML = `<div class="no-rooms">暂无房间，创建或加入后自动保存</div>`;
+                    return;
+                }
+                let html = '';
+                rooms.forEach(r => {
+                    const time = new Date(r.createdAt).toLocaleString();
+                    html += `
+                        <div class="room-item">
+                            <div>
+                                <div class="room-code">${r.code}</div>
+                                <div class="room-meta">创建于 ${time}</div>
+                            </div>
+                            <div class="room-actions">
+                                <button class="btn-sm btn-join" data-room="${r.code}">加入</button>
+                                <button class="btn-sm btn-close" data-room="${r.code}">关闭</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                roomListContainer.innerHTML = html;
+                // 事件绑定
+                roomListContainer.querySelectorAll('.btn-join').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const code = btn.dataset.room;
+                        roomInput.value = code;
+                        // 自动切换到在线模式并加入
+                        document.querySelector('.mode-btn[data-mode="online"]').click();
+                        setTimeout(() => {
+                            game.joinRoomV2();
+                            closeModal();
+                        }, 100);
+                    });
+                });
+                roomListContainer.querySelectorAll('.btn-close').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const code = btn.dataset.room;
+                        if (confirm(`关闭房间 ${code} ？`) ) {
+                            removeRoom(code);
+                            game._renderRoomList();
+                            // 如果当前正在使用该房间，断开连接
+                            if (game.roomCode === code && game.isOnline) {
+                                game._disconnectOnline();
+                                game._resetBoardOnline();
+                                game._updateStatus();
+                            }
+                        }
+                    });
+                });
+            }
+        }
+
+        // ---------- 弹窗控制 ----------
+        function openModal() {
+            roomListModal.classList.add('active');
+            game._renderRoomList();
+        }
+
+        function closeModal() {
+            roomListModal.classList.remove('active');
         }
 
         // ---------- 初始化 ----------
@@ -1529,12 +1691,13 @@
                 this.classList.add('active');
                 const mode = this.dataset.mode;
                 game.setMode(mode);
-                // 如果切换为在线模式，显示面板
                 if (mode === 'online') {
                     onlinePanel.classList.add('show');
                 } else {
                     onlinePanel.classList.remove('show');
                 }
+                // 关闭弹窗
+                closeModal();
             });
         });
 
@@ -1549,18 +1712,16 @@
         });
         btnDisconnect.addEventListener('click', () => {
             sound.click();
+            const room = game.roomCode;
             game._disconnectOnline();
             game._resetBoardOnline();
             game._updateStatus();
             game._updateFooter();
-            onlinePanel.classList.remove('show');
-            // 重新显示面板
-            setTimeout(() => {
-                onlinePanel.classList.add('show');
-            }, 100);
+            onlinePanel.classList.add('show');
+            // 不删除房间记录，保留在列表中
         });
 
-        // 先手/后手 (人机)
+        // 先手/后手
         btnFirst.addEventListener('click', () => {
             sound.init();
             game.setPlayerFirst();
@@ -1576,6 +1737,16 @@
             game.reset();
         });
 
+        // 房间列表
+        btnRoomList.addEventListener('click', () => {
+            sound.click();
+            openModal();
+        });
+        modalClose.addEventListener('click', closeModal);
+        roomListModal.addEventListener('click', (e) => {
+            if (e.target === roomListModal) closeModal();
+        });
+
         // 全局音效初始化
         document.addEventListener('click', () => sound.init(), { once: true });
         document.addEventListener('touchstart', () => sound.init(), { once: true });
@@ -1586,8 +1757,9 @@
         game._updateScores();
         game._updateFooter();
         game._updateButtons();
+        game._renderRoomList();
 
-        console.log('✦ 井字棋 · 多模式已启动 (人机/本地双人/在线联机)');
+        console.log('✦ 井字棋 · 多模式已启动 (人机/本地双人/在线联机 + 房间列表)');
     </script>
 </body>
 </html>
