@@ -1,1011 +1,722 @@
 <!DOCTYPE html>
-<html lang="zh-CN" class="h-full">
+<html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>五子棋 AI 对弈游戏</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'] },
-                    colors: {
-                        wood: {
-                            100: '#f7eedd',
-                            200: '#eadeca',
-                            300: '#dec7a8',
-                            400: '#d1b084',
-                            500: '#c59b63',
-                            600: '#b0824b',
-                            700: '#916538',
-                            800: '#734d28',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>五子棋 - 人性化体验版</title>
     <style>
-        .board-shadow {
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.2), inset 0 2px 4px rgba(255,255,255,0.4);
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
-        .stone-black {
-            background: radial-gradient(circle at 30% 30%, #666, #111 70%, #000);
-            box-shadow: 2px 4px 8px rgba(0,0,0,0.5), inset -1px -1px 2px rgba(255,255,255,0.2);
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #ede6db;
+            background-image: radial-gradient(ellipse at 20% 30%, rgba(180, 160, 140, 0.20) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 70%, rgba(180, 160, 140, 0.20) 0%, transparent 60%);
+            padding: 12px;
         }
-        .stone-white {
-            background: radial-gradient(circle at 30% 30%, #fff, #e6e6e6 70%, #ccc);
-            box-shadow: 2px 4px 8px rgba(0,0,0,0.3), inset -1px -1px 2px rgba(0,0,0,0.1);
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: rgba(252, 248, 242, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 28px;
+            box-shadow: 0 20px 50px rgba(80, 60, 40, 0.2), 0 0 0 1px rgba(220, 200, 180, 0.4) inset;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
         }
-        .pulse-glow {
-            animation: pulse-glow 2s infinite;
+
+        /* 顶部面板（控制与状态） */
+        .top-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: rgba(238, 228, 215, 0.5);
+            padding: 12px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(180, 150, 120, 0.15);
         }
-        @keyframes pulse-glow {
-            0%, 100% { opacity: 0.6; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.1); }
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
         }
-        /* Custom scrollbar for move log */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
+        .control-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #5d4d3e;
+            white-space: nowrap;
+        }
+        .btn-group {
+            display: inline-flex;
+            background: rgba(210, 195, 178, 0.35);
+            padding: 3px;
+            border-radius: 12px;
+        }
+        .btn-opt {
+            border: none;
+            background: transparent;
+            padding: 5px 12px;
+            border-radius: 9px;
+            font-size: 13px;
+            color: #5d4d3e;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        .btn-opt.active {
+            background: #6b5b4b;
+            color: #fff;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        /* 状态条 */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #fff;
+            padding: 8px 16px;
+            border-radius: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .status-text {
+            font-size: 15px;
+            font-weight: bold;
+            color: #3d3228;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .turn-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            display: inline-block;
+            border: 1px solid #888;
+        }
+        .turn-dot.black { background: #222; }
+        .turn-dot.white { background: #fff; }
+        .mode-hint {
+            font-size: 12px;
+            color: #8c7a6b;
+            font-weight: normal;
+        }
+
+        /* 棋盘包裹层与放大功能 */
+        .board-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border-radius: 20px;
+            box-shadow: 0 8px 24px rgba(60, 40, 20, 0.18);
+            overflow: hidden;
+            background: #e8d5b5;
+            touch-action: none;
+        }
+        #boardCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: pointer;
+            transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+            transform-origin: center center;
+        }
+
+        /* 确认落子浮动提示按钮 */
+        .zoom-confirm-btn {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%) translateY(50px);
+            background: #4caf50;
+            color: #fff;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            pointer-events: none;
+            opacity: 0;
+            transition: all 0.25s ease;
+            z-index: 10;
+        }
+        .zoom-confirm-btn.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* 底部功能按钮 */
+        .bottom-bar {
+            display: flex;
+            gap: 10px;
+            justify-content: space-between;
+        }
+        .btn-action {
+            flex: 1;
+            background: #f4ede4;
+            border: 1px solid #c2b2a3;
+            color: #4d3e30;
+            padding: 9px 0;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .btn-action:active {
+            transform: scale(0.96);
+            background: #e5dacd;
+        }
+
+        /* 思考折叠信息 */
+        .think-box {
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #665544;
+            max-height: 80px;
+            overflow-y: auto;
+            line-height: 1.5;
+        }
+
+        /* 结算浮窗 */
+        .modal-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 50;
+        }
+        .modal-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-card {
+            background: #fff;
+            padding: 24px 36px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .modal-title { font-size: 24px; font-weight: bold; margin-bottom: 8px; color: #3d3228; }
+        .modal-btn {
+            margin-top: 14px;
+            background: #6b5b4b;
+            color: #fff;
+            border: none;
+            padding: 8px 24px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+        }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-amber-500 selection:text-white">
+<body>
 
-    <!-- Top Navigation Header -->
-    <header class="bg-slate-800/80 backdrop-blur border-b border-slate-700/60 sticky top-0 z-30">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center shadow-lg shadow-amber-600/30">
-                    <i class="fa-solid fa-chess-board text-white text-xl"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold text-lg leading-none tracking-tight text-white">智星五子棋</h1>
-                    <p class="text-xs text-amber-400 font-medium mt-0.5">启发式 AI 评估对弈系统</p>
+<div class="container">
+    <!-- 顶部控制区（执子、难度、模式） -->
+    <div class="top-controls">
+        <div class="control-row">
+            <div class="control-item">
+                <span class="label">执子</span>
+                <div class="btn-group">
+                    <button class="btn-opt active" id="btnBlack">执黑先手</button>
+                    <button class="btn-opt" id="btnWhite">执白后手</button>
                 </div>
             </div>
-
-            <!-- Game Control Buttons Header -->
-            <div class="flex items-center space-x-2 sm:space-x-3">
-                <button id="btn-undo" onclick="undoMove()" class="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs sm:text-sm font-medium transition flex items-center space-x-1.5 border border-slate-600 disabled:opacity-40 disabled:cursor-not-allowed">
-                    <i class="fa-solid fa-rotate-left"></i>
-                    <span class="hidden sm:inline">悔棋</span>
-                </button>
-                <button id="btn-hint" onclick="requestAiHint()" class="px-3 py-2 rounded-lg bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-xs sm:text-sm font-medium transition flex items-center space-x-1.5">
-                    <i class="fa-regular fa-lightbulb text-amber-400"></i>
-                    <span class="hidden sm:inline">提示</span>
-                </button>
-                <button id="btn-restart" onclick="restartGame()" class="px-3.5 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs sm:text-sm font-semibold shadow-md shadow-amber-600/20 transition flex items-center space-x-1.5">
-                    <i class="fa-solid fa-arrows-rotate"></i>
-                    <span>新局</span>
-                </button>
+            <div class="control-item">
+                <span class="label">难度</span>
+                <div class="btn-group" id="diffGroup">
+                    <button class="btn-opt" data-diff="easy">简单</button>
+                    <button class="btn-opt active" data-diff="medium">中等</button>
+                    <button class="btn-opt" data-diff="hard">困难</button>
+                </div>
             </div>
         </div>
-    </header>
-
-    <!-- Main Workspace Container -->
-    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        <!-- Left Side Panel: Settings & Game Stats (3 Columns on Large Screens) -->
-        <div class="lg:col-span-3 space-y-5 order-2 lg:order-1">
-            
-            <!-- Player Status Card -->
-            <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/60 shadow-xl backdrop-blur">
-                <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center justify-between">
-                    <span>对局状态</span>
-                    <span id="turn-indicator" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                        黑方回合
-                    </span>
-                </h2>
-                
-                <div class="grid grid-cols-2 gap-3">
-                    <!-- Player 1 (Black) -->
-                    <div id="player-black-card" class="p-3 rounded-xl bg-slate-700/50 border border-amber-500/50 transition-all flex flex-col items-center text-center relative">
-                        <div class="w-8 h-8 rounded-full stone-black mb-2 flex items-center justify-center">
-                            <span class="text-[10px] text-slate-400" id="black-role-badge">黑</span>
-                        </div>
-                        <span class="text-xs font-semibold text-slate-200" id="black-name">黑子 (黑方)</span>
-                        <span class="text-[11px] text-slate-400 mt-1" id="black-type">玩家</span>
-                    </div>
-
-                    <!-- Player 2 (White) -->
-                    <div id="player-white-card" class="p-3 rounded-xl bg-slate-700/30 border border-transparent transition-all flex flex-col items-center text-center relative">
-                        <div class="w-8 h-8 rounded-full stone-white mb-2 flex items-center justify-center">
-                            <span class="text-[10px] text-slate-600" id="white-role-badge">白</span>
-                        </div>
-                        <span class="text-xs font-semibold text-slate-200" id="white-name">白子 (白方)</span>
-                        <span class="text-[11px] text-slate-400 mt-1" id="white-type">AI 助手</span>
-                    </div>
+        <div class="control-row">
+            <div class="control-item">
+                <span class="label">手机触控</span>
+                <div class="btn-group" id="touchModeGroup">
+                    <button class="btn-opt active" data-mode="direct">直接落子</button>
+                    <button class="btn-opt" data-mode="zoom">点击放大落子</button>
                 </div>
-
-                <!-- AI Thinking Indicator -->
-                <div id="ai-thinking-bar" class="mt-3 hidden items-center justify-center space-x-2 py-1.5 bg-amber-500/10 rounded-lg border border-amber-500/20 text-amber-300 text-xs">
-                    <i class="fa-solid fa-spinner animate-spin"></i>
-                    <span>AI 正在思考最佳落子...</span>
-                </div>
-            </div>
-
-            <!-- Positional Advantage Evaluation Gauge -->
-            <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/60 shadow-xl backdrop-blur">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">实时局面评估</span>
-                    <span id="eval-score-text" class="text-xs font-mono font-bold text-slate-300">0.0</span>
-                </div>
-                <!-- Advantage Progress Bar -->
-                <div class="relative h-3 bg-slate-900 rounded-full overflow-hidden border border-slate-700 flex">
-                    <div id="eval-bar-black" class="bg-slate-300 h-full transition-all duration-500 w-1/2"></div>
-                    <div id="eval-bar-white" class="bg-amber-500 h-full transition-all duration-500 w-1/2"></div>
-                </div>
-                <div class="flex justify-between text-[10px] text-slate-400 mt-1.5 font-medium">
-                    <span>黑优</span>
-                    <span>均衡</span>
-                    <span>白优</span>
-                </div>
-            </div>
-
-            <!-- Match Settings Panel -->
-            <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/60 shadow-xl backdrop-blur space-y-4">
-                <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">对局设置</h2>
-                
-                <!-- Game Mode Selector -->
-                <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1.5">对战模式</label>
-                    <select id="select-mode" onchange="changeGameSettings()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500 transition">
-                        <option value="pve-black">人机对战 (玩家执黑先行)</option>
-                        <option value="pve-white">人机对战 (AI 执黑先行)</option>
-                        <option value="pvp">双人对弈 (同屏对战)</option>
-                    </select>
-                </div>
-
-                <!-- AI Difficulty Selector -->
-                <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1.5">AI 搜索深度 / 难度</label>
-                    <select id="select-depth" onchange="changeGameSettings()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500 transition">
-                        <option value="1">入门 (算力 1 步 - 纯启发评分)</option>
-                        <option value="2" selected>中级 (算力 2 步 - 局部分支剪枝)</option>
-                        <option value="3">高级 (算力 3 步 - Alpha-Beta 剪枝)</option>
-                        <option value="4">大师 (算力 4 步 - 深层启发搜索)</option>
-                    </select>
-                </div>
-
-                <!-- Sound Effects Toggle -->
-                <div class="flex items-center justify-between pt-1">
-                    <span class="text-xs font-medium text-slate-300">落子音效</span>
-                    <button id="toggle-sound" onclick="toggleSound()" class="w-10 h-6 bg-amber-600 rounded-full p-1 transition duration-200 flex items-center justify-end">
-                        <div class="w-4 h-4 bg-white rounded-full shadow-md"></div>
-                    </button>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- Center Board Container (6 Columns on Large Screens) -->
-        <div class="lg:col-span-6 flex flex-col items-center order-1 lg:order-2">
-            
-            <!-- Game Board Housing -->
-            <div class="relative w-full aspect-square max-w-[560px] bg-wood-400 border-[8px] border-wood-800 rounded-2xl board-shadow p-2 sm:p-4 flex items-center justify-center touch-none select-none">
-                
-                <!-- Wood Grain & Texture Overlay -->
-                <div class="absolute inset-0 rounded-lg bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px] opacity-10 pointer-events-none"></div>
-
-                <!-- Game Canvas -->
-                <canvas id="gomoku-canvas" class="w-full h-full cursor-pointer relative z-10 rounded-md"></canvas>
-            </div>
-
-            <!-- Quick Board Info Footer -->
-            <div class="mt-3 flex items-center justify-between w-full max-w-[560px] px-2 text-xs text-slate-400">
-                <span id="move-count-text"><i class="fa-solid fa-shoe-prints mr-1"></i>总步数: 0 步</span>
-                <span id="last-move-text"><i class="fa-solid fa-location-dot mr-1"></i>最新落子: -</span>
-            </div>
-        </div>
-
-        <!-- Right Side Panel: History Log & Algorithm Info (3 Columns on Large) -->
-        <div class="lg:col-span-3 space-y-5 order-3">
-            
-            <!-- Move History Card -->
-            <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/60 shadow-xl backdrop-blur flex flex-col h-64 lg:h-80">
-                <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center justify-between">
-                    <span>棋谱记录</span>
-                    <i class="fa-solid fa-list-ol text-slate-500"></i>
-                </h2>
-                
-                <div id="move-log-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1 text-xs">
-                    <div class="text-slate-500 text-center py-8">对局尚未开始</div>
-                </div>
-            </div>
-
-            <!-- Heuristic Algorithm Knowledge Card -->
-            <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/60 shadow-xl backdrop-blur">
-                <h3 class="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
-                    <i class="fa-solid fa-brain"></i>
-                    <span>AI 评估策略原理</span>
-                </h3>
-                <p class="text-[11px] text-slate-300 leading-relaxed">
-                    本 AI 基于全盘方向局部分数评估函数，结合启发式候选候选点过滤与 Alpha-Beta 剪枝：
-                </p>
-                <div class="mt-2 space-y-1 text-[10px] text-slate-400">
-                    <div class="flex justify-between border-b border-slate-700/50 pb-1">
-                        <span><strong class="text-amber-300">连五 (FIVE):</strong> 100,000分</span>
-                        <span class="text-emerald-400">必胜威胁</span>
-                    </div>
-                    <div class="flex justify-between border-b border-slate-700/50 py-1">
-                        <span><strong class="text-amber-300">活四 (LIVE_4):</strong> 10,000分</span>
-                        <span class="text-emerald-400">绝杀杀招</span>
-                    </div>
-                    <div class="flex justify-between border-b border-slate-700/50 py-1">
-                        <span><strong class="text-amber-300">冲四 / 活三:</strong> 1,000分</span>
-                        <span class="text-amber-400">高危攻势</span>
-                    </div>
-                    <div class="flex justify-between pt-1">
-                        <span><strong class="text-amber-300">眠三 / 活二:</strong> 100分</span>
-                        <span class="text-slate-400">潜在建树</span>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-    </main>
-
-    <!-- Custom Game End Modal Overlay -->
-    <div id="game-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300 p-4">
-        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl transform scale-95 transition-all duration-300 id-modal-box">
-            <div id="modal-icon-container" class="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-4 text-3xl">
-                <i class="fa-solid fa-trophy"></i>
-            </div>
-            <h3 id="modal-title" class="text-xl font-bold text-white mb-1">黑方获得胜利！</h3>
-            <p id="modal-subtitle" class="text-xs text-slate-400 mb-6">精彩的五子连珠战术攻防对局。</p>
-            
-            <div class="flex space-x-3">
-                <button onclick="closeModal()" class="flex-1 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold transition">
-                    查看棋局
-                </button>
-                <button onclick="closeModal(); restartGame();" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-semibold shadow-lg shadow-amber-600/30 transition">
-                    再来一局
-                </button>
             </div>
         </div>
     </div>
 
-    <script>
-        const BOARD_SIZE = 15;
-        const EMPTY = 0;
-        const BLACK = 1;
-        const WHITE = 2;
+    <!-- 状态指示条 -->
+    <div class="status-bar">
+        <div class="status-text" id="statusText">
+            <span class="turn-dot black" id="turnDot"></span>
+            <span id="statusMsg">黑棋回合</span>
+        </div>
+        <span class="mode-hint" id="modeHint">点击棋盘落子</span>
+    </div>
 
-        // Pattern Scoring Weights
-        const SCORE_FIVE = 100000;
-        const SCORE_LIVE_FOUR = 10000;
-        const SCORE_BLOCKED_FOUR = 1000;
-        const SCORE_LIVE_THREE = 1000;
-        const SCORE_BLOCKED_THREE = 100;
-        const SCORE_LIVE_TWO = 100;
-        const SCORE_BLOCKED_TWO = 10;
+    <!-- 棋盘区域 -->
+    <div class="board-container" id="boardWrapper">
+        <canvas id="boardCanvas"></canvas>
+        <button class="zoom-confirm-btn" id="confirmPlaceBtn">点击此处确认落子</button>
 
-        // Core Game States
-        let board = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(EMPTY));
-        let currentPlayer = BLACK;
-        let gameMode = 'pve-black'; // 'pve-black', 'pve-white', 'pvp'
-        let aiDepth = 2;
-        let isGameOver = false;
-        let isAiThinking = false;
-        let moveHistory = []; // Array of { r, c, player }
-        let winningLine = null; // Array of [r, c] points when won
-        let hintMove = null;
-        let isSoundEnabled = true;
+        <div class="modal-overlay" id="modalOverlay">
+            <div class="modal-card">
+                <div class="modal-title" id="modalTitle">对局结束</div>
+                <button class="modal-btn" id="modalRestartBtn">再来一局</button>
+            </div>
+        </div>
+    </div>
 
-        // Canvas & UI elements
-        const canvas = document.getElementById('gomoku-canvas');
-        const ctx = canvas.getContext('2d');
-        let hoverCell = null;
+    <!-- 底部操作按钮 -->
+    <div class="bottom-bar">
+        <button class="btn-action" id="undoBtn">悔 棋</button>
+        <button class="btn-action" id="hintBtn">推 荐</button>
+        <button class="btn-action" id="restartBtn">重 开</button>
+    </div>
 
-        // Web Audio API Procedural Sound Synthesizer
-        let audioCtx = null;
-        function playStoneSound() {
-            if (!isSoundEnabled) return;
-            try {
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(600, audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.08);
-                
-                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
-                
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.08);
-            } catch (e) {
-                console.error("Audio error:", e);
-            }
+    <!-- 算法思考信息 -->
+    <div class="think-box" id="thinkBox">AI 准备就绪</div>
+</div>
+
+<script>
+    "use strict";
+
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx;
+    function playTone(freq, dur, type = 'sine') {
+        try {
+            if (!audioCtx) audioCtx = new AudioCtx();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + dur);
+        } catch (_) {}
+    }
+    function playSound(type) {
+        if (type === 'place') playTone(750, 0.06);
+        else if (type === 'win') { playTone(523, 0.1); setTimeout(() => playTone(659, 0.1), 100); setTimeout(() => playTone(784, 0.2), 200); }
+        else if (type === 'lose') { playTone(400, 0.15, 'sawtooth'); setTimeout(() => playTone(280, 0.25, 'sawtooth'), 150); }
+    }
+
+    const SIZE = 15, EMPTY = 0, BLACK = 1, WHITE = 2;
+    const DIRS = [[1,0], [0,1], [1,1], [1,-1]];
+    const SCORES = { FIVE: 100000, LIVE_FOUR: 10000, RUSH_FOUR: 2000, LIVE_THREE: 1000, SLEEP_THREE: 200, LIVE_TWO: 100, SLEEP_TWO: 10, ONE: 1 };
+
+    let board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
+    let history = [];
+    let currentPlayer = BLACK;
+    let humanPlayer = BLACK;
+    let aiPlayer = WHITE;
+    let gameOver = false;
+    let isAIThinking = false;
+    let difficulty = 'medium';
+    let touchMode = 'direct'; // 'direct' | 'zoom'
+    let zoomedState = null;   // { row, col } 如果处于放大锁定状态
+    let hintMove = null;
+
+    const canvas = document.getElementById('boardCanvas');
+    const ctx = canvas.getContext('2d');
+    const boardWrapper = document.getElementById('boardWrapper');
+    const confirmPlaceBtn = document.getElementById('confirmPlaceBtn');
+    const statusMsg = document.getElementById('statusMsg');
+    const turnDot = document.getElementById('turnDot');
+    const modeHint = document.getElementById('modeHint');
+    const thinkBox = document.getElementById('thinkBox');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalTitle = document.getElementById('modalTitle');
+
+    let canvasLogicSize = 600, margin, cellSize, pieceRadius;
+
+    function resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = boardWrapper.getBoundingClientRect();
+        canvasLogicSize = rect.width;
+        margin = canvasLogicSize * 0.05;
+        cellSize = (canvasLogicSize - 2 * margin) / (SIZE - 1);
+        pieceRadius = cellSize * 0.42;
+
+        canvas.width = canvasLogicSize * dpr;
+        canvas.height = canvasLogicSize * dpr;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(dpr, dpr);
+        drawBoard();
+    }
+
+    function drawBoard() {
+        ctx.clearRect(0, 0, canvasLogicSize, canvasLogicSize);
+        ctx.fillStyle = '#e8d5b5';
+        ctx.fillRect(0, 0, canvasLogicSize, canvasLogicSize);
+
+        // 网格线
+        ctx.strokeStyle = '#5c4a38';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < SIZE; i++) {
+            const p = margin + i * cellSize;
+            ctx.beginPath(); ctx.moveTo(p, margin); ctx.lineTo(p, canvasLogicSize - margin); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(margin, p); ctx.lineTo(canvasLogicSize - margin, p); ctx.stroke();
         }
 
-        function toggleSound() {
-            isSoundEnabled = !isSoundEnabled;
-            const btn = document.getElementById('toggle-sound');
-            if (isSoundEnabled) {
-                btn.className = "w-10 h-6 bg-amber-600 rounded-full p-1 transition duration-200 flex items-center justify-end";
-            } else {
-                btn.className = "w-10 h-6 bg-slate-700 rounded-full p-1 transition duration-200 flex items-center justify-start";
-            }
-        }
-
-        function initCanvas() {
-            const rect = canvas.getBoundingClientRect();
-            const dpr = window.devicePixelRatio || 1;
-            canvas.width = rect.width * dpr;
-            canvas.height = rect.height * dpr;
-            ctx.scale(dpr, dpr);
-            renderBoard();
-        }
-
-        window.addEventListener('resize', initCanvas);
-
-        function renderBoard() {
-            const rect = canvas.getBoundingClientRect();
-            const width = rect.width;
-            const height = rect.height;
-            const cellSize = width / BOARD_SIZE;
-            const padding = cellSize / 2;
-
-            ctx.clearRect(0, 0, width, height);
-
-            // Draw Board Grid Lines
-            ctx.strokeStyle = '#734d28';
-            ctx.lineWidth = 1.2;
-
-            for (let i = 0; i < BOARD_SIZE; i++) {
-                const pos = padding + i * cellSize;
-
-                // Horizontal
-                ctx.beginPath();
-                ctx.moveTo(padding, pos);
-                ctx.lineTo(width - padding, pos);
-                ctx.stroke();
-
-                // Vertical
-                ctx.beginPath();
-                ctx.moveTo(pos, padding);
-                ctx.lineTo(pos, height - padding);
-                ctx.stroke();
-            }
-
-            // Draw Board Star Points (天元与星位)
-            const starPoints = [
-                [3, 3], [11, 3], [7, 7], [3, 11], [11, 11]
-            ];
-            ctx.fillStyle = '#543618';
-            starPoints.forEach(([r, c]) => {
-                const x = padding + c * cellSize;
-                const y = padding + r * cellSize;
-                ctx.beginPath();
-                ctx.arc(x, y, cellSize * 0.1, 0, Math.PI * 2);
-                ctx.fill();
-            });
-
-            // Draw Placed Stones
-            for (let r = 0; r < BOARD_SIZE; r++) {
-                for (let c = 0; c < BOARD_SIZE; c++) {
-                    if (board[r][c] !== EMPTY) {
-                        drawStone(r, c, board[r][c], cellSize, padding);
-                    }
-                }
-            }
-
-            // Highlight Last Placed Move
-            if (moveHistory.length > 0) {
-                const lastMove = moveHistory[moveHistory.length - 1];
-                const x = padding + lastMove.c * cellSize;
-                const y = padding + lastMove.r * cellSize;
-                ctx.fillStyle = lastMove.player === BLACK ? '#ef4444' : '#f59e0b';
-                ctx.beginPath();
-                ctx.arc(x, y, cellSize * 0.12, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            // Draw AI Recommendation Hint Highlight
-            if (hintMove) {
-                const x = padding + hintMove.c * cellSize;
-                const y = padding + hintMove.r * cellSize;
-                ctx.strokeStyle = '#10b981';
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.arc(x, y, cellSize * 0.35, 0, Math.PI * 2);
-                ctx.stroke();
-            }
-
-            // Draw Hover Grid Marker
-            if (hoverCell && board[hoverCell.r][hoverCell.c] === EMPTY && !isGameOver && !isAiThinking) {
-                const x = padding + hoverCell.c * cellSize;
-                const y = padding + hoverCell.r * cellSize;
-                ctx.fillStyle = currentPlayer === BLACK ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.4)';
-                ctx.beginPath();
-                ctx.arc(x, y, cellSize * 0.35, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            // Highlight Winning Line
-            if (winningLine) {
-                ctx.strokeStyle = '#22c55e';
-                ctx.lineWidth = 5;
-                ctx.beginPath();
-                const startX = padding + winningLine[0][1] * cellSize;
-                const startY = padding + winningLine[0][0] * cellSize;
-                const endX = padding + winningLine[winningLine.length - 1][1] * cellSize;
-                const endY = padding + winningLine[winningLine.length - 1][0] * cellSize;
-                ctx.moveTo(startX, startY);
-                ctx.lineTo(endX, endY);
-                ctx.stroke();
-            }
-        }
-
-        function drawStone(r, c, color, cellSize, padding) {
-            const x = padding + c * cellSize;
-            const y = padding + r * cellSize;
-            const radius = cellSize * 0.42;
-
-            ctx.save();
-            // Drop Shadow
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-            ctx.shadowBlur = 6;
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 3;
-
-            // Gradient Fill
-            const grad = ctx.createRadialGradient(
-                x - radius * 0.3, y - radius * 0.3, radius * 0.1,
-                x, y, radius
-            );
-
-            if (color === BLACK) {
-                grad.addColorStop(0, '#666666');
-                grad.addColorStop(0.7, '#1a1a1a');
-                grad.addColorStop(1, '#000000');
-            } else {
-                grad.addColorStop(0, '#ffffff');
-                grad.addColorStop(0.8, '#f0f0f0');
-                grad.addColorStop(1, '#d9d9d9');
-            }
-
-            ctx.fillStyle = grad;
+        // 星位点
+        const stars = [[3,3], [3,11], [11,3], [11,11], [7,7]];
+        ctx.fillStyle = '#5c4a38';
+        for (const [r, c] of stars) {
             ctx.beginPath();
-            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.arc(margin + c * cellSize, margin + r * cellSize, Math.max(3, cellSize * 0.08), 0, Math.PI * 2);
             ctx.fill();
-            ctx.restore();
         }
 
-        canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const width = rect.width;
-            const cellSize = width / BOARD_SIZE;
-            const padding = cellSize / 2;
+        // 绘制棋子
+        for (let i = 0; i < history.length; i++) {
+            const { row, col, player } = history[i];
+            const x = margin + col * cellSize;
+            const y = margin + row * cellSize;
 
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-
-            const c = Math.round((x - padding) / cellSize);
-            const r = Math.round((y - padding) / cellSize);
-
-            if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE) {
-                if (!hoverCell || hoverCell.r !== r || hoverCell.c !== c) {
-                    hoverCell = { r, c };
-                    renderBoard();
-                }
+            const grad = ctx.createRadialGradient(x - pieceRadius*0.2, y - pieceRadius*0.2, pieceRadius*0.1, x, y, pieceRadius);
+            if (player === BLACK) {
+                grad.addColorStop(0, '#666'); grad.addColorStop(1, '#000');
             } else {
-                if (hoverCell) {
-                    hoverCell = null;
-                    renderBoard();
-                }
-            }
-        });
-
-        canvas.addEventListener('mouseleave', () => {
-            hoverCell = null;
-            renderBoard();
-        });
-
-        canvas.addEventListener('click', (e) => {
-            if (isGameOver || isAiThinking) return;
-
-            const isHumanTurn = (gameMode === 'pvp') ||
-                (gameMode === 'pve-black' && currentPlayer === BLACK) ||
-                (gameMode === 'pve-white' && currentPlayer === WHITE);
-
-            if (!isHumanTurn) return;
-
-            const rect = canvas.getBoundingClientRect();
-            const width = rect.width;
-            const cellSize = width / BOARD_SIZE;
-            const padding = cellSize / 2;
-
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-
-            const c = Math.round((x - padding) / cellSize);
-            const r = Math.round((y - padding) / cellSize);
-
-            if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE) {
-                if (board[r][c] === EMPTY) {
-                    executeMove(r, c, currentPlayer);
-                }
-            }
-        });
-
-        function executeMove(r, c, player) {
-            board[r][c] = player;
-            moveHistory.push({ r, c, player });
-            playStoneSound();
-            hintMove = null; // Reset hint indicator
-
-            // Check Win Condition
-            const winRes = checkWin(board, r, c, player);
-            if (winRes) {
-                isGameOver = true;
-                winningLine = winRes;
-                renderBoard();
-                updateUIState();
-                showWinModal(player);
-                return;
+                grad.addColorStop(0, '#fff'); grad.addColorStop(1, '#ccc');
             }
 
-            // Check Draw Condition
-            if (moveHistory.length === BOARD_SIZE * BOARD_SIZE) {
-                isGameOver = true;
-                renderBoard();
-                updateUIState();
-                showDrawModal();
-                return;
-            }
+            ctx.beginPath();
+            ctx.arc(x, y, pieceRadius, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.shadowColor = 'rgba(0,0,0,0.3)';
+            ctx.shadowBlur = 4;
+            ctx.fill();
+            ctx.shadowBlur = 0;
 
-            // Switch Player Turn
-            currentPlayer = currentPlayer === BLACK ? WHITE : BLACK;
-            renderBoard();
-            updateUIState();
-            updateEvaluationGauge();
-
-            // Trigger AI Move if PVE mode
-            checkAndTriggerAi();
+            // 步数数字
+            ctx.fillStyle = player === BLACK ? '#fff' : '#000';
+            ctx.font = `bold ${cellSize * 0.35}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(i + 1, x, y);
         }
 
-        function undoMove() {
-            if (isAiThinking || moveHistory.length === 0) return;
-
-            isGameOver = false;
-            winningLine = null;
-            hintMove = null;
-
-            if (gameMode === 'pvp') {
-                const last = moveHistory.pop();
-                board[last.r][last.c] = EMPTY;
-                currentPlayer = last.player;
-            } else {
-                // In PVE mode, undo 2 moves (AI move + Player move)
-                if (moveHistory.length >= 2) {
-                    const last1 = moveHistory.pop();
-                    board[last1.r][last1.c] = EMPTY;
-                    const last2 = moveHistory.pop();
-                    board[last2.r][last2.c] = EMPTY;
-                } else {
-                    const last = moveHistory.pop();
-                    board[last.r][last.c] = EMPTY;
-                    currentPlayer = BLACK;
-                }
-            }
-
-            renderBoard();
-            updateUIState();
-            updateEvaluationGauge();
+        // 高亮最新一手
+        if (history.length > 0) {
+            const last = history[history.length - 1];
+            ctx.strokeStyle = '#ff3b30';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(margin + last.col * cellSize, margin + last.row * cellSize, pieceRadius + 2, 0, Math.PI * 2);
+            ctx.stroke();
         }
 
-        function restartGame() {
-            board = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(EMPTY));
-            currentPlayer = BLACK;
-            isGameOver = false;
-            isAiThinking = false;
-            moveHistory = [];
-            winningLine = null;
-            hintMove = null;
-
-            renderBoard();
-            updateUIState();
-            updateEvaluationGauge();
-
-            checkAndTriggerAi();
+        // 提示点
+        if (hintMove) {
+            ctx.fillStyle = 'rgba(76, 175, 80, 0.6)';
+            ctx.beginPath();
+            ctx.arc(margin + hintMove.col * cellSize, margin + hintMove.row * cellSize, pieceRadius * 0.5, 0, Math.PI * 2);
+            ctx.fill();
         }
 
-        function changeGameSettings() {
-            gameMode = document.getElementById('select-mode').value;
-            aiDepth = parseInt(document.getElementById('select-depth').value);
-            restartGame();
+        // 放大模式下的准星选中标记
+        if (zoomedState) {
+            const x = margin + zoomedState.col * cellSize;
+            const y = margin + zoomedState.row * cellSize;
+            ctx.strokeStyle = '#2196f3';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(x, y, pieceRadius * 0.8, 0, Math.PI * 2);
+            ctx.stroke();
         }
+    }
 
-        function checkAndTriggerAi() {
-            if (isGameOver) return;
+    function evaluatePoint(r, c, p) {
+        let total = 0;
+        board[r][c] = p;
+        for (const [dx, dy] of DIRS) {
+            let count = 1, openEnds = 0;
+            let i = r + dx, j = c + dy;
+            while (i >= 0 && i < SIZE && j >= 0 && j < SIZE && board[i][j] === p) { count++; i += dx; j += dy; }
+            if (i >= 0 && i < SIZE && j >= 0 && j < SIZE && board[i][j] === EMPTY) openEnds++;
 
-            const isAiTurn = (gameMode === 'pve-black' && currentPlayer === WHITE) ||
-                             (gameMode === 'pve-white' && currentPlayer === BLACK);
+            i = r - dx; j = c - dy;
+            while (i >= 0 && i < SIZE && j >= 0 && j < SIZE && board[i][j] === p) { count++; i -= dx; j -= dy; }
+            if (i >= 0 && i < SIZE && j >= 0 && j < SIZE && board[i][j] === EMPTY) openEnds++;
 
-            if (isAiTurn) {
-                isAiThinking = true;
-                updateUIState();
-
-                // Use setTimeout to allow browser UI thread to update thinking animation
-                setTimeout(() => {
-                    const best = getBestMove(board, currentPlayer, aiDepth);
-                    isAiThinking = false;
-                    if (best) {
-                        executeMove(best.r, best.c, currentPlayer);
-                    }
-                }, 100);
-            }
+            if (count >= 5) total += SCORES.FIVE;
+            else if (count === 4) total += (openEnds === 2 ? SCORES.LIVE_FOUR : SCORES.RUSH_FOUR);
+            else if (count === 3) total += (openEnds === 2 ? SCORES.LIVE_THREE : SCORES.SLEEP_THREE);
+            else if (count === 2) total += (openEnds === 2 ? SCORES.LIVE_TWO : SCORES.SLEEP_TWO);
         }
+        board[r][c] = EMPTY;
+        return total;
+    }
 
-        function requestAiHint() {
-            if (isGameOver || isAiThinking) return;
-            const best = getBestMove(board, currentPlayer, Math.min(aiDepth, 3));
-            if (best) {
-                hintMove = best;
-                renderBoard();
-            }
-        }
-
-        const DIRECTIONS = [
-            [0, 1],   // Horizontal
-            [1, 0],   // Vertical
-            [1, 1],   // Diagonal \
-            [1, -1]   // Anti-Diagonal /
-        ];
-
-        function checkWin(boardState, r, c, player) {
-            for (let [dr, dc] of DIRECTIONS) {
-                let line = [[r, c]];
-
-                // Forward scan
-                let step = 1;
-                while (true) {
-                    let nr = r + dr * step;
-                    let nc = c + dc * step;
-                    if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && boardState[nr][nc] === player) {
-                        line.push([nr, nc]);
-                        step++;
-                    } else break;
-                }
-
-                // Backward scan
-                step = 1;
-                while (true) {
-                    let nr = r - dr * step;
-                    let nc = c - dc * step;
-                    if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && boardState[nr][nc] === player) {
-                        line.unshift([nr, nc]);
-                        step++;
-                    } else break;
-                }
-
-                if (line.length >= 5) {
-                    return line;
-                }
-            }
-            return null;
-        }
-
-        // Line-based Pattern Score Evaluator
-        function evaluateLineStr(lineStr, player) {
-            const p = player.toString();
-            const e = '0';
-            
-            if (lineStr.includes(p.repeat(5))) return SCORE_FIVE;
-
-            let score = 0;
-            // 活四
-            if (lineStr.includes(`${e}${p.repeat(4)}${e}`)) score += SCORE_LIVE_FOUR;
-            // 冲四
-            if (lineStr.includes(`${p.repeat(4)}${e}`) || lineStr.includes(`${e}${p.repeat(4)}`) ||
-                lineStr.includes(`${p.repeat(3)}${e}${p}`) || lineStr.includes(`${p}${e}${p.repeat(3)}`) ||
-                lineStr.includes(`${p.repeat(2)}${e}${p.repeat(2)}`)) {
-                score += SCORE_BLOCKED_FOUR;
-            }
-            // 活三
-            if (lineStr.includes(`${e}${p.repeat(3)}${e}`) || lineStr.includes(`${e}${p}${e}${p.repeat(2)}${e}`) || lineStr.includes(`${e}${p.repeat(2)}${e}${p}${e}`)) {
-                score += SCORE_LIVE_THREE;
-            }
-            // 眠三
-            if (lineStr.includes(`${p.repeat(3)}${e}`) || lineStr.includes(`${e}${p.repeat(3)}`)) {
-                score += SCORE_BLOCKED_THREE;
-            }
-            // 活二
-            if (lineStr.includes(`${e}${p.repeat(2)}${e}`)) {
-                score += SCORE_LIVE_TWO;
-            }
-
-            return score;
-        }
-
-        // Fast static evaluator for single player
-        function evaluateBoardForPlayer(boardState, player) {
-            let totalScore = 0;
-
-            // Extract all lines (horizontal, vertical, diagonals)
-            // 1. Horizontal & Vertical
-            for (let i = 0; i < BOARD_SIZE; i++) {
-                let rowStr = '';
-                let colStr = '';
-                for (let j = 0; j < BOARD_SIZE; j++) {
-                    rowStr += boardState[i][j];
-                    colStr += boardState[j][i];
-                }
-                totalScore += evaluateLineStr(rowStr, player);
-                totalScore += evaluateLineStr(colStr, player);
-            }
-
-            // 2. Diagonals
-            for (let k = 0; k < BOARD_SIZE * 2 - 1; k++) {
-                let diag1 = '';
-                let diag2 = '';
-                for (let j = 0; j <= k; j++) {
-                    let i = k - j;
-                    if (i < BOARD_SIZE && j < BOARD_SIZE) {
-                        diag1 += boardState[i][j];
-                        diag2 += boardState[i][BOARD_SIZE - 1 - j];
-                    }
-                }
-                if (diag1.length >= 5) totalScore += evaluateLineStr(diag1, player);
-                if (diag2.length >= 5) totalScore += evaluateLineStr(diag2, player);
-            }
-
-            return totalScore;
-        }
-
-        function evaluateBoard(boardState, player) {
-            const opponent = player === BLACK ? WHITE : BLACK;
-            const pScore = evaluateBoardForPlayer(boardState, player);
-            const oScore = evaluateBoardForPlayer(boardState, opponent);
-            return pScore - Math.floor(oScore * 1.1); // Defensive weight multiplier
-        }
-
-        function getCandidateMoves(boardState, distance = 1) {
-            const candidates = [];
-            const visited = new Set();
-            let hasPiece = false;
-
-            for (let r = 0; r < BOARD_SIZE; r++) {
-                for (let c = 0; c < BOARD_SIZE; c++) {
-                    if (boardState[r][c] !== EMPTY) {
-                        hasPiece = true;
-                        for (let dr = -distance; dr <= distance; dr++) {
-                            for (let dc = -distance; dc <= distance; dc++) {
-                                const nr = r + dr;
-                                const nc = c + dc;
-                                if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
-                                    if (boardState[nr][nc] === EMPTY) {
-                                        const key = `${nr},${nc}`;
-                                        if (!visited.has(key)) {
-                                            visited.add(key);
-                                            candidates.push({ r: nr, c: nc });
-                                        }
-                                    }
-                                }
-                            }
+    function getCandidates() {
+        const moves = [];
+        for (let r = 0; r < SIZE; r++) {
+            for (let c = 0; c < SIZE; c++) {
+                if (board[r][c] !== EMPTY) continue;
+                let neighbor = false;
+                for (let dr = -2; dr <= 2 && !neighbor; dr++) {
+                    for (let dc = -2; dc <= 2 && !neighbor; dc++) {
+                        const nr = r + dr, nc = c + dc;
+                        if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && board[nr][nc] !== EMPTY) {
+                            neighbor = true;
                         }
                     }
                 }
+                if (neighbor) moves.push({ row: r, col: c });
             }
-
-            if (!hasPiece) return [{ r: 7, c: 7 }];
-            return candidates;
         }
+        return moves.length ? moves : [{ row: 7, col: 7 }];
+    }
 
-        function minimax(boardState, depth, alpha, beta, isMaximizing, aiPlayer) {
-            const opponent = aiPlayer === BLACK ? WHITE : BLACK;
+    function findBestMove(p) {
+        const opp = p === BLACK ? WHITE : BLACK;
+        const candidates = getCandidates();
+        let bestScore = -1, bestMove = candidates[0];
+        const diffWeight = difficulty === 'easy' ? 0.6 : (difficulty === 'medium' ? 1.0 : 1.4);
 
-            if (depth === 0) {
-                return { score: evaluateBoard(boardState, aiPlayer), move: null };
+        for (const m of candidates) {
+            const attack = evaluatePoint(m.row, m.col, p);
+            const defense = evaluatePoint(m.row, m.col, opp);
+            const score = attack + defense * diffWeight;
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = m;
             }
+        }
+        return { bestMove, bestScore };
+    }
 
-            const candidates = getCandidateMoves(boardState);
-            
-            // Heuristic ordering: evaluate single step candidate scores to improve pruning speed
-            candidates.map(cand => {
-                boardState[cand.r][cand.c] = isMaximizing ? aiPlayer : opponent;
-                cand.score = evaluateBoard(boardState, aiPlayer);
-                boardState[cand.r][cand.c] = EMPTY;
-            });
-            candidates.sort((a, b) => isMaximizing ? b.score - a.score : a.score - b.score);
+    function checkWin(r, c, p) {
+        for (const [dx, dy] of DIRS) {
+            let count = 1;
+            let i = r + dx, j = c + dy;
+            while (i >= 0 && i < SIZE && j >= 0 && j < SIZE && board[i][j] === p) { count++; i += dx; j += dy; }
+            i = r - dx; j = c - dy;
+            while (i >= 0 && i < SIZE && j >= 0 && j < SIZE && board[i][j] === p) { count++; i -= dx; j -= dy; }
+            if (count >= 5) return true;
+        }
+        return false;
+    }
 
-            let bestMove = null;
+    function resetZoom() {
+        zoomedState = null;
+        canvas.style.transform = 'scale(1)';
+        confirmPlaceBtn.classList.remove('show');
+        drawBoard();
+    }
 
-            if (isMaximizing) {
-                let maxEval = -Infinity;
-                for (let move of candidates) {
-                    boardState[move.r][move.c] = aiPlayer;
+    function applyZoom(row, col) {
+        zoomedState = { row, col };
+        const xPct = (margin + col * cellSize) / canvasLogicSize * 100;
+        const yPct = (margin + row * cellSize) / canvasLogicSize * 100;
+        canvas.style.transformOrigin = `${xPct}% ${yPct}%`;
+        canvas.style.transform = 'scale(1.8)';
+        confirmPlaceBtn.classList.add('show');
+        modeHint.textContent = "再次点击落子或点击确认按钮";
+        drawBoard();
+    }
 
-                    // Quick Win Termination
-                    if (checkWin(boardState, move.r, move.c, aiPlayer)) {
-                        boardState[move.r][move.c] = EMPTY;
-                        return { score: SCORE_FIVE * (depth + 1), move: move };
-                    }
+    function handleBoardClick(r, c) {
+        if (gameOver || isAIThinking || currentPlayer !== humanPlayer) return;
+        if (r < 0 || r >= SIZE || c < 0 || c >= SIZE || board[r][c] !== EMPTY) return;
 
-                    const evalRes = minimax(boardState, depth - 1, alpha, beta, false, aiPlayer);
-                    boardState[move.r][move.c] = EMPTY;
-
-                    if (evalRes.score > maxEval) {
-                        maxEval = evalRes.score;
-                        bestMove = move;
-                    }
-                    alpha = Math.max(alpha, evalRes.score);
-                    if (beta <= alpha) break; // Alpha-Beta Cutoff
-                }
-                return { score: maxEval, move: bestMove };
-            } else {
-                let minEval = Infinity;
-                for (let move of candidates) {
-                    boardState[move.r][move.c] = opponent;
-
-                    if (checkWin(boardState, move.r, move.c, opponent)) {
-                        boardState[move.r][move.c] = EMPTY;
-                        return { score: -SCORE_FIVE * (depth + 1), move: move };
-                    }
-
-                    const evalRes = minimax(boardState, depth - 1, alpha, beta, true, aiPlayer);
-                    boardState[move.r][move.c] = EMPTY;
-
-                    if (evalRes.score < minEval) {
-                        minEval = evalRes.score;
-                        bestMove = move;
-                    }
-                    beta = Math.min(beta, evalRes.score);
-                    if (beta <= alpha) break; // Alpha-Beta Cutoff
-                }
-                return { score: minEval, move: bestMove };
+        if (touchMode === 'zoom') {
+            if (!zoomedState || zoomedState.row !== r || zoomedState.col !== c) {
+                applyZoom(r, c);
+                return;
             }
         }
 
-        function getBestMove(boardState, player, depth) {
-            const result = minimax(boardState, depth, -Infinity, Infinity, true, player);
-            return result.move;
+        executeMove(r, c, humanPlayer);
+        resetZoom();
+    }
+
+    function executeMove(r, c, player) {
+        board[r][c] = player;
+        history.push({ row: r, col: c, player });
+        hintMove = null;
+        playSound('place');
+        drawBoard();
+
+        if (checkWin(r, c, player)) {
+            gameOver = true;
+            const isWin = player === humanPlayer;
+            playSound(isWin ? 'win' : 'lose');
+            showModal(isWin ? '胜利！' : '遗憾战败');
+            return;
         }
 
-        function updateEvaluationGauge() {
-            const blackScore = evaluateBoardForPlayer(board, BLACK);
-            const whiteScore = evaluateBoardForPlayer(board, WHITE);
+        currentPlayer = currentPlayer === BLACK ? WHITE : BLACK;
+        updateStatus();
 
-            const total = blackScore + whiteScore;
-            let blackPct = 50;
-            let whitePct = 50;
-
-            if (total > 0) {
-                blackPct = Math.round((blackScore / total) * 100);
-                whitePct = 100 - blackPct;
-            }
-
-            document.getElementById('eval-bar-black').style.width = `${blackPct}%`;
-            document.getElementById('eval-bar-white').style.width = `${whitePct}%`;
-
-            const diff = (blackScore - whiteScore) / 1000;
-            document.getElementById('eval-score-text').textContent = (diff > 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1));
+        if (currentPlayer === aiPlayer && !gameOver) {
+            isAIThinking = true;
+            updateStatus();
+            setTimeout(doAIMove, 100);
         }
+    }
 
-        function updateUIState() {
-            // Turn indicator badge
-            const indicator = document.getElementById('turn-indicator');
-            if (isGameOver) {
-                indicator.textContent = '对局结束';
-                indicator.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-500/20 text-rose-400 border border-rose-500/30';
-            } else {
-                indicator.textContent = currentPlayer === BLACK ? '黑方回合' : '白方回合';
-                indicator.className = currentPlayer === BLACK
-                    ? 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                    : 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30';
-            }
+    function doAIMove() {
+        const { bestMove, bestScore } = findBestMove(aiPlayer);
+        thinkBox.textContent = `AI 最佳判断: (${bestMove.row + 1}, ${bestMove.col + 1}) - 评估值: ${Math.round(bestScore)}`;
+        executeMove(bestMove.row, bestMove.col, aiPlayer);
+        isAIThinking = false;
+        updateStatus();
+    }
 
-            // Player Cards Highlight
-            const blackCard = document.getElementById('player-black-card');
-            const whiteCard = document.getElementById('player-white-card');
-
-            if (currentPlayer === BLACK && !isGameOver) {
-                blackCard.className = "p-3 rounded-xl bg-slate-700/80 border border-amber-500/80 shadow-md transition-all flex flex-col items-center text-center";
-                whiteCard.className = "p-3 rounded-xl bg-slate-700/30 border border-transparent transition-all flex flex-col items-center text-center opacity-60";
-            } else if (currentPlayer === WHITE && !isGameOver) {
-                whiteCard.className = "p-3 rounded-xl bg-slate-700/80 border border-amber-500/80 shadow-md transition-all flex flex-col items-center text-center";
-                blackCard.className = "p-3 rounded-xl bg-slate-700/30 border border-transparent transition-all flex flex-col items-center text-center opacity-60";
-            }
-
-            // AI Thinking Bar
-            const thinkingBar = document.getElementById('ai-thinking-bar');
-            thinkingBar.className = isAiThinking ? "mt-3 flex items-center justify-center space-x-2 py-1.5 bg-amber-500/10 rounded-lg border border-amber-500/20 text-amber-300 text-xs" : "mt-3 hidden";
-
-            // Undo Button state
-            document.getElementById('btn-undo').disabled = moveHistory.length === 0 || isAiThinking;
-
-            // Game Counters
-            document.getElementById('move-count-text').innerHTML = `<i class="fa-solid fa-shoe-prints mr-1"></i>总步数: ${moveHistory.length} 步`;
-            
-            if (moveHistory.length > 0) {
-                const last = moveHistory[moveHistory.length - 1];
-                const colName = String.fromCharCode(65 + last.c);
-                const rowName = 15 - last.r;
-                document.getElementById('last-move-text').innerHTML = `<i class="fa-solid fa-location-dot mr-1"></i>最新落子: ${last.player === BLACK ? '黑' : '白'} (${colName}${rowName})`;
-            } else {
-                document.getElementById('last-move-text').innerHTML = `<i class="fa-solid fa-location-dot mr-1"></i>最新落子: -`;
-            }
-
-            // Move Log List Rendering
-            const moveLogList = document.getElementById('move-log-list');
-            if (moveHistory.length === 0) {
-                moveLogList.innerHTML = `<div class="text-slate-500 text-center py-8">对局尚未开始</div>`;
-            } else {
-                moveLogList.innerHTML = moveHistory.map((m, idx) => {
-                    const colName = String.fromCharCode(65 + m.c);
-                    const rowName = 15 - m.r;
-                    return `
-                        <div class="flex items-center justify-between p-1.5 bg-slate-900/40 rounded border border-slate-700/40">
-                            <span class="text-slate-500 font-mono w-6">#${idx + 1}</span>
-                            <span class="font-medium ${m.player === BLACK ? 'text-slate-200' : 'text-amber-400'}">
-                                ${m.player === BLACK ? '● 黑方' : '○ 白方'}
-                            </span>
-                            <span class="font-mono text-slate-400">${colName}${rowName}</span>
-                        </div>
-                    `;
-                }).reverse().join('');
-            }
+    function updateStatus() {
+        if (gameOver) {
+            statusMsg.textContent = '对局结束';
+            modeHint.textContent = '';
+            return;
         }
-
-        function showWinModal(winner) {
-            const modal = document.getElementById('game-modal');
-            const title = document.getElementById('modal-title');
-            const subtitle = document.getElementById('modal-subtitle');
-            const icon = document.getElementById('modal-icon-container');
-
-            if (winner === BLACK) {
-                title.textContent = '黑方获得胜利！';
-                subtitle.textContent = '精彩的连珠战术，成功完成五子连线。';
-                icon.className = "w-16 h-16 rounded-2xl bg-slate-700 text-slate-200 border border-slate-600 flex items-center justify-center mx-auto mb-4 text-3xl shadow-lg";
-            } else {
-                title.textContent = '白方获得胜利！';
-                subtitle.textContent = '白方精确计算评分，完成连五杀招。';
-                icon.className = "w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center mx-auto mb-4 text-3xl shadow-lg";
-            }
-
-            modal.classList.remove('opacity-0', 'pointer-events-none');
+        turnDot.className = 'turn-dot ' + (currentPlayer === BLACK ? 'black' : 'white');
+        if (isAIThinking) {
+            statusMsg.textContent = 'AI 思考中...';
+            modeHint.textContent = '请稍候';
+        } else {
+            statusMsg.textContent = currentPlayer === humanPlayer ? '你的回合' : 'AI 回合';
+            modeHint.textContent = touchMode === 'zoom' ? '模式：点击放大精准定位' : '模式：点击直接落子';
         }
+    }
 
-        function showDrawModal() {
-            const modal = document.getElementById('game-modal');
-            const title = document.getElementById('modal-title');
-            const subtitle = document.getElementById('modal-subtitle');
+    function showModal(title) {
+        modalTitle.textContent = title;
+        modalOverlay.classList.add('show');
+    }
 
-            title.textContent = '棋局和棋！';
-            subtitle.textContent = '棋盘位置已满，双方旗鼓相当。';
+    function resetGame() {
+        board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
+        history = [];
+        gameOver = false;
+        isAIThinking = false;
+        currentPlayer = BLACK;
+        hintMove = null;
+        modalOverlay.classList.remove('show');
+        resetZoom();
+        updateStatus();
+        drawBoard();
 
-            modal.classList.remove('opacity-0', 'pointer-events-none');
+        if (humanPlayer === WHITE) {
+            isAIThinking = true;
+            updateStatus();
+            setTimeout(doAIMove, 200);
         }
+    }
 
-        function closeModal() {
-            const modal = document.getElementById('game-modal');
-            modal.classList.add('opacity-0', 'pointer-events-none');
+    canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const scale = canvasLogicSize / rect.width;
+        const clickX = (e.clientX - rect.left) * scale;
+        const clickY = (e.clientY - rect.top) * scale;
+
+        const c = Math.round((clickX - margin) / cellSize);
+        const r = Math.round((clickY - margin) / cellSize);
+        handleBoardClick(r, c);
+    });
+
+    confirmPlaceBtn.addEventListener('click', () => {
+        if (zoomedState) {
+            handleBoardClick(zoomedState.row, zoomedState.col);
         }
+    });
 
-        window.onload = function() {
-            initCanvas();
-            updateUIState();
-            updateEvaluationGauge();
-        };
-    </script>
+    document.getElementById('btnBlack').addEventListener('click', function() {
+        if (humanPlayer === BLACK) return;
+        humanPlayer = BLACK; aiPlayer = WHITE;
+        this.classList.add('active');
+        document.getElementById('btnWhite').classList.remove('active');
+        resetGame();
+    });
+
+    document.getElementById('btnWhite').addEventListener('click', function() {
+        if (humanPlayer === WHITE) return;
+        humanPlayer = WHITE; aiPlayer = BLACK;
+        this.classList.add('active');
+        document.getElementById('btnBlack').classList.remove('active');
+        resetGame();
+    });
+
+    document.querySelectorAll('#diffGroup .btn-opt').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('#diffGroup .btn-opt').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            difficulty = this.dataset.diff;
+        });
+    });
+
+    document.querySelectorAll('#touchModeGroup .btn-opt').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('#touchModeGroup .btn-opt').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            touchMode = this.dataset.mode;
+            resetZoom();
+            updateStatus();
+        });
+    });
+
+    document.getElementById('undoBtn').addEventListener('click', () => {
+        if (gameOver || isAIThinking || history.length === 0) return;
+        // 撤销两步（玩家+AI）
+        let count = history.length >= 2 ? 2 : 1;
+        while (count-- > 0 && history.length > 0) {
+            const last = history.pop();
+            board[last.row][last.col] = EMPTY;
+        }
+        currentPlayer = humanPlayer;
+        resetZoom();
+        updateStatus();
+        drawBoard();
+    });
+
+    document.getElementById('hintBtn').addEventListener('click', () => {
+        if (gameOver || isAIThinking || currentPlayer !== humanPlayer) return;
+        const { bestMove } = findBestMove(humanPlayer);
+        hintMove = bestMove;
+        drawBoard();
+    });
+
+    document.getElementById('restartBtn').addEventListener('click', resetGame);
+    document.getElementById('modalRestartBtn').addEventListener('click', resetGame);
+
+    window.addEventListener('resize', resizeCanvas);
+
+    // 初始化
+    resizeCanvas();
+    resetGame();
+</script>
 </body>
 </html>

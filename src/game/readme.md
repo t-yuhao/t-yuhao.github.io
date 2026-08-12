@@ -39,6 +39,10 @@
 
 >[GTA](./games/GTA_Demo.html)
 
+### 五子棋
+
+>[五子棋简易版](./games/go.html)
+
 >[五子棋简易版-启发式算法](./games/gomoku-simple.html)
 
 >[五子棋miniMax](./games/Gomoku.html)
