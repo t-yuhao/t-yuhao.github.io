@@ -17,7 +17,11 @@
 
 >[GTA](./game/games/GTA_Demo.html)
 
-### 五子棋
+### 棋类游戏
+
+>[中国象棋](./game/games/chess.html)
+
+>[五子棋-镜](./game/games/gomoku-glass.html)
 
 >[五子棋online](./game/games/gomokuonline.html)
 
