@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WTT</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #000; 
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; 
+            user-select: none;
+        }
+        #canvas-container { width: 100vw; height: 100vh; }
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: rgba(255, 255, 255, 0.9); pointer-events: none; text-align: center;
+            font-size: 14px; letter-spacing: 2px;
+        }
+        .controls-info {
+            position: absolute; bottom: 20px; left: 20px;
+            color: rgba(255,255,255,0.45); font-size: 12px; pointer-events: none;
+            letter-spacing: 1px; line-height: 1.6;
+            background: rgba(0, 0, 0, 0.3); padding: 8px 14px; border-radius: 8px;
+            backdrop-filter: blur(4px); border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .title {
+            position: absolute; top: 22px; left: 25px;
+            color: rgba(255,255,255,0.88); font-size: 14px; letter-spacing: 2px; 
+            font-weight: 300; text-shadow: 0 0 12px rgba(255, 120, 60, 0.5);
+            z-index: 10; text-transform: uppercase; pointer-events: none;
+        }
+        /* 优雅高奢科技感 lil-gui 定制样式 */
+        .lil-gui {
+            --background-color: rgba(12, 14, 26, 0.75) !important;
+            --text-color: #e4e9f0 !important;
+            --title-background-color: rgba(22, 28, 50, 0.85) !important;
+            --widget-color: rgba(255, 255, 255, 0.08) !important;
+            --hover-color: rgba(255, 120, 60, 0.25) !important;
+            --focus-color: rgba(255, 140, 80, 0.4) !important;
+            --number-color: #ff9966 !important;
+            --string-color: #66ccff !important;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+            --font-size: 12px !important;
+            
+            border-radius: 16px !important;
+            overflow: hidden !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            top: 18px !important; 
+            right: 18px !important;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            z-index: 100 !important;
+        }
+
+        /* 给展开后的子项列表设置最大高度与滚动条 */
+        .lil-gui .children {
+            max-height: 55vh;
+            overflow-y: auto;
+            transition: max-height 0.3s ease;
+        }
+
+        .lil-gui .title {
+            position: relative !important;
+            top: auto !important;
+            left: auto !important;
+            font-weight: 500 !important;
+            letter-spacing: 1px !important;
+            padding: 10px 14px !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+            text-shadow: none !important;
+            cursor: pointer !important;
+            pointer-events: auto !important;
+        }
+
+        .lil-gui .controller {
+            margin: 4px 8px !important;
+            border-radius: 8px !important;
+        }
+
+        .lil-gui .controller .name {
+            font-weight: 300 !important;
+            opacity: 0.85;
+        }
+
+        /* 移动端响应式布局优化 */
+        @media (max-width: 768px) {
+            .title {
+                top: 15px; left: 15px;
+                font-size: 11px;
+                letter-spacing: 1px;
+                max-width: 70vw;
+            }
+
+            .controls-info {
+                bottom: 15px; left: 15px;
+                font-size: 10px;
+                padding: 6px 10px;
+            }
+
+            .lil-gui {
+                top: auto !important;
+                bottom: 15px !important;
+                right: 15px !important;
+                max-width: calc(100vw - 30px) !important;
+            }
+        }
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+                "lil-gui": "https://cdn.jsdelivr.net/npm/lil-gui@0.19/+esm"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="title">Wandering Through Time 穿行于时光，奔赴未知远方</div>
+    <div id="loading">正在穿梭时空，构建海量星系...</div>
+    <div id="canvas-container"></div>
+    <div class="controls-info">
+        左键旋转 | 右键平移 | 滚轮缩放<br/>
+        鼠标滑动触发 3D 球体粒子排斥
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import GUI from 'lil-gui';
+
+        // 1. 场景与相机设置
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color('#010103'); 
+
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 22, 42);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.35;
+
+        // 2. 参数结构定义
+        const parameters = {
+            count: 130000,           // 旋臂粒子数
+            coreCount: 20000,        // 中心球体粒子数
+            size: 0.018,             // 粒子视觉尺寸
+            radius: 23,              // 银河系旋臂外径
+            branches: 4,             // 旋臂分支数
+            spin: 1.2,               // 旋臂扭曲度
+            randomness: 0.45,        // 散落随机度
+            thickness: 1.1,          // 盘面上下纵向厚度
+            
+            // 核心与半透明外壳参数
+            coreRadius: 3.5,         // 中心粒子球体半径
+            glowRadius: 4.6,         // 外围半透明球壳半径
+            glowColor: '#ff5522',    // 半透明外壳颜色
+            glowOpacity: 0.12,       // 半透明外壳透明度
+
+            // 颜色属性
+            insideColor: '#ff7733',  // 内侧中心颜色
+            outsideColor: '#2255bb', // 外侧边缘颜色
+            randomColors: true,      // 是否开启随机色彩变异
+            colorRandomness: 0.35,   // 随机色彩混杂强度
+
+            // 鼠标 3D 互动属性
+            mouseRadius: 1.8,        // 3D 球体互动影响半径（精细微调）
+            mouseForce: 0.38,        // 力量大小
+            returnSpeed: 2.2         // 粒子复位恢复速度
+        };
+
+        let geometry = null;
+        let material = null;
+        let points = null;
+
+        let originalPositions = null;
+        let particleVelocities = null;
+
+        // 3. 中心外围半透明球壳 Mesh 实例
+        const coreGlowGeo = new THREE.SphereGeometry(1, 32, 32);
+        const coreGlowMat = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(parameters.glowColor),
+            transparent: true,
+            opacity: parameters.glowOpacity,
+            blending: THREE.AdditiveBlending,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        const coreGlowMesh = new THREE.Mesh(coreGlowGeo, coreGlowMat);
+        scene.add(coreGlowMesh);
+
+        // 更新外壳缩放与材质属性
+        const updateGlowMesh = () => {
+            coreGlowMesh.scale.setScalar(parameters.glowRadius);
+            coreGlowMat.color.set(parameters.glowColor);
+            coreGlowMat.opacity = parameters.glowOpacity;
+        };
+        updateGlowMesh();
+
+        // 4. 银河系粒子系统生成函数
+        const generateGalaxy = () => {
+            if (points !== null) {
+                geometry.dispose();
+                material.dispose();
+                scene.remove(points);
+            }
+
+            const totalCount = parameters.count + parameters.coreCount;
+            geometry = new THREE.BufferGeometry();
+            
+            const positions = new Float32Array(totalCount * 3);
+            const colors = new Float32Array(totalCount * 3);
+
+            const colorInside = new THREE.Color(parameters.insideColor);
+            const colorOutside = new THREE.Color(parameters.outsideColor);
+
+            let index = 0;
+
+            // (A) 中心完美 3D 正球体粒子群
+            for (let i = 0; i < parameters.coreCount; i++) {
+                const i3 = index * 3;
+                
+                // 均匀球体内部随机采样
+                const u = Math.random();
+                const v = Math.random();
+                const theta = u * 2.0 * Math.PI;
+                const phi = Math.acos(2.0 * v - 1.0);
+                const r = Math.cbrt(Math.random()) * parameters.coreRadius; 
+                
+                const x = r * Math.sin(phi) * Math.cos(theta);
+                const y = r * Math.sin(phi) * Math.sin(theta); 
+                const z = r * Math.cos(phi);
+
+                positions[i3    ] = x;
+                positions[i3 + 1] = y;
+                positions[i3 + 2] = z;
+
+                // 核心粒子基础颜色
+                const baseColor = colorInside.clone();
+
+                // 随机色彩变异计算
+                if (parameters.randomColors) {
+                    const hsl = { h: 0, s: 0, l: 0 };
+                    baseColor.getHSL(hsl);
+                    hsl.h += (Math.random() - 0.5) * parameters.colorRandomness * 0.3;
+                    hsl.s = THREE.MathUtils.clamp(hsl.s + (Math.random() - 0.5) * parameters.colorRandomness, 0, 1);
+                    hsl.l = THREE.MathUtils.clamp(hsl.l + (Math.random() - 0.5) * parameters.colorRandomness * 0.4, 0.2, 0.9);
+                    baseColor.setHSL(hsl.h, hsl.s, hsl.l);
+                }
+
+                colors[i3    ] = baseColor.r;
+                colors[i3 + 1] = baseColor.g;
+                colors[i3 + 2] = baseColor.b;
+
+                index++;
+            }
+
+            // (B) 旋臂粒子群
+            for (let i = 0; i < parameters.count; i++) {
+                const i3 = index * 3;
+
+                const radius = Math.pow(Math.random(), 0.8) * parameters.radius + 1.2;
+                const spinAngle = radius * parameters.spin;
+                const branchAngle = ((i % parameters.branches) / parameters.branches) * Math.PI * 2;
+                
+                const randomX = Math.pow(Math.random(), 2.1) * (Math.random() < 0.5 ? 1 : -1) * parameters.randomness * radius;
+                const randomY = Math.pow(Math.random(), 2.1) * (Math.random() < 0.5 ? 1 : -1) * parameters.randomness * (radius * 0.8 * parameters.thickness + 1.2);
+                const randomZ = Math.pow(Math.random(), 2.1) * (Math.random() < 0.5 ? 1 : -1) * parameters.randomness * radius;
+
+                positions[i3    ] = Math.cos(branchAngle + spinAngle) * radius + randomX;
+                positions[i3 + 1] = randomY;
+                positions[i3 + 2] = Math.sin(branchAngle + spinAngle) * radius + randomZ;
+
+                // 渐变过渡色
+                const mixedColor = colorInside.clone();
+                mixedColor.lerp(colorOutside, Math.min(radius / parameters.radius, 1.0));
+
+                // 随机色彩变异（模拟丰富的光谱和特殊星体）
+                if (parameters.randomColors) {
+                    const hsl = { h: 0, s: 0, l: 0 };
+                    mixedColor.getHSL(hsl);
+                    hsl.h += (Math.random() - 0.5) * parameters.colorRandomness * 0.4;
+                    hsl.s = THREE.MathUtils.clamp(hsl.s + (Math.random() - 0.5) * parameters.colorRandomness, 0.1, 1.0);
+                    hsl.l = THREE.MathUtils.clamp(hsl.l + (Math.random() - 0.5) * parameters.colorRandomness * 0.3, 0.1, 0.95);
+                    mixedColor.setHSL(hsl.h, hsl.s, hsl.l);
+                }
+
+                colors[i3    ] = mixedColor.r;
+                colors[i3 + 1] = mixedColor.g;
+                colors[i3 + 2] = mixedColor.b;
+
+                index++;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            originalPositions = new Float32Array(positions);
+            particleVelocities = new Float32Array(totalCount * 3);
+
+            material = new THREE.PointsMaterial({
+                size: parameters.size,
+                sizeAttenuation: true,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.88
+            });
+
+            points = new THREE.Points(geometry, material);
+            scene.add(points);
+        };
+
+        generateGalaxy();
+
+        // 5. 远景背景细小星空
+        const bgStarsCount = 3500;
+        const bgGeometry = new THREE.BufferGeometry();
+        const bgPos = new Float32Array(bgStarsCount * 3);
+        for(let i = 0; i < bgStarsCount * 3; i++) {
+            bgPos[i] = (Math.random() - 0.5) * 140;
+        }
+        bgGeometry.setAttribute('position', new THREE.BufferAttribute(bgPos, 3));
+        const bgMaterial = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 0.035,
+            transparent: true,
+            opacity: 0.45
+        });
+        const bgStars = new THREE.Points(bgGeometry, bgMaterial);
+        scene.add(bgStars);
+
+        // 6. 3D 精确球面光标交互物理系统
+        const mouse = new THREE.Vector2(-999, -999);
+        const raycaster = new THREE.Raycaster();
+        const mousePlane = new THREE.Plane();
+        const mouseWorldPosition = new THREE.Vector3(-9999, -9999, -9999);
+
+        const updateMouse3DPosition = (clientX, clientY) => {
+            mouse.x = (clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            // 构造一个经过坐标原点、始终面向摄像机视线的 3D 平面
+            const camDir = new THREE.Vector3();
+            camera.getWorldDirection(camDir);
+            mousePlane.setFromNormalAndCoplanarPoint(camDir.negate(), new THREE.Vector3(0, 0, 0));
+
+            // 获取鼠标射线在 3D 空间平面中的相交坐标 (X, Y, Z)
+            raycaster.ray.intersectPlane(mousePlane, mouseWorldPosition);
+        };
+
+        window.addEventListener('mousemove', (e) => updateMouse3DPosition(e.clientX, e.clientY));
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                updateMouse3DPosition(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, { passive: true });
+
+        // 7. GUI 交互控制面板定义
+        const gui = new GUI({ title: '🌌 银河系控制面板', closeFolders: false });
+
+        const folderColors = gui.addFolder('恒星色彩配置');
+        folderColors.addColor(parameters, 'insideColor').name('内侧核心颜色').onChange(generateGalaxy);
+        folderColors.addColor(parameters, 'outsideColor').name('外侧旋臂颜色').onChange(generateGalaxy);
+        folderColors.add(parameters, 'randomColors').name('开启彩虹/星云随机色').onChange(generateGalaxy);
+        folderColors.add(parameters, 'colorRandomness', 0.0, 1.0, 0.02).name('颜色随机扰动度').onChange(generateGalaxy);
+
+        const folderStructure = gui.addFolder('星系规模与结构');
+        folderStructure.add(parameters, 'count', 20000, 250000, 5000).name('旋臂粒子数量').onFinishChange(generateGalaxy);
+        folderStructure.add(parameters, 'coreCount', 5000, 60000, 1000).name('核心粒子数量').onFinishChange(generateGalaxy);
+        folderStructure.add(parameters, 'radius', 10, 40, 1).name('星系半径').onChange(generateGalaxy);
+        folderStructure.add(parameters, 'branches', 2, 8, 1).name('旋臂条数').onChange(generateGalaxy);
+        folderStructure.add(parameters, 'thickness', 0.2, 2.5, 0.1).name('盘面厚度').onChange(generateGalaxy);
+        folderStructure.add(parameters, 'size', 0.005, 0.05, 0.001).name('粒子星光尺寸').onChange(() => {
+            if(material) material.size = parameters.size;
+        });
+
+        const folderCore = gui.addFolder('中心核与半透明外壳');
+        folderCore.add(parameters, 'coreRadius', 1.0, 10.0, 0.1).name('核心球核半径').onChange(generateGalaxy);
+        folderCore.add(parameters, 'glowRadius', 1.5, 12.0, 0.1).name('半透明外壳半径').onChange(updateGlowMesh);
+        folderCore.addColor(parameters, 'glowColor').name('半透明外壳颜色').onChange(updateGlowMesh);
+        folderCore.add(parameters, 'glowOpacity', 0.0, 0.5, 0.01).name('外壳透明度').onChange(updateGlowMesh);
+
+        const folderInteraction = gui.addFolder('3D 鼠标引力/斥力场');
+        folderInteraction.add(parameters, 'mouseRadius', 0.5, 5.0, 0.1).name('3D球体作用半径');
+        folderInteraction.add(parameters, 'mouseForce', 0.05, 1.0, 0.02).name('推开推力强度');
+        folderInteraction.add(parameters, 'returnSpeed', 0.5, 5.0, 0.1).name('星体归位弹性');
+
+        // 默认保持控制面板与子菜单展开可交互状态
+        gui.open();
+        folderColors.open();
+        folderStructure.close();
+        folderCore.close();
+        folderInteraction.close();
+
+        // 8. 实时动画渲染循环与 3D 物理计算
+        const clock = new THREE.Clock();
+
+        const tick = () => {
+            const elapsedTime = clock.getElapsedTime();
+
+            if (points && geometry) {
+                // 银河系整体慢速旋转
+                points.rotation.y = elapsedTime * 0.04;
+
+                const positionAttribute = geometry.attributes.position;
+                const count = positionAttribute.count;
+                
+                // 将 3D 鼠标世界坐标转换到旋转中的星系本地坐标系下
+                const invMatrix = points.matrixWorld.clone().invert();
+                const localMousePos = mouseWorldPosition.clone().applyMatrix4(invMatrix);
+
+                const mouseR = parameters.mouseRadius;
+                const mouseR2 = mouseR * mouseR;
+                const retSpeed = parameters.returnSpeed;
+
+                for (let i = 0; i < count; i++) {
+                    const i3 = i * 3;
+                    
+                    const origX = originalPositions[i3];
+                    const origY = originalPositions[i3 + 1];
+                    const origZ = originalPositions[i3 + 2];
+
+                    let px = positionAttribute.getX(i);
+                    let py = positionAttribute.getY(i);
+                    let pz = positionAttribute.getZ(i);
+
+                    // 精确计算粒子与鼠标点之间的 3D 空间相对向量与距离
+                    const dx = px - localMousePos.x;
+                    const dy = py - localMousePos.y;
+                    const dz = pz - localMousePos.z;
+
+                    // 真正的三维球面距离平方: dx² + dy² + dz²
+                    const distSq3D = dx * dx + dy * dy + dz * dz;
+
+                    // 1) 鼠标 3D 球体斥力计算
+                    if (distSq3D < mouseR2 && distSq3D > 0.0001) {
+                        const dist3D = Math.sqrt(distSq3D);
+                        // 距离越近，受到的三维排斥力越强
+                        const force = (1.0 - dist3D / mouseR) * parameters.mouseForce;
+                        
+                        particleVelocities[i3    ] += (dx / dist3D) * force;
+                        particleVelocities[i3 + 1] += (dy / dist3D) * force;
+                        particleVelocities[i3 + 2] += (dz / dist3D) * force;
+                    }
+
+                    // 2) 向原始轨道弹回与阻尼衰减
+                    const curDx = origX - px;
+                    const curDy = origY - py;
+                    const curDz = origZ - pz;
+
+                    particleVelocities[i3    ] += curDx * retSpeed * 0.016;
+                    particleVelocities[i3 + 1] += curDy * retSpeed * 0.016;
+                    particleVelocities[i3 + 2] += curDz * retSpeed * 0.016;
+
+                    const damping = 0.88;
+                    particleVelocities[i3    ] *= damping;
+                    particleVelocities[i3 + 1] *= damping;
+                    particleVelocities[i3 + 2] *= damping;
+
+                    px += particleVelocities[i3    ];
+                    py += particleVelocities[i3 + 1];
+                    pz += particleVelocities[i3 + 2];
+
+                    positionAttribute.setXYZ(i, px, py, pz);
+                }
+                positionAttribute.needsUpdate = true;
+            }
+
+            bgStars.rotation.y = elapsedTime * 0.003;
+
+            controls.update();
+            renderer.render(scene, camera);
+            window.requestAnimationFrame(tick);
+        };
+
+        tick();
+
+        document.getElementById('loading').style.display = 'none';
+
+        // 9. 窗口大小自适应处理
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        });
+    </script>
+</body>
+</html>

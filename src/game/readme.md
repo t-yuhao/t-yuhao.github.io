@@ -23,6 +23,8 @@
 
 >[3D银河系模拟](./games/YinHe.html)
 
+>[星系粒子群模拟](./games/YinHeWTT.html)
+
 >[水果连珠](./games/fruits.html)
 球体水果演示
 
@@ -53,6 +55,8 @@
 
 >[五子棋miniMax](./games/Gomoku.html)
 
->[五子棋Alpha-Beta](./games/αβAI.html)
+>[五子棋Alpha-Beta](./games/gomoku-αβ.html)
+
+>[五子棋Alpha-Beta1](./games/αβAI.html)
 
 >[井字棋](./games/Tic-tac-toe.html)

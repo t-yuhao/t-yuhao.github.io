@@ -31,9 +31,13 @@
 
 >[五子棋miniMax](./game/games/Gomoku.html)
 
->[五子棋Alpha-Beta](./game/games/αβAI.html)
+>[五子棋Alpha-Beta](./game/games/gomoku-αβ.html)
+
+>[五子棋Alpha-Beta1](./game/games/αβAI.html)
+
 
 >[井字棋](./game/games/Tic-tac-toe.html)
+
 
 ## [04-工具](./Tool/)
 
