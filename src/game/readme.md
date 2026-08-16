@@ -57,6 +57,8 @@
 
 >[五子棋Alpha-Beta](./games/gomoku-αβ.html)
 
+>[五子棋Alpha-Beta](./games/gomoku-αβvst.html)
+
 >[五子棋Alpha-Beta1](./games/αβAI.html)
 
 >[井字棋](./games/Tic-tac-toe.html)

@@ -33,6 +33,9 @@
 
 >[五子棋Alpha-Beta](./game/games/gomoku-αβ.html)
 
+>[五子棋Alpha-Beta](./game/games/gomoku-αβvst.html)
+
+
 >[五子棋Alpha-Beta1](./game/games/αβAI.html)
 
 

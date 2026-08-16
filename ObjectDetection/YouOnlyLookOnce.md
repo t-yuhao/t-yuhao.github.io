@@ -98,7 +98,7 @@ YOLO为每个网格单元预测多个边界框。在训练时，我们希望每�
 
 在训练过程中，我们优化以下多部分损失函数：
 
-$
+$$
 \lambda_{coord} \sum_{i=0}^{S^2} \sum_{j=0}^{B} 1^{obj}_{ij} \left[ (x_i - \hat{x}_i)^2 + 
 (y_i - \hat{y}_i)^2 \right] + 
 \lambda_{coord} \sum_{i=0}^{S^2} \sum_{j=0}^{B} 1^{obj}_{ij} \left[ \left( \sqrt{w_i} - \sqrt{\hat{w}_i} \right)^2 +
@@ -106,7 +106,7 @@ $
  \sum_{i=0}^{S^2} \sum_{j=0}^{B} 1^{obj}_{ij} (C_i - \hat{C}_i)^2 +
   \lambda_{noobj} \sum_{i=0}^{S^2} \sum_{j=0}^{B} 1^{noobj}_{ij} (C_i - \hat{C}_i)^2 +
    \sum_{i=0}^{S^2} 1^{obj}_{i} \sum_{c \in classes} (p_i(c) - \hat{p}_i(c))^2
-$
+$$
 
 其中，$1^{obj}_i$ 表示在第i个网格单元中是否有物体，$1^{obj}_{ij}$ 表示第i个网格单元中第j个边界框预测器是否负责该预测。
 
