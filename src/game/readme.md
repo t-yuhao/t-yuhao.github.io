@@ -55,10 +55,10 @@
 
 >[五子棋miniMax](./games/Gomoku.html)
 
->[五子棋Alpha-Beta](./games/gomoku-αβ.html)
+>[五子棋Alpha-Beta-v0](./games/αβAI.html)
 
->[五子棋Alpha-Beta](./games/gomoku-αβvst.html)
+>[五子棋Alpha-Beta-v1](./games/gomoku-αβ.html)
 
->[五子棋Alpha-Beta1](./games/αβAI.html)
+>[五子棋Alpha-Beta-v2](./games/gomoku-αβvst.html)
 
 >[井字棋](./games/Tic-tac-toe.html)

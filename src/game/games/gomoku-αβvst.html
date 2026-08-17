@@ -185,8 +185,6 @@
         .zoom-confirm-btn:active {
             transform: translateX(-50%) scale(0.94);
         }
-
-        /* ----- 轻量级思考指示（不遮挡棋盘） ----- */
         .thinking-indicator {
             position: absolute;
             top: 12px;
@@ -218,8 +216,6 @@
         .thinking-indicator.show {
             display: flex;
         }
-
-        /* ----- 模态框（更小、半透明、不遮挡整个棋盘） ----- */
         .modal-overlay {
             position: absolute;
             inset: 20px;
@@ -284,7 +280,6 @@
         }
         .modal-btn:hover { transform: scale(1.04); }
         .modal-btn:active { transform: scale(0.94); }
-
         .bottom-bar {
             display: flex;
             gap: 10px;
@@ -417,12 +412,10 @@
     <div class="board-container" id="boardWrapper">
         <canvas id="boardCanvas"></canvas>
         <button class="zoom-confirm-btn" id="confirmPlaceBtn">确认落子</button>
-        <!-- 轻量思考指示 -->
         <div class="thinking-indicator" id="thinkingIndicator">
             <div class="spinner-small"></div>
             <span>AI思考中</span>
         </div>
-        <!-- 模态框（小尺寸） -->
         <div class="modal-overlay" id="modalOverlay">
             <div class="modal-card">
                 <div class="modal-title" id="modalTitle">对局结束</div>
@@ -445,8 +438,8 @@
 
 <script>
     // ================================================================
-    //  五子棋 · 明镜弈局 · AI 整合版
-    //  只显示AI威胁，闪烁3秒后自动消失
+    //  五子棋 · 明镜弈局 · Web Worker 版
+    //  修复：推荐功能在主线程添加 evaluateDirection 函数
     // ================================================================
 
     (() => {
@@ -504,24 +497,25 @@
         let effects = [];
         let shake = 0, flash = 0;
 
-        // 威胁标记 (只存AI威胁)
-        let threatCells = []; // [{row, col, type}]
+        // 威胁标记
+        let threatCells = [];
         let threatFlash = 0;
         let threatTimer = null;
-        let threatTimeout = null; // 用于自动清除
+        let threatTimeout = null;
 
         // 音频
         let audioCtx = null;
 
-        // 画布几何 (实际像素尺寸)
+        // 画布几何
         let canvasPixelSize = 600;
         let scaleFactor = 1;
         let PADDING = 28;
         let CELL_SIZE = 0;
         let PIECE_RADIUS = 0;
 
-        // AI信息
-        let lastAIInfo = '';
+        // AI Worker
+        let worker = null;
+        let pendingAI = false;
 
         // ---------- 工具 ----------
         function gridToPos(row, col) {
@@ -603,20 +597,12 @@
             thinkingIndicator.classList.remove('show');
             confirmBtn.classList.remove('show');
             canvas.style.transform = '';
-            lastAIInfo = '';
             updateUI();
             drawBoard();
             thinkBox.textContent = `欢迎，你执${playerColor===BLACK?'黑':'白'}。${playerColor===BLACK?'你先手':'AI先手'}。`;
             if (playerColor === WHITE && !gameOver && currentPlayer === BLACK) {
                 scheduleAITurn();
             }
-        }
-
-        function clearThreats() {
-            threatCells = [];
-            threatFlash = 0;
-            if (threatTimer) { clearInterval(threatTimer); threatTimer = null; }
-            if (threatTimeout) { clearTimeout(threatTimeout); threatTimeout = null; }
         }
 
         // ---------- 落子逻辑 ----------
@@ -654,9 +640,8 @@
             updateUI();
             drawBoard();
 
-            // 威胁检测（只检测AI威胁）
             if (!gameOver) {
-                detectAIThreats();
+                setTimeout(() => detectThreats(), 20);
             }
             return true;
         }
@@ -684,15 +669,63 @@
             return false;
         }
 
-        // ---------- 只检测AI威胁 ----------
-        function detectAIThreats() {
-            const color = aiColor;
+        // ---------- 威胁检测 (仅冲四) ----------
+        function detectThreats() {
+            const allThreats = [];
+            const playerThreats = detectThreatsForColor(playerColor);
+            playerThreats.forEach(t => { t.target = 'player'; });
+            allThreats.push(...playerThreats);
+            const aiThreats = detectThreatsForColor(aiColor);
+            aiThreats.forEach(t => { t.target = 'ai'; });
+            allThreats.push(...aiThreats);
+            const fourThreats = allThreats.filter(t => t.type === 'four');
+
+            if (fourThreats.length > 0) {
+                threatCells = fourThreats.map(t => ({ row: t.row, col: t.col, target: t.target }));
+                playSound('threat');
+                if (threatTimer) clearInterval(threatTimer);
+                threatFlash = 0;
+                threatTimer = setInterval(() => {
+                    threatFlash = (threatFlash + 0.1) % 1;
+                    drawBoard();
+                }, 150);
+                if (threatTimeout) clearTimeout(threatTimeout);
+                threatTimeout = setTimeout(() => {
+                    clearThreats();
+                    drawBoard();
+                    if (!gameOver && currentPlayer === playerColor) {
+                        thinkBox.textContent = `轮到你了，${playerColor===BLACK?'黑':'白'}棋。`;
+                    }
+                }, 2000);
+
+                let msg = '';
+                const playerThreats = fourThreats.filter(t => t.target === 'player');
+                const aiThreats = fourThreats.filter(t => t.target === 'ai');
+                if (playerThreats.length > 0) {
+                    const posStr = playerThreats.map(t => `(${t.row+1},${t.col+1})`).join(' ');
+                    msg += `你的冲四威胁 位置: ${posStr}`;
+                }
+                if (aiThreats.length > 0) {
+                    if (msg) msg += ' | ';
+                    const posStr = aiThreats.map(t => `(${t.row+1},${t.col+1})`).join(' ');
+                    msg += `AI冲四威胁 位置: ${posStr}`;
+                }
+                thinkBox.textContent = msg;
+            } else {
+                clearThreats();
+                if (!gameOver && currentPlayer === playerColor) {
+                    thinkBox.textContent = `轮到你了，${playerColor===BLACK?'黑':'白'}棋。`;
+                }
+            }
+        }
+
+        function detectThreatsForColor(color) {
             const threats = [];
             const candidates = getCandidatePositions(board);
             for (const pos of candidates) {
                 const r = pos[0], c = pos[1];
                 board[r][c] = color;
-                let four = false, three = false;
+                let four = false;
                 for (const d of DIRS) {
                     let count = 1;
                     let openEnds = 0;
@@ -704,50 +737,93 @@
                     if (rr>=0 && rr<SIZE && cc>=0 && cc<SIZE && board[rr][cc]===EMPTY) openEnds++;
 
                     if (count >= 4 && openEnds >= 1) four = true;
-                    if (count === 3 && openEnds === 2) three = true;
                 }
                 board[r][c] = EMPTY;
                 if (four) threats.push({row:r, col:c, type:'four'});
-                else if (three) threats.push({row:r, col:c, type:'three'});
             }
+            return threats;
+        }
 
-            // 只显示威胁，不显示玩家威胁
-            if (threats.length > 0) {
-                threatCells = threats;
-                playSound('threat');
-                // 闪烁效果
-                if (threatTimer) clearInterval(threatTimer);
-                threatFlash = 0;
-                threatTimer = setInterval(() => {
-                    threatFlash = (threatFlash + 0.1) % 1;
-                    drawBoard();
-                }, 150);
+        function clearThreats() {
+            threatCells = [];
+            if (threatTimer) { clearInterval(threatTimer); threatTimer = null; }
+            if (threatTimeout) { clearTimeout(threatTimeout); threatTimeout = null; }
+            threatFlash = 0;
+        }
 
-                // 提示信息
-                const posStr = threats.map(t => `(${t.row+1},${t.col+1})`).join(' ');
-                const typeStr = threats[0].type === 'four' ? '冲四' : '活三';
-                thinkBox.textContent = `AI威胁 (${typeStr}) 位置: ${posStr}`;
-
-                // 3秒后自动清除威胁标记
-                if (threatTimeout) clearTimeout(threatTimeout);
-                threatTimeout = setTimeout(() => {
-                    clearThreats();
-                    drawBoard();
-                    if (!gameOver && currentPlayer === playerColor) {
-                        thinkBox.textContent = `轮到你了，${playerColor===BLACK?'黑':'白'}棋。`;
+        // ---------- 候选位置 (用于威胁检测和推荐) ----------
+        function getCandidatePositions(board) {
+            const set = new Set();
+            const range = 2;
+            let hasStone = false;
+            for (let r=0; r<SIZE; r++) {
+                for (let c=0; c<SIZE; c++) {
+                    if (board[r][c]!==EMPTY) {
+                        hasStone = true;
+                        for (let dr=-range; dr<=range; dr++) {
+                            for (let dc=-range; dc<=range; dc++) {
+                                const nr=r+dr, nc=c+dc;
+                                if (nr>=0 && nr<SIZE && nc>=0 && nc<SIZE && board[nr][nc]===EMPTY) {
+                                    set.add(nr*SIZE + nc);
+                                }
+                            }
+                        }
                     }
-                }, 3000);
-            } else {
-                clearThreats();
-                if (!gameOver && currentPlayer === playerColor) {
-                    thinkBox.textContent = `轮到你了，${playerColor===BLACK?'黑':'白'}棋。`;
                 }
             }
+            if (!hasStone) return [[Math.floor(SIZE/2), Math.floor(SIZE/2)]];
+            const result = [];
+            for (const key of set) {
+                result.push([Math.floor(key/SIZE), key%SIZE]);
+            }
+            return result;
+        }
+
+        // ---------- 评估函数 (主线程，用于推荐) ----------
+        function evaluateDirection(board, row, col, color, dr, dc) {
+            let count = 1, openEnds = 0;
+            let r = row + dr, c = col + dc;
+            while (r >= 0 && r < SIZE && c >= 0 && c < SIZE && board[r][c] === color) {
+                count++;
+                r += dr;
+                c += dc;
+            }
+            if (r >= 0 && r < SIZE && c >= 0 && c < SIZE && board[r][c] === EMPTY) openEnds++;
+            r = row - dr;
+            c = col - dc;
+            while (r >= 0 && r < SIZE && c >= 0 && c < SIZE && board[r][c] === color) {
+                count++;
+                r -= dr;
+                c -= dc;
+            }
+            if (r >= 0 && r < SIZE && c >= 0 && c < SIZE && board[r][c] === EMPTY) openEnds++;
+
+            if (count >= 5) return 1000000;
+            if (count === 4) {
+                if (openEnds === 2) return 100000;
+                if (openEnds === 1) return 10000;
+                return 0;
+            }
+            if (count === 3) {
+                if (openEnds === 2) return 5000;
+                if (openEnds === 1) return 1000;
+                return 0;
+            }
+            if (count === 2) {
+                if (openEnds === 2) return 500;
+                if (openEnds === 1) return 100;
+                return 0;
+            }
+            if (count === 1) {
+                if (openEnds === 2) return 10;
+                return 0;
+            }
+            return 0;
         }
 
         // ---------- 悔棋 ----------
         function undoMove() {
-            if (isThinking) return;
+            if (isThinking || pendingAI) return;
             if (moveHistory.length === 0) return;
             if (gameOver) { gameOver=false; winner=null; modalOverlay.classList.remove('show'); }
 
@@ -777,7 +853,6 @@
             canvas.style.transform = '';
             modalOverlay.classList.remove('show');
             clearThreats();
-            lastAIInfo = '';
             updateUI(); drawBoard();
             thinkBox.textContent = `悔棋成功，轮到${currentPlayer===playerColor?'你':'AI'}。`;
             if (!gameOver && currentPlayer === aiColor) {
@@ -899,19 +974,17 @@
             }
         }
 
-        // ---------- 绘制棋盘 (高DPI清晰) ----------
+        // ---------- 绘制棋盘 ----------
         function drawBoard() {
             const w=canvas.width, h=canvas.height;
             ctx.clearRect(0,0,w,h);
 
-            // 棋盘背景
             const g = ctx.createRadialGradient(w*0.4, h*0.3, 0, w*0.5, h*0.5, w*0.8);
             g.addColorStop(0,'rgba(255,255,255,0.30)');
             g.addColorStop(1,'rgba(230,225,240,0.15)');
             ctx.fillStyle = g;
             ctx.fillRect(0,0,w,h);
 
-            // 网格线
             ctx.strokeStyle = 'rgba(0,0,0,0.13)';
             ctx.lineWidth = 0.8 * scaleFactor;
             for (let i=0; i<SIZE; i++) {
@@ -920,7 +993,6 @@
                 ctx.beginPath(); ctx.moveTo(p,PADDING); ctx.lineTo(p,h-PADDING); ctx.stroke();
             }
 
-            // 星位
             ctx.fillStyle = 'rgba(0,0,0,0.12)';
             const stars = starPositions(SIZE);
             for (const [r,c] of stars) {
@@ -930,7 +1002,6 @@
                 ctx.fill();
             }
 
-            // 棋子
             for (let r=0; r<SIZE; r++) {
                 for (let c=0; c<SIZE; c++) {
                     if (board[r][c]===EMPTY) continue;
@@ -958,7 +1029,6 @@
                     ctx.fill();
                     ctx.shadowBlur = 0;
 
-                    // 高光
                     ctx.beginPath();
                     ctx.arc(pos.x - radius*(color===WHITE?0.15:0.12),
                             pos.y - radius*(color===WHITE?0.15:0.12),
@@ -966,7 +1036,6 @@
                     ctx.fillStyle = color===WHITE?'rgba(255,255,255,0.7)':'rgba(255,255,255,0.20)';
                     ctx.fill();
 
-                    // 编号
                     const idx = moveHistory.findIndex(m=>m.row===r && m.col===c)+1;
                     if (idx>0) {
                         ctx.font = `bold ${Math.min(CELL_SIZE*0.38, 15*scaleFactor)}px "华文楷体","KaiTi",sans-serif`;
@@ -981,7 +1050,6 @@
                 }
             }
 
-            // 最后一步高亮
             if (lastMove) {
                 const pos = gridToPos(lastMove.row, lastMove.col);
                 ctx.save();
@@ -995,14 +1063,14 @@
                 ctx.restore();
             }
 
-            // 威胁标记 (只显示AI威胁，红色/橙色)
             if (threatCells.length > 0 && !gameOver) {
                 const alpha = 0.5 + 0.5 * Math.sin(threatFlash * Math.PI * 2);
                 for (const t of threatCells) {
                     const pos = gridToPos(t.row, t.col);
                     ctx.save();
                     ctx.globalAlpha = 0.7 * alpha;
-                    const color = t.type === 'four' ? '#ff5722' : '#ff9800';
+                    const isPlayer = t.target === 'player';
+                    const color = isPlayer ? '#3f51b5' : '#ff5722';
                     ctx.fillStyle = color;
                     ctx.shadowColor = color;
                     ctx.shadowBlur = 30*scaleFactor;
@@ -1019,7 +1087,6 @@
                 }
             }
 
-            // 提示位置
             if (hintMove && !gameOver) {
                 const pos = gridToPos(hintMove.row, hintMove.col);
                 ctx.save();
@@ -1037,7 +1104,6 @@
                 ctx.restore();
             }
 
-            // 放大预览
             if (isZooming && zoomTarget) {
                 const pos = gridToPos(zoomTarget.row, zoomTarget.col);
                 ctx.save();
@@ -1051,15 +1117,12 @@
                 ctx.restore();
             }
 
-            // 胜利连线
             if (gameOver && winner) {
                 drawWinLine();
             }
 
-            // 特效
             drawEffects();
 
-            // 震动
             if (shake>0.1) {
                 const dx=(Math.random()-0.5)*shake*1.2;
                 const dy=(Math.random()-0.5)*shake*1.2;
@@ -1131,7 +1194,7 @@
                 modeHint.textContent = '对局结束';
                 return;
             }
-            if (isThinking) {
+            if (isThinking || pendingAI) {
                 statusMsg.textContent = 'AI 思考中 …';
                 turnDot.className = 'turn-dot white';
                 modeHint.textContent = '请稍候';
@@ -1165,7 +1228,7 @@
             }
         }
 
-        // ---------- 尺寸调整 (高DPI适配) ----------
+        // ---------- 尺寸调整 ----------
         function resizeCanvas() {
             const rect = wrap.getBoundingClientRect();
             const dpr = window.devicePixelRatio || 1;
@@ -1185,281 +1248,330 @@
         }
 
         // ================================================================
-        //  AI 核心 (来自 ab威胁空间搜索)
+        //  Web Worker 实现 AI 搜索
         // ================================================================
 
-        function getCandidatePositions(board) {
-            const set = new Set();
-            const range = 2;
-            let hasStone = false;
-            for (let r=0; r<SIZE; r++) {
-                for (let c=0; c<SIZE; c++) {
-                    if (board[r][c]!==EMPTY) {
-                        hasStone = true;
-                        for (let dr=-range; dr<=range; dr++) {
-                            for (let dc=-range; dc<=range; dc++) {
-                                const nr=r+dr, nc=c+dc;
-                                if (nr>=0 && nr<SIZE && nc>=0 && nc<SIZE && board[nr][nc]===EMPTY) {
-                                    set.add(nr*SIZE + nc);
+        function createWorker() {
+            const workerCode = `
+                const EMPTY = 0, BLACK = 1, WHITE = 2;
+                const DIRS = [[1,0],[0,1],[1,1],[1,-1]];
+
+                function checkWin(board, row, col, color, SIZE) {
+                    if (board[row][col] !== color) return false;
+                    for (const d of DIRS) {
+                        let count = 1;
+                        for (let step = 1; step < 5; step++) {
+                            const nr = row + d[0] * step, nc = col + d[1] * step;
+                            if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) break;
+                            if (board[nr][nc] === color) count++; else break;
+                        }
+                        for (let step = 1; step < 5; step++) {
+                            const nr = row - d[0] * step, nc = col - d[1] * step;
+                            if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) break;
+                            if (board[nr][nc] === color) count++; else break;
+                        }
+                        if (count >= 5) return true;
+                    }
+                    return false;
+                }
+
+                function checkGlobalWin(board, color, SIZE) {
+                    for (let r=0; r<SIZE; r++) for (let c=0; c<SIZE; c++) if (board[r][c]===color && checkWin(board,r,c,color,SIZE)) return true;
+                    return false;
+                }
+
+                function isBoardFull(board, SIZE) {
+                    for (let r=0; r<SIZE; r++) for (let c=0; c<SIZE; c++) if (board[r][c]===EMPTY) return false;
+                    return true;
+                }
+
+                function countPieces(board, SIZE) {
+                    let cnt=0; for (let r=0; r<SIZE; r++) for (let c=0; c<SIZE; c++) if (board[r][c]!==EMPTY) cnt++;
+                    return cnt;
+                }
+
+                function getCandidatePositions(board, SIZE) {
+                    const set = new Set();
+                    const range = 2;
+                    let hasStone = false;
+                    for (let r=0; r<SIZE; r++) {
+                        for (let c=0; c<SIZE; c++) {
+                            if (board[r][c]!==EMPTY) {
+                                hasStone = true;
+                                for (let dr=-range; dr<=range; dr++) {
+                                    for (let dc=-range; dc<=range; dc++) {
+                                        const nr=r+dr, nc=c+dc;
+                                        if (nr>=0 && nr<SIZE && nc>=0 && nc<SIZE && board[nr][nc]===EMPTY) {
+                                            set.add(nr*SIZE + nc);
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
+                    if (!hasStone) return [[Math.floor(SIZE/2), Math.floor(SIZE/2)]];
+                    const result = [];
+                    for (const key of set) {
+                        result.push([Math.floor(key/SIZE), key%SIZE]);
+                    }
+                    return result;
                 }
-            }
-            if (!hasStone) return [[Math.floor(SIZE/2), Math.floor(SIZE/2)]];
-            const result = [];
-            for (const key of set) {
-                result.push([Math.floor(key/SIZE), key%SIZE]);
-            }
-            return result;
-        }
 
-        function evaluateDirection(board, row, col, color, dr, dc) {
-            let count=1, openEnds=0;
-            let r=row+dr, c=col+dc;
-            while (r>=0 && r<SIZE && c>=0 && c<SIZE && board[r][c]===color) { count++; r+=dr; c+=dc; }
-            if (r>=0 && r<SIZE && c>=0 && c<SIZE && board[r][c]===EMPTY) openEnds++;
-            r=row-dr; c=col-dc;
-            while (r>=0 && r<SIZE && c>=0 && c<SIZE && board[r][c]===color) { count++; r-=dr; c-=dc; }
-            if (r>=0 && r<SIZE && c>=0 && c<SIZE && board[r][c]===EMPTY) openEnds++;
+                function evaluateDirection(board, row, col, color, dr, dc, SIZE) {
+                    let count=1, openEnds=0;
+                    let r=row+dr, c=col+dc;
+                    while (r>=0 && r<SIZE && c>=0 && c<SIZE && board[r][c]===color) { count++; r+=dr; c+=dc; }
+                    if (r>=0 && r<SIZE && c>=0 && c<SIZE && board[r][c]===EMPTY) openEnds++;
+                    r=row-dr; c=col-dc;
+                    while (r>=0 && r<SIZE && c>=0 && c<SIZE && board[r][c]===color) { count++; r-=dr; c-=dc; }
+                    if (r>=0 && r<SIZE && c>=0 && c<SIZE && board[r][c]===EMPTY) openEnds++;
 
-            if (count>=5) return 1000000;
-            if (count===4) {
-                if (openEnds===2) return 100000;
-                if (openEnds===1) return 10000;
-                return 0;
-            }
-            if (count===3) {
-                if (openEnds===2) return 5000;
-                if (openEnds===1) return 1000;
-                return 0;
-            }
-            if (count===2) {
-                if (openEnds===2) return 500;
-                if (openEnds===1) return 100;
-                return 0;
-            }
-            if (count===1) {
-                if (openEnds===2) return 10;
-                return 0;
-            }
-            return 0;
-        }
-
-        function evaluatePoint(board, row, col, color) {
-            if (board[row][col]!==EMPTY) return 0;
-            let score=0;
-            for (const d of DIRS) {
-                score += evaluateDirection(board,row,col,color,d[0],d[1]);
-            }
-            return score;
-        }
-
-        function evaluateBoard(board, aiColor) {
-            const playerColor = (aiColor===BLACK)?WHITE:BLACK;
-            const candidates = getCandidatePositions(board);
-            let aiScore=0, playerScore=0;
-            for (const pos of candidates) {
-                aiScore += evaluatePoint(board,pos[0],pos[1],aiColor);
-                playerScore += evaluatePoint(board,pos[0],pos[1],playerColor);
-            }
-            if (checkGlobalWin(aiColor)) return 9999999;
-            if (checkGlobalWin(playerColor)) return -9999999;
-            return aiScore - playerScore*1.1;
-        }
-
-        function orderMoves(board, moves, color, opponentColor) {
-            const scored = moves.map(pos => {
-                const myScore = evaluatePoint(board,pos[0],pos[1],color);
-                const oppScore = evaluatePoint(board,pos[0],pos[1],opponentColor);
-                const total = myScore + oppScore*1.3;
-                return {pos, total};
-            });
-            scored.sort((a,b)=>b.total-a.total);
-            return scored.map(item=>item.pos);
-        }
-
-        function alphaBetaSearch(board, depth, alpha, beta, isMaximizing, aiColor, currentDepth) {
-            const playerColor = (aiColor===BLACK)?WHITE:BLACK;
-            const color = isMaximizing?aiColor:playerColor;
-            const opponent = (color===BLACK)?WHITE:BLACK;
-
-            if (checkGlobalWin(aiColor)) return 9999999 - currentDepth;
-            if (checkGlobalWin(playerColor)) return -9999999 + currentDepth;
-            if (isBoardFull()) return 0;
-            if (depth===0) return evaluateBoard(board, aiColor);
-
-            let candidates = getCandidatePositions(board);
-            if (candidates.length===0) return 0;
-            candidates = orderMoves(board, candidates, color, opponent);
-
-            if (isMaximizing) {
-                let maxEval = -Infinity;
-                const topN = Math.min(candidates.length, 8);
-                for (let i=0; i<topN; i++) {
-                    const pos = candidates[i];
-                    board[pos[0]][pos[1]] = aiColor;
-                    const val = alphaBetaSearch(board, depth-1, alpha, beta, false, aiColor, currentDepth+1);
-                    board[pos[0]][pos[1]] = EMPTY;
-                    maxEval = Math.max(maxEval, val);
-                    alpha = Math.max(alpha, val);
-                    if (beta <= alpha) break;
+                    if (count>=5) return 1000000;
+                    if (count===4) {
+                        if (openEnds===2) return 100000;
+                        if (openEnds===1) return 10000;
+                        return 0;
+                    }
+                    if (count===3) {
+                        if (openEnds===2) return 5000;
+                        if (openEnds===1) return 1000;
+                        return 0;
+                    }
+                    if (count===2) {
+                        if (openEnds===2) return 500;
+                        if (openEnds===1) return 100;
+                        return 0;
+                    }
+                    if (count===1) {
+                        if (openEnds===2) return 10;
+                        return 0;
+                    }
+                    return 0;
                 }
-                return maxEval;
-            } else {
-                let minEval = Infinity;
-                const topN = Math.min(candidates.length, 8);
-                for (let i=0; i<topN; i++) {
-                    const pos = candidates[i];
-                    board[pos[0]][pos[1]] = playerColor;
-                    const val = alphaBetaSearch(board, depth-1, alpha, beta, true, aiColor, currentDepth+1);
-                    board[pos[0]][pos[1]] = EMPTY;
-                    minEval = Math.min(minEval, val);
-                    beta = Math.min(beta, val);
-                    if (beta <= alpha) break;
+
+                function evaluatePoint(board, row, col, color, SIZE) {
+                    if (board[row][col]!==EMPTY) return 0;
+                    let score=0;
+                    for (const d of DIRS) {
+                        score += evaluateDirection(board,row,col,color,d[0],d[1],SIZE);
+                    }
+                    return score;
                 }
-                return minEval;
-            }
+
+                function evaluateBoard(board, aiColor, SIZE) {
+                    const playerColor = (aiColor===BLACK)?WHITE:BLACK;
+                    const candidates = getCandidatePositions(board, SIZE);
+                    let aiScore=0, playerScore=0;
+                    for (const pos of candidates) {
+                        aiScore += evaluatePoint(board,pos[0],pos[1],aiColor,SIZE);
+                        playerScore += evaluatePoint(board,pos[0],pos[1],playerColor,SIZE);
+                    }
+                    if (checkGlobalWin(board, aiColor, SIZE)) return 9999999;
+                    if (checkGlobalWin(board, playerColor, SIZE)) return -9999999;
+                    return aiScore - playerScore*1.1;
+                }
+
+                function orderMoves(board, moves, color, opponentColor, SIZE) {
+                    const scored = moves.map(pos => {
+                        const myScore = evaluatePoint(board,pos[0],pos[1],color,SIZE);
+                        const oppScore = evaluatePoint(board,pos[0],pos[1],opponentColor,SIZE);
+                        const total = myScore + oppScore*1.3;
+                        return {pos, total};
+                    });
+                    scored.sort((a,b)=>b.total-a.total);
+                    return scored.map(item=>item.pos);
+                }
+
+                function alphaBetaSearch(board, depth, alpha, beta, isMaximizing, aiColor, currentDepth, SIZE) {
+                    const playerColor = (aiColor===BLACK)?WHITE:BLACK;
+                    const color = isMaximizing?aiColor:playerColor;
+                    const opponent = (color===BLACK)?WHITE:BLACK;
+
+                    if (checkGlobalWin(board, aiColor, SIZE)) return 9999999 - currentDepth;
+                    if (checkGlobalWin(board, playerColor, SIZE)) return -9999999 + currentDepth;
+                    if (isBoardFull(board, SIZE)) return 0;
+                    if (depth===0) return evaluateBoard(board, aiColor, SIZE);
+
+                    let candidates = getCandidatePositions(board, SIZE);
+                    if (candidates.length===0) return 0;
+                    candidates = orderMoves(board, candidates, color, opponent, SIZE);
+
+                    if (isMaximizing) {
+                        let maxEval = -Infinity;
+                        const topN = Math.min(candidates.length, 8);
+                        for (let i=0; i<topN; i++) {
+                            const pos = candidates[i];
+                            board[pos[0]][pos[1]] = aiColor;
+                            const val = alphaBetaSearch(board, depth-1, alpha, beta, false, aiColor, currentDepth+1, SIZE);
+                            board[pos[0]][pos[1]] = EMPTY;
+                            maxEval = Math.max(maxEval, val);
+                            alpha = Math.max(alpha, val);
+                            if (beta <= alpha) break;
+                        }
+                        return maxEval;
+                    } else {
+                        let minEval = Infinity;
+                        const topN = Math.min(candidates.length, 8);
+                        for (let i=0; i<topN; i++) {
+                            const pos = candidates[i];
+                            board[pos[0]][pos[1]] = playerColor;
+                            const val = alphaBetaSearch(board, depth-1, alpha, beta, true, aiColor, currentDepth+1, SIZE);
+                            board[pos[0]][pos[1]] = EMPTY;
+                            minEval = Math.min(minEval, val);
+                            beta = Math.min(beta, val);
+                            if (beta <= alpha) break;
+                        }
+                        return minEval;
+                    }
+                }
+
+                function calcDynamicDepth(board, minDepth, maxDepth, aiColor, SIZE) {
+                    const total = SIZE*SIZE;
+                    const filled = countPieces(board, SIZE);
+                    const fillRate = filled/total;
+                    let depth = minDepth + (maxDepth - minDepth) * fillRate * 1.0;
+
+                    const candidates = getCandidatePositions(board, SIZE);
+                    let threatScore = 0;
+                    for (const pos of candidates) {
+                        const s = evaluatePoint(board,pos[0],pos[1],aiColor,SIZE);
+                        if (s>=10000) threatScore=Math.max(threatScore,3);
+                        else if (s>=5000) threatScore=Math.max(threatScore,2);
+                        else if (s>=1000) threatScore=Math.max(threatScore,1);
+                    }
+                    depth += threatScore * 0.5;
+
+                    for (const pos of candidates) {
+                        board[pos[0]][pos[1]] = aiColor;
+                        const win = checkWin(board,pos[0],pos[1],aiColor,SIZE);
+                        board[pos[0]][pos[1]] = EMPTY;
+                        if (win) { depth = Math.min(depth, minDepth+1); break; }
+                    }
+                    depth = Math.round(Math.min(maxDepth, Math.max(minDepth, depth)));
+                    return depth;
+                }
+
+                function getAIMove(board, aiColor, minDepth, maxDepth, SIZE) {
+                    const candidates = getCandidatePositions(board, SIZE);
+                    if (candidates.length===0) return null;
+                    const playerColor = (aiColor===BLACK)?WHITE:BLACK;
+
+                    // 1. 直接获胜
+                    for (const pos of candidates) {
+                        board[pos[0]][pos[1]] = aiColor;
+                        if (checkWin(board,pos[0],pos[1],aiColor,SIZE)) {
+                            board[pos[0]][pos[1]] = EMPTY;
+                            return {row:pos[0], col:pos[1], score:9999999};
+                        }
+                        board[pos[0]][pos[1]] = EMPTY;
+                    }
+
+                    // 2. 防守直接获胜
+                    for (const pos of candidates) {
+                        board[pos[0]][pos[1]] = playerColor;
+                        if (checkWin(board,pos[0],pos[1],playerColor,SIZE)) {
+                            board[pos[0]][pos[1]] = EMPTY;
+                            return {row:pos[0], col:pos[1], score:-9999999};
+                        }
+                        board[pos[0]][pos[1]] = EMPTY;
+                    }
+
+                    // 3. 动态深度
+                    const depth = calcDynamicDepth(board, minDepth, maxDepth, aiColor, SIZE);
+
+                    // 4. 排序走法
+                    const ordered = orderMoves(board, candidates, aiColor, playerColor, SIZE);
+                    const topN = Math.min(ordered.length, 8);
+
+                    let bestScore = -Infinity;
+                    let bestMove = {row:ordered[0][0], col:ordered[0][1], score:-Infinity};
+
+                    for (let i=0; i<topN; i++) {
+                        const pos = ordered[i];
+                        board[pos[0]][pos[1]] = aiColor;
+                        const score = alphaBetaSearch(board, depth-1, -Infinity, Infinity, false, aiColor, 1, SIZE);
+                        board[pos[0]][pos[1]] = EMPTY;
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMove = {row:pos[0], col:pos[1], score};
+                        }
+                    }
+                    return bestMove;
+                }
+
+                self.onmessage = function(e) {
+                    const { board, aiColor, minDepth, maxDepth, SIZE } = e.data;
+                    const boardCopy = board.map(row => [...row]);
+                    const move = getAIMove(boardCopy, aiColor, minDepth, maxDepth, SIZE);
+                    self.postMessage({ move });
+                };
+            `;
+
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            const w = new Worker(url);
+            return w;
         }
 
-        function calcDynamicDepth(minDepth, maxDepth) {
-            const total = SIZE*SIZE;
-            const filled = countPieces();
-            const fillRate = filled/total;
-            let depth = minDepth + (maxDepth-minDepth)*fillRate*1.0;
-
-            const candidates = getCandidatePositions(board);
-            let threatScore = 0;
-            for (const pos of candidates) {
-                const s = evaluatePoint(board,pos[0],pos[1],aiColor);
-                if (s>=10000) threatScore=Math.max(threatScore,3);
-                else if (s>=5000) threatScore=Math.max(threatScore,2);
-                else if (s>=1000) threatScore=Math.max(threatScore,1);
-            }
-            depth += threatScore*0.5;
-
-            if (hasDirectWin(aiColor)) {
-                depth = Math.min(depth, minDepth+1);
-            }
-            depth = Math.round(Math.min(maxDepth, Math.max(minDepth, depth)));
-            return depth;
-        }
-
-        function hasDirectWin(color) {
-            const candidates = getCandidatePositions(board);
-            for (const pos of candidates) {
-                board[pos[0]][pos[1]] = color;
-                const win = checkWin(pos[0],pos[1],color);
-                board[pos[0]][pos[1]] = EMPTY;
-                if (win) return true;
-            }
-            return false;
-        }
-
-        function getAIMove(board, aiColor) {
-            const candidates = getCandidatePositions(board);
-            if (candidates.length===0) return null;
-            const playerColor = (aiColor===BLACK)?WHITE:BLACK;
-
-            // 1. 直接获胜
-            for (const pos of candidates) {
-                board[pos[0]][pos[1]] = aiColor;
-                if (checkWin(pos[0],pos[1],aiColor)) {
-                    board[pos[0]][pos[1]] = EMPTY;
-                    return {row:pos[0], col:pos[1], score:9999999};
-                }
-                board[pos[0]][pos[1]] = EMPTY;
-            }
-
-            // 2. 防守直接获胜
-            for (const pos of candidates) {
-                board[pos[0]][pos[1]] = playerColor;
-                if (checkWin(pos[0],pos[1],playerColor)) {
-                    board[pos[0]][pos[1]] = EMPTY;
-                    return {row:pos[0], col:pos[1], score:-9999999};
-                }
-                board[pos[0]][pos[1]] = EMPTY;
-            }
-
-            // 3. 动态深度
-            const depth = calcDynamicDepth(depthMin, depthMax);
-
-            // 4. 排序走法
-            const ordered = orderMoves(board, candidates, aiColor, playerColor);
-            const topN = Math.min(ordered.length, 8);
-
-            let bestScore = -Infinity;
-            let bestMove = {row:ordered[0][0], col:ordered[0][1], score:-Infinity};
-            let topMoves = [];
-
-            for (let i=0; i<topN; i++) {
-                const pos = ordered[i];
-                board[pos[0]][pos[1]] = aiColor;
-                const score = alphaBetaSearch(board, depth-1, -Infinity, Infinity, false, aiColor, 1);
-                board[pos[0]][pos[1]] = EMPTY;
-                topMoves.push({row:pos[0], col:pos[1], score});
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestMove = {row:pos[0], col:pos[1], score};
-                }
-            }
-
-            topMoves.sort((a,b)=>b.score-a.score);
-            const top3 = topMoves.slice(0,3).map(m=>`(${m.row+1},${m.col+1})[${m.score}]`).join(' ');
-            lastAIInfo = `最佳走法 (${bestMove.row+1},${bestMove.col+1}) 评分 ${bestScore} | 候选: ${top3}`;
-
-            return bestMove;
-        }
-
-        // ---------- AI 走子调度 (轻量指示) ----------
+        // ---------- AI 调度 ----------
         function scheduleAITurn() {
-            if (isThinking) return;
+            if (isThinking || pendingAI) return;
             if (gameOver) return;
             if (currentPlayer !== aiColor) return;
 
             isThinking = true;
+            pendingAI = true;
             thinkingIndicator.classList.add('show');
             updateUI();
 
-            requestAnimationFrame(() => {
-                setTimeout(() => {
-                    const candidates = getCandidatePositions(board);
-                    if (candidates.length === 0) {
-                        isThinking = false;
-                        thinkingIndicator.classList.remove('show');
-                        updateUI();
-                        return;
-                    }
+            const boardData = board.map(row => [...row]);
+            const data = {
+                board: boardData,
+                aiColor: aiColor,
+                minDepth: depthMin,
+                maxDepth: depthMax,
+                SIZE: SIZE
+            };
 
-                    const move = getAIMove(board, aiColor);
+            if (!worker) {
+                worker = createWorker();
+                worker.onmessage = function(e) {
+                    const { move } = e.data;
+                    pendingAI = false;
+                    isThinking = false;
+                    thinkingIndicator.classList.remove('show');
                     if (move) {
                         if (isZooming) cancelZoom();
                         placePiece(move.row, move.col, aiColor);
                         if (!gameOver) {
-                            thinkBox.textContent = `AI 落子 (${move.row+1}, ${move.col+1})。${lastAIInfo}`;
+                            thinkBox.textContent = `AI 落子 (${move.row+1}, ${move.col+1})。评分 ${move.score}`;
                         } else {
-                            thinkBox.textContent = `AI 落子 (${move.row+1}, ${move.col+1})。${lastAIInfo}`;
+                            thinkBox.textContent = `AI 落子 (${move.row+1}, ${move.col+1})。评分 ${move.score}`;
                         }
                     }
-
+                    updateUI();
+                    drawBoard();
+                    if (gameOver) {
+                        if (winner === playerColor) thinkBox.textContent = `你赢了！`;
+                        else if (winner === aiColor) thinkBox.textContent = `AI 赢了。`;
+                        else if (winner === null && isBoardFull()) thinkBox.textContent = '平局。';
+                    }
+                };
+                worker.onerror = function(err) {
+                    console.error('Worker error:', err);
+                    pendingAI = false;
                     isThinking = false;
                     thinkingIndicator.classList.remove('show');
                     updateUI();
-                    drawBoard();
+                };
+            }
 
-                    if (gameOver) {
-                        if (winner === playerColor) thinkBox.textContent = `你赢了！ ${lastAIInfo}`;
-                        else if (winner === aiColor) thinkBox.textContent = `AI 赢了。 ${lastAIInfo}`;
-                        else if (winner === null && isBoardFull()) thinkBox.textContent = '平局。';
-                    }
-                }, 12);
-            });
+            worker.postMessage(data);
         }
 
         // ---------- 放大模式 ----------
         function applyZoom(row, col) {
-            if (isThinking || gameOver) return;
+            if (isThinking || pendingAI || gameOver) return;
             if (board[row][col] !== EMPTY) return;
             if (currentPlayer !== playerColor) return;
 
@@ -1478,7 +1590,7 @@
 
         function confirmZoomPlace() {
             if (!isZooming || !zoomTarget) return;
-            if (isThinking || gameOver) return;
+            if (isThinking || pendingAI || gameOver) return;
             if (currentPlayer !== playerColor) return;
             const {row, col} = zoomTarget;
             if (board[row][col] !== EMPTY) { cancelZoom(); return; }
@@ -1510,7 +1622,7 @@
 
         // ---------- 交互处理 ----------
         function handleInteraction(e) {
-            if (isThinking || gameOver) return;
+            if (isThinking || pendingAI || gameOver) return;
             if (currentPlayer !== playerColor) return;
 
             const {x, y} = getCanvasCoords(e);
@@ -1546,9 +1658,9 @@
             }
         }
 
-        // ---------- 推荐 ----------
+        // ---------- 推荐 (修复：添加 evaluateDirection) ----------
         function showHint() {
-            if (isThinking || gameOver) return;
+            if (isThinking || pendingAI || gameOver) return;
             if (currentPlayer !== playerColor) {
                 thinkBox.textContent = '请等待你的回合。';
                 return;
@@ -1559,14 +1671,41 @@
                 return;
             }
 
-            const tempBoard = board.map(row=>[...row]);
-            const hintDepth = Math.min(Math.max(depthMin, 2), 4);
-            const move = getAIMove(tempBoard, playerColor);
-            if (move) {
-                hintMove = {row: move.row, col: move.col};
-                addEffect(move.row, move.col, 'hint');
+            let bestScore = -Infinity;
+            let bestPos = candidates[0];
+            for (const pos of candidates) {
+                const r = pos[0], c = pos[1];
+                let score = 0;
+                board[r][c] = playerColor;
+                if (checkWin(r, c, playerColor)) {
+                    board[r][c] = EMPTY;
+                    bestPos = [r, c];
+                    bestScore = Infinity;
+                    break;
+                }
+                // 进攻分
+                for (const d of DIRS) {
+                    score += evaluateDirection(board, r, c, playerColor, d[0], d[1]);
+                }
+                // 防守分
+                let defScore = 0;
+                for (const d of DIRS) {
+                    defScore += evaluateDirection(board, r, c, aiColor, d[0], d[1]);
+                }
+                score += defScore * 0.9;
+                board[r][c] = EMPTY;
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestPos = [r, c];
+                }
+            }
+
+            if (bestPos) {
+                const [r, c] = bestPos;
+                hintMove = {row: r, col: c};
+                addEffect(r, c, 'hint');
                 drawBoard();
-                thinkBox.textContent = `推荐走法 (${move.row+1}, ${move.col+1})，评分 ${move.score}。${lastAIInfo}`;
+                thinkBox.textContent = `推荐走法 (${r+1}, ${c+1})。`;
                 setTimeout(() => {
                     hintMove = null;
                     drawBoard();
@@ -1581,7 +1720,7 @@
 
         // ---------- 重置 ----------
         function restartGame() {
-            if (isThinking) return;
+            if (isThinking || pendingAI) return;
             modalOverlay.classList.remove('show');
             initBoard();
             resizeCanvas();
@@ -1594,7 +1733,7 @@
 
         // ---------- 切换执子 ----------
         function setPlayerColor(color) {
-            if (isThinking) return;
+            if (isThinking || pendingAI) return;
             if (color === playerColor) return;
             playerColor = color;
             aiColor = (color === BLACK) ? WHITE : BLACK;
@@ -1603,7 +1742,7 @@
             restartGame();
         }
 
-        // ---------- 切换难度 ----------
+        // ---------- 切换难度 (不重置游戏) ----------
         function setDifficulty(diffLabel) {
             const map = {
                 'easy': {min:2, max:4},
@@ -1617,12 +1756,12 @@
             diffBtns.forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.diff === diffLabel);
             });
-            thinkBox.textContent = `难度: ${diffLabel} (搜索深度 ${depthMin}-${depthMax})`;
-            restartGame();
+            thinkBox.textContent = `难度已切换为: ${diffLabel} (搜索深度 ${depthMin}-${depthMax})，继续当前对局。`;
         }
 
         // ---------- 切换棋盘尺寸 ----------
         function setSize(size) {
+            if (isThinking || pendingAI) return;
             if (size === SIZE) return;
             SIZE = size;
             sizeBtns.forEach(btn => {
