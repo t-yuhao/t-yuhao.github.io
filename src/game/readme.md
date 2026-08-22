@@ -45,20 +45,32 @@
 
 >[中国象棋](./games/chess.html)
 
+>[五子棋简易版](./games/go.html)
+
+启发式评分：单步贪心 + 攻防加权评估
+
 >[五子棋-镜](./games/gomoku-glass.html)
+
+启发式评分 + 棋型检测
 
 >[五子棋online](./games/gomokuonline.html)
 
->[五子棋简易版](./games/go.html)
+增加联机功能
 
 >[五子棋简易版-启发式算法](./games/gomoku-simple.html)
 
+基础启发式评分：单步贪心 + 攻防加权评估 + 奖励
+
 >[五子棋miniMax](./games/Gomoku.html)
+
+精细化评分
 
 >[五子棋Alpha-Beta-v0](./games/αβAI.html)
 
 >[五子棋Alpha-Beta-v1](./games/gomoku-αβ.html)
 
 >[五子棋Alpha-Beta-v2](./games/gomoku-αβvst.html)
+
+Alpha-Beta 剪枝 (Worker)
 
 >[井字棋](./games/Tic-tac-toe.html)

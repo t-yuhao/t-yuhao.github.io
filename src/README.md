@@ -37,10 +37,6 @@
 
 >[五子棋Alpha-Beta-v2](./game/games/gomoku-αβvst.html)
 
-
-
-
-
 >[井字棋](./game/games/Tic-tac-toe.html)
 
 
